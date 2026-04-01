@@ -1,0 +1,2680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>StudyBuddy - 你的智能学习搭子</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            /* 主色调 */
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary-color: #ec4899;
+            /* 辅助色 */
+            --success-color: #10b981;
+            --success-light: #34d399;
+            --warning-color: #f59e0b;
+            --warning-light: #fbbf24;
+            --danger-color: #ef4444;
+            --danger-light: #f87171;
+            /* 柔和辅助色 */
+            --mint-green: #14b8a6;
+            --warm-orange: #fb923c;
+            --soft-gray: #94a3b8;
+            /* 背景 */
+            --bg-gradient-start: #f8fafc;
+            --bg-gradient-end: #e2e8f0;
+            --card-bg: rgba(255, 255, 255, 0.98);
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            /* 文字 */
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            /* 面板 */
+            --panel-bg: #ffffff;
+            --panel-border: rgba(99, 102, 241, 0.15);
+            /* 聊天 */
+            --chat-bg: #f1f5f9;
+            --chat-user-bg: #dbeafe;
+            --chat-ai-bg: #f1f5f9;
+            /* 日历 */
+            --calendar-empty: #f1f5f9;
+            --calendar-hover: rgba(99, 102, 241, 0.1);
+            /* 统一圆角 */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            /* 字体 */
+            --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'SF Mono', 'Consolas', monospace;
+        }
+        
+        [data-theme="dark"] {
+            /* 背景 - 深灰蓝 */
+            --bg-gradient-start: #1e293b;
+            --bg-gradient-end: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.95);
+            --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            /* 文字 - 提升对比度 */
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            /* 面板 */
+            --panel-bg: rgba(51, 65, 85, 0.9);
+            --panel-border: rgba(99, 102, 241, 0.25);
+            /* 聊天 */
+            --chat-bg: #334155;
+            --chat-user-bg: rgba(99, 102, 241, 0.3);
+            --chat-ai-bg: rgba(51, 65, 85, 0.8);
+            /* 日历 */
+            --calendar-empty: #334155;
+            --calendar-hover: rgba(99, 102, 241, 0.2);
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 50%, #1e1b4b 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+            transition: background 0.5s ease;
+        }
+        
+        /* 全局过渡动画 */
+        .panel, .btn, .input, .chat-message, .task-item, .calendar-day, .buddy-display, .timer-display, .pomodoro-display {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* 卡片加载动画 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .panel, .buddy-display, .timer-display, .pomodoro-display {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+        
+        .panel:nth-child(1), .buddy-display { animation-delay: 0.1s; }
+        .panel:nth-child(2), .timer-display { animation-delay: 0.2s; }
+        .panel:nth-child(3), .pomodoro-display { animation-delay: 0.3s; }
+        .panel:nth-child(4) { animation-delay: 0.4s; }
+        .panel:nth-child(5) { animation-delay: 0.5s; }
+        
+        /* 按钮 hover 效果 */
+        .btn:hover, .quick-time-btn:hover, .quick-action-btn:hover, .calendar-nav button:hover, .chat-input button:hover, .add-task-form button:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4) !important;
+        }
+        
+        /* 按钮点击效果 */
+        .btn:active, .quick-time-btn:active, .quick-action-btn:active, .calendar-nav button:active, .chat-input button:active, .add-task-form button:active {
+            transform: translateY(1px) scale(0.97);
+        }
+        
+        /* 任务完成动画 */
+        @keyframes taskComplete {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .task-item.completed {
+            animation: taskComplete 0.4s ease;
+        }
+        
+        @keyframes plusOneFloat {
+            0% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1);
+            }
+            100% { 
+                opacity: 0; 
+                transform: translateY(-40px) scale(1.4);
+            }
+        }
+        
+        .plus-one {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--success-color);
+            font-size: 22px;
+            font-weight: 700;
+            animation: plusOneFloat 0.8s ease forwards;
+            pointer-events: none;
+            text-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        }
+        
+        .task-item {
+            position: relative;
+        }
+        
+        .task-item.completed {
+            opacity: 0.6;
+        }
+        
+        .task-item.completed .task-name {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+        
+        /* 顶部表情呼吸动画 */
+        @keyframes buddyBreathe {
+            0%, 100% { 
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            50% { 
+                transform: scale(1.08);
+                filter: brightness(1.1);
+            }
+        }
+        
+        .buddy-emoji {
+            font-size: 100px;
+            display: block;
+            animation: buddyBreathe 2s ease-in-out infinite;
+        }
+        
+        /* 输入框动画 */
+        input:focus {
+            transform: translateY(-1px);
+        }
+        
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.5; }
+            90% { opacity: 0.5; }
+            100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+        }
+        
+        .container {
+            background: var(--card-bg);
+            border-radius: 30px;
+            box-shadow: var(--card-shadow);
+            padding: 30px;
+            max-width: 1400px;
+            width: 100%;
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+            backdrop-filter: blur(10px);
+            /* 开屏期间主界面隐藏，避免闪烁，开屏结束后恢复可见 */
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .theme-toggle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.1) rotate(15deg);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+        
+        .header h1 {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: #6b7280;
+            font-size: 16px;
+        }
+        
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        
+        @media (max-width: 1100px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 32px; }
+        }
+        
+        .panel {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .panel:hover {
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+            border-radius: 2px;
+        }
+        
+        .buddy-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 40px 30px;
+            text-align: center;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .buddy-emoji {
+            font-size: 100px;
+            display: block;
+            animation: buddyBounce 2s infinite;
+        }
+        
+        @keyframes buddyBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-15px) scale(1.05); }
+        }
+        
+        .buddy-status {
+            margin-top: 15px;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .timer-display {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 脉冲动效 */
+        .timer-display.running::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 1s ease-in-out infinite;
+            border-radius: 20px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+        }
+        
+        .timer-display .time {
+            font-size: 56px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            font-family: var(--font-mono);
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .timer-display .label {
+            font-size: 14px;
+            opacity: 0.95;
+            margin-top: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* 快捷时间选择 */
+        .quick-time-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .quick-time-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 10px;
+            background: transparent;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quick-time-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+        
+        .quick-time-btn.active {
+            background: rgba(255,255,255,0.3);
+            border-color: white;
+        }
+        
+        .pomodoro-display {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #f06595 100%);
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .pomodoro-display.rest-mode {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+        }
+        
+        .pomodoro-title {
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .pomodoro-status {
+            font-size: 12px;
+            opacity: 0.9;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 10px;
+        }
+        
+        .pomodoro-info {
+            display: flex;
+            justify-content: space-between;
+            color: rgba(255,255,255,0.9);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+        
+        .pomodoro-timer {
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .pomodoro-timer .time {
+            font-size: 36px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: white;
+        }
+        
+        .pomodoro-timer .label {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .progress-bar {
+            background: rgba(255,255,255,0.25);
+            border-radius: 12px;
+            height: 24px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #fff 0%, #f0f0f0 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 12px;
+        }
+        
+        .rest-reminder {
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 12px;
+            text-align: center;
+            color: white;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .rest-reminder.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b, #475569);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(100, 116, 139, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 16px;
+            padding: 18px;
+            text-align: center;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 5px;
+        }
+        
+        .calendar-container {
+            margin-top: 10px;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .calendar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .calendar-nav {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .calendar-nav button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .calendar-nav button:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        
+        .calendar-day-header {
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            padding: 8px 0;
+            font-weight: 500;
+        }
+        
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .calendar-day:hover {
+            background: rgba(99, 102, 241, 0.1);
+            transform: scale(1.05);
+        }
+        
+        /* 日历 tooltip */
+        .calendar-day .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+            margin-bottom: 5px;
+        }
+        
+        .calendar-day .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(30, 41, 59, 0.95);
+        }
+        
+        .calendar-day:hover .tooltip {
+            opacity: 1;
+        }
+        
+        .calendar-day.empty {
+            cursor: default;
+        }
+        
+        .calendar-day.today {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-weight: 600;
+        }
+        
+        .calendar-day.has-study {
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
+        /* 根据学习强度显示不同深浅 */
+        .calendar-day.has-study.low {
+            background: rgba(16, 185, 129, 0.15);
+        }
+        
+        .calendar-day.has-study.medium {
+            background: rgba(16, 185, 129, 0.3);
+        }
+        
+        .calendar-day.has-study.high {
+            background: rgba(16, 185, 129, 0.45);
+        }
+        
+        .calendar-day.has-study.today {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        }
+        
+        .calendar-day .duration {
+            font-size: 9px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .calendar-day.today .duration {
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .calendar-day.has-study .duration {
+            color: #059669;
+        }
+        
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        .legend-color.empty {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .legend-color.low {
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
+        .legend-color.medium {
+            background: rgba(16, 185, 129, 0.4);
+        }
+        
+        .legend-color.high {
+            background: rgba(16, 185, 129, 0.6);
+        }
+        
+        .legend-color.today {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        }
+        
+        .calendar-stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 12px;
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 12px;
+            margin-top: 15px;
+        }
+        
+        .calendar-stat-item {
+            text-align: center;
+        }
+        
+        .calendar-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+        
+        .calendar-stat-label {
+            font-size: 10px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .ai-chat-container {
+            margin-top: 15px;
+        }
+        
+        .ai-chat-container .panel {
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+        }
+        
+        .chat-messages {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .chat-message {
+            margin-bottom: 16px;
+            padding: 14px 18px;
+            border-radius: var(--radius-lg);
+            font-size: 14px;
+            line-height: 1.65;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            position: relative;
+        }
+        
+        .chat-message.user {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0.08) 100%);
+            margin-left: 20%;
+            margin-right: 5%;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+        
+        .chat-message.ai {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.08) 100%);
+            margin-right: 20%;
+            margin-left: 5%;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .chat-message .message-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: right;
+        }
+        
+        .chat-message.user .message-time {
+            color: var(--primary-color);
+        }
+        
+        .chat-message.ai .message-time {
+            color: var(--success-color);
+        }
+        
+        /* 加载动画 */
+        .chat-message.loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chat-message.loading .loading-dots {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .chat-message.loading .loading-dots span {
+            width: 8px;
+            height: 8px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            animation: loadingBounce 1.4s infinite ease-in-out;
+        }
+        
+        .chat-message.loading .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+        
+        .chat-message.loading .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+        
+        @keyframes loadingBounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .chat-input input:focus {
+            border-color: var(--primary-color);
+        }
+        
+        .chat-input button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 15px;
+        }
+        
+        .chat-input button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        
+        /* 学习时长图表 */
+        .study-chart-container {
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(99, 102, 241, 0.1);
+        }
+        
+        .chart-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .chart-tab {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chart-tab.active {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 180px;
+        }
+        
+        .chart-bar {
+            position: absolute;
+            bottom: 0;
+            width: 12%;
+            background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.5s ease;
+            cursor: pointer;
+        }
+        
+        .chart-bar:hover {
+            background: linear-gradient(180deg, var(--secondary-color) 0%, var(--secondary-color) 100%);
+        }
+        
+        .chart-bar .chart-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.95);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            margin-bottom: 4px;
+        }
+        
+        .chart-bar:hover .chart-tooltip {
+            opacity: 1;
+        }
+        
+        .chart-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        
+        .chart-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+        
+        .task-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.2s;
+        }
+        
+        .task-item:hover {
+            background: #f1f5f9;
+        }
+        
+        .task-item.completed {
+            opacity: 0.6;
+        }
+        
+        .task-item.completed .task-name {
+            text-decoration: line-through;
+        }
+        
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            margin-right: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .task-checkbox.checked {
+            background: var(--success-color);
+            border-color: var(--success-color);
+        }
+        
+        .task-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+        }
+        
+        .task-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .task-name {
+            font-size: 14px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        
+        .task-time {
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        .task-priority {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        
+        .task-priority.high {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+        
+        .task-priority.medium {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+        
+        .task-priority.low {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+        
+        /* 任务截止时间样式 */
+        .task-deadline {
+            font-size: 11px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .task-deadline.normal {
+            color: #64748b;
+        }
+        
+        .task-deadline.warning {
+            color: var(--warning-color);
+            font-weight: 600;
+        }
+        
+        .task-deadline.danger {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+        
+        .task-deadline.completed {
+            color: #94a3b8;
+            text-decoration: line-through;
+        }
+        
+        .btn-delete {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        
+        .btn-delete:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+        
+        .add-task-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .add-task-form input {
+            flex: 1;
+            min-width: 150px;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 13px;
+            outline: none;
+        }
+        
+        .add-task-form input:focus {
+            border-color: var(--primary-color);
+        }
+        
+        .add-task-form button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary-color);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .deadline-inputs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .deadline-inputs input {
+            flex: 1;
+            min-width: 120px;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 12px;
+            outline: none;
+        }
+        
+        .deadline-inputs input:focus {
+            border-color: var(--primary-color);
+        }
+        
+        .deadline-inputs label {
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        /* 弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+        
+        .modal {
+            background: var(--panel-bg);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .modal-body {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .modal-body .task-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+        
+        .modal-body .time-remaining {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--warning-color);
+            margin: 15px 0;
+        }
+        
+        .modal-body .time-remaining.urgent {
+            color: var(--danger-color);
+        }
+        
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal-footer button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .modal-btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+        
+        .modal-btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .modal-btn-secondary {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+        }
+        
+        .modal-btn-secondary:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+        
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .quick-action-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--primary-color);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .quick-action-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, var(--success-color), #059669);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, var(--danger-color), #dc2626);
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* ========== 开屏动画样式 ========== */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .splash-screen.fade-out {
+            opacity: 0;
+            transform: scale(1.1);
+            pointer-events: none;
+        }
+
+        .splash-decorations {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .splash-particle {
+            position: absolute;
+            font-size: 30px;
+            opacity: 0.3;
+            animation: floatUp 8s infinite ease-in-out;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.3; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        .splash-buddy {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin-bottom: 30px;
+            animation: buddyAppear 1.5s ease-out forwards;
+        }
+
+        @keyframes buddyAppear {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1) rotate(10deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        .buddy-face {
+            width: 200px;
+            height: 200px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .buddy-face::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(236,72,153,0.1) 100%);
+            border-radius: 50%;
+        }
+
+        .buddy-emoji-splash {
+            font-size: 100px;
+            z-index: 1;
+            animation: emojiChange 3s ease-in-out infinite;
+        }
+
+        @keyframes emojiChange {
+            0%, 20% { transform: scale(1); content: "😴"; }
+            25%, 45% { transform: scale(1.1); content: "🤔"; }
+            50%, 70% { transform: scale(1); content: "😊"; }
+            75%, 95% { transform: scale(1.1); content: "📚"; }
+            100% { transform: scale(1); content: "😴"; }
+        }
+
+        .buddy-glow {
+            position: absolute;
+            width: 250px;
+            height: 250px;
+            border: 3px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.5;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0.2;
+            }
+        }
+
+        .splash-title {
+            color: white;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            opacity: 0;
+            animation: titleSlideIn 1s ease-out 0.5s forwards;
+        }
+
+        @keyframes titleSlideIn {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .splash-subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 18px;
+            margin-bottom: 40px;
+            opacity: 0;
+            animation: subtitleFade 1s ease-out 0.8s forwards;
+        }
+
+        @keyframes subtitleFade {
+            to { opacity: 1; }
+        }
+
+        .typing-text {
+            color: white;
+            font-size: 16px;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            margin-bottom: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 20px;
+            background: white;
+            margin-left: 3px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .splash-loader {
+            width: 300px;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            opacity: 0;
+            animation: loaderAppear 0.5s ease-out 1.5s forwards;
+        }
+
+        @keyframes loaderAppear {
+            to { opacity: 1; }
+        }
+
+        .splash-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #fff 0%, #f0f0f0 100%);
+            border-radius: 3px;
+            animation: progressLoad 3s ease-out 1.8s forwards;
+            width: 0%;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        @keyframes progressLoad {
+            0% { width: 0%; }
+            20% { width: 25%; }
+            40% { width: 45%; }
+            60% { width: 65%; }
+            80% { width: 85%; }
+            100% { width: 100%; }
+        }
+
+        .study-icons {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .study-icon {
+            position: absolute;
+            font-size: 40px;
+            opacity: 0;
+            animation: iconFloat 4s ease-in-out infinite;
+        }
+
+        .study-icon:nth-child(1) {
+            top: 15%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .study-icon:nth-child(2) {
+            top: 20%;
+            right: 15%;
+            animation-delay: 0.5s;
+        }
+
+        .study-icon:nth-child(3) {
+            bottom: 25%;
+            left: 15%;
+            animation-delay: 1s;
+        }
+
+        .study-icon:nth-child(4) {
+            bottom: 20%;
+            right: 10%;
+            animation-delay: 1.5s;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg) scale(1);
+                opacity: 0;
+            }
+            25% {
+                opacity: 0.6;
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg) scale(1.1);
+                opacity: 0.8;
+            }
+            75% {
+                opacity: 0.6;
+            }
+        }
+
+        .skip-button {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.5);
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            opacity: 0;
+            animation: skipButtonShow 0.5s ease-out 2s forwards;
+            transition: all 0.3s ease;
+        }
+
+        .skip-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        @keyframes skipButtonShow {
+            to { opacity: 1; }
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <!-- 开屏动画 -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-decorations">
+            <span class="splash-particle" style="left: 10%; animation-delay: 0s;">📖</span>
+            <span class="splash-particle" style="left: 30%; animation-delay: 1s;">✏️</span>
+            <span class="splash-particle" style="left: 50%; animation-delay: 2s;">💡</span>
+            <span class="splash-particle" style="left: 70%; animation-delay: 3s;">🎯</span>
+            <span class="splash-particle" style="left: 90%; animation-delay: 4s;">⭐</span>
+        </div>
+        
+        <div class="study-icons">
+            <span class="study-icon">📚</span>
+            <span class="study-icon">🎓</span>
+            <span class="study-icon">💪</span>
+            <span class="study-icon">🌟</span>
+        </div>
+
+        <div class="splash-buddy">
+            <div class="buddy-glow"></div>
+            <div class="buddy-face">
+                <span class="buddy-emoji-splash" id="splashEmoji">😴</span>
+            </div>
+        </div>
+
+        <h1 class="splash-title">StudyBuddy</h1>
+        <p class="splash-subtitle">你的智能学习搭子</p>
+        
+        <div class="typing-text" id="typingText">
+            <span id="typingContent"></span>
+            <span class="cursor"></span>
+        </div>
+
+        <div class="splash-loader">
+            <div class="splash-progress"></div>
+        </div>
+
+        <button class="skip-button" onclick="skipSplash()">跳过 →</button>
+    </div>
+    
+    <div class="container">
+        <div class="header">
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
+            <h1>📚 StudyBuddy</h1>
+            <p>你的智能学习搭子，陪你一起变优秀！</p>
+            <span class="header-badge" id="streakBadge">🔥 连续学习 0 天</span>
+        </div>
+        
+        <div class="main-grid">
+            <!-- 左侧面板 -->
+            <div class="left-panel">
+                <!-- 学习搭子显示 -->
+                <div class="buddy-display">
+                    <span class="buddy-emoji" id="buddyEmoji">😴</span>
+                    <div class="buddy-status" id="buddyStatus">休息一下~ 准备好就开始学习吧！</div>
+                </div>
+                
+                <!-- 学习计时器 -->
+                <div class="panel">
+                    <div class="panel-title">⏱️ 学习计时器</div>
+                    <div class="timer-display" id="timerDisplay">
+                        <div class="time" id="timerTime">25:00</div>
+                        <div class="label" id="timerLabel">点击开始学习</div>
+                    </div>
+                    <div class="quick-time-buttons">
+                        <button class="quick-time-btn" onclick="setTimerDuration(15, this)">15 分钟</button>
+                        <button class="quick-time-btn active" onclick="setTimerDuration(25, this)">25 分钟</button>
+                        <button class="quick-time-btn" onclick="setTimerDuration(45, this)">45 分钟</button>
+                        <button class="quick-time-btn" onclick="setTimerDuration(60, this)">60 分钟</button>
+                    </div>
+                    <div class="btn-group" style="margin-top: 15px;">
+                        <button class="btn btn-primary" id="startBtn" onclick="startTimer()">
+                            <span id="startBtnText">▶️ 开始学习</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="resetTimer()">
+                            🔄 重置
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 番茄钟 -->
+                <div class="panel" style="margin-top: 25px;">
+                    <div class="panel-title">🍅 番茄钟</div>
+                    <div class="pomodoro-display" id="pomodoroDisplay">
+                        <div class="pomodoro-title">
+                            <span>📊 学习统计</span>
+                            <span class="pomodoro-status" id="pomodoroStatus">准备学习</span>
+                        </div>
+                        <div class="pomodoro-timer" id="pomodoroTimer" style="display: none;">
+                            <div class="time" id="pomodoroTime">25:00</div>
+                            <div class="label" id="pomodoroLabel">专注学习中</div>
+                        </div>
+                        <div class="pomodoro-info">
+                            <span>今日学习：<strong id="todayDuration">0</strong> 分钟</span>
+                            <span>目标：<strong id="dailyGoal">120</strong> 分钟</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="goalProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="pomodoro-info" style="margin-top: 10px;">
+                            <span>学习次数：<strong id="todaySessions">0</strong></span>
+                            <span>连续天数：<strong id="currentStreak">0</strong></span>
+                        </div>
+                        <div class="rest-reminder" id="restReminder">
+                            💡 休息一下吧！喝杯水，活动活动~
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="setPomodoro(25)">
+                            🍅 25 分钟
+                        </button>
+                        <button class="btn btn-success" onclick="setPomodoro(45)">
+                            🍅 45 分钟
+                        </button>
+                        <button class="btn btn-success" onclick="setPomodoro(60)">
+                            🍅 60 分钟
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧面板 -->
+            <div class="right-panel">
+                <!-- 学习日历 -->
+                <div class="panel">
+                    <div class="panel-title">📅 学习日历</div>
+                    <div class="calendar-container">
+                        <div class="calendar-header">
+                            <div class="calendar-title" id="calendarTitle">2026 年 3 月</div>
+                            <div class="calendar-nav">
+                                <button onclick="prevMonth()">‹</button>
+                                <button onclick="nextMonth()">›</button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid" id="calendarGrid"></div>
+                        <div class="calendar-legend">
+                            <div class="legend-item">
+                                <div class="legend-color empty"></div>
+                                <span>未学习</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color low"></div>
+                                <span>少量</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color medium"></div>
+                                <span>中等</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color high"></div>
+                                <span>充分</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color today"></div>
+                                <span>今天</span>
+                            </div>
+                        </div>
+                        <div class="calendar-stats" id="calendarStats">
+                            <div class="calendar-stat-item">
+                                <div class="calendar-stat-value" id="monthTotal">0</div>
+                                <div class="calendar-stat-label">本月总时长 (分钟)</div>
+                            </div>
+                            <div class="calendar-stat-item">
+                                <div class="calendar-stat-value" id="studyDays">0</div>
+                                <div class="calendar-stat-label">学习天数</div>
+                            </div>
+                            <div class="calendar-stat-item">
+                                <div class="calendar-stat-value" id="avgDaily">0</div>
+                                <div class="calendar-stat-label">日均时长 (分钟)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 任务管理 -->
+                <div class="panel" style="margin-top: 25px;">
+                    <div class="panel-title">✅ 任务详情</div>
+                    <div class="add-task-form">
+                        <input type="text" id="taskInput" placeholder="添加新任务..." onkeypress="handleTaskInput(event)">
+                    </div>
+                    <div class="deadline-inputs">
+                        <label>
+                            📅 截止日期：
+                            <input type="date" id="deadlineDate" onkeypress="handleDeadlineInput(event)">
+                        </label>
+                        <label>
+                            ⏰ 截止时间：
+                            <input type="time" id="deadlineTime" onkeypress="handleDeadlineInput(event)">
+                        </label>
+                    </div>
+                    <div class="task-list" id="taskList">
+                    </div>
+                </div>
+                
+                <!-- 到期提醒弹窗 -->
+                <div class="modal-overlay" id="deadlineModal">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <div class="modal-title">⏰ 任务即将截止</div>
+                            <button class="modal-close" onclick="closeModal()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="task-name" id="modalTaskName"></div>
+                            <div>剩余时间：</div>
+                            <div class="time-remaining" id="modalTimeRemaining"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="modal-btn-secondary" onclick="closeModal()">知道了</button>
+                            <button class="modal-btn-primary" onclick="markTaskCompleteFromModal()">标记完成</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI 问答 -->
+                <div class="panel" style="margin-top: 25px;">
+                    <div class="panel-title">🤖 AI 学习助手</div>
+                    <div class="ai-chat-container">
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-message ai">
+                                嗨！我是你的学习搭子 StudyBuddy～有什么学习问题可以问我哦！💪
+                            </div>
+                        </div>
+                        <div class="chat-input">
+                            <input type="text" id="aiInput" placeholder="输入你的问题..." onkeypress="handleAiInput(event)">
+                            <button onclick="sendAiQuestion()" id="sendBtn">
+                                <span id="sendBtnText">发送</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 学习时长图表 -->
+                <div class="panel" style="margin-top: 25px;">
+                    <div class="panel-title">📊 学习时长统计</div>
+                    <div class="study-chart-container">
+                        <div class="chart-tabs">
+                            <button class="chart-tab active" onclick="switchChart('week')">本周</button>
+                            <button class="chart-tab" onclick="switchChart('month')">本月</button>
+                        </div>
+                        <div class="chart-wrapper" id="chartWrapper">
+                            <!-- 图表柱将通过 JS 动态生成 -->
+                        </div>
+                        <div class="chart-labels" id="chartLabels">
+                            <!-- 标签将通过 JS 动态生成 -->
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ==================== 开屏动画脚本 ====================
+        const typingMessages = [
+            "正在唤醒你的学习搭子...",
+            "准备学习工具中...",
+            "加载AI助手...",
+            "马上就好啦！"
+        ];
+        
+        let currentMessageIndex = 0;
+        let currentCharIndex = 0;
+        const typingContent = document.getElementById('typingContent');
+        const splashEmoji = document.getElementById('splashEmoji');
+        
+        const emojiSequence = ['😴', '🤔', '😊', '📚', '🎉'];
+        let emojiIndex = 0;
+        
+        function typeMessage() {
+            if (currentMessageIndex < typingMessages.length) {
+                const message = typingMessages[currentMessageIndex];
+                
+                if (currentCharIndex < message.length) {
+                    typingContent.textContent += message[currentCharIndex];
+                    currentCharIndex++;
+                    setTimeout(typeMessage, 50);
+                } else {
+                    setTimeout(() => {
+                        typingContent.textContent = '';
+                        currentCharIndex = 0;
+                        currentMessageIndex++;
+                        typeMessage();
+                    }, 1000);
+                }
+            }
+        }
+        
+        function changeEmoji() {
+            splashEmoji.textContent = emojiSequence[emojiIndex];
+            emojiIndex = (emojiIndex + 1) % emojiSequence.length;
+        }
+        
+        setTimeout(typeMessage, 1000);
+        const emojiInterval = setInterval(changeEmoji, 600);
+        
+        function skipSplash() {
+            hideSplash();
+        }
+        
+        function hideSplash() {
+            const splash = document.getElementById('splashScreen');
+            splash.classList.add('fade-out');
+            clearInterval(emojiInterval);
+            
+            setTimeout(() => {
+                splash.style.display = 'none';
+                // 开屏结束后显示主容器内容
+                const container = document.querySelector('.container');
+                if (container) {
+                    container.style.opacity = '1';
+                }
+            }, 1000);
+        }
+        
+        // 自动关闭开屏
+        setTimeout(() => {
+            hideSplash();
+        }, 5000);
+        
+        // ==================== 原有脚本 (未做任何修改，仅保留) ====================
+        // 全局变量
+        let timerInterval = null;
+        let remainingTime = 25 * 60; // 25 分钟
+        let isTimerRunning = false;
+        let isRestMode = false;
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let studyData = {};
+        let currentTheme = 'light';
+        let tasks = [];
+        let currentModalTaskId = null;
+        let deadlineCheckInterval = null;
+        let plans = [];
+        let currentPlanFilter = 'all';
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            loadStudyData();
+            loadTasks();
+            renderCalendar();
+            updateStats();
+            updateBuddyStatus();
+            loadTheme();
+            renderTasks();
+            startDeadlineCheck();
+            
+            // 设置默认日期为今天
+            const today = new Date();
+            const dateInput = document.getElementById('deadlineDate');
+            if (dateInput) dateInput.value = today.toISOString().split('T')[0];
+        });
+        
+        // 主题切换功能
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            setTheme(savedTheme);
+        }
+        
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(currentTheme);
+            localStorage.setItem('theme', currentTheme);
+        }
+        
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            const toggleBtn = document.getElementById('themeToggle');
+            if (toggleBtn) toggleBtn.textContent = theme === 'light' ? '🌙' : '☀️';
+        }
+        
+        // 创建背景粒子
+        function createParticles() {
+            const container = document.getElementById('particles');
+            if (!container) return;
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.width = particle.style.height = (Math.random() * 10 + 5) + 'px';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+        
+        // 加载学习数据
+        function loadStudyData() {
+            const saved = localStorage.getItem('studyData');
+            if (saved) {
+                studyData = JSON.parse(saved);
+            } else {
+                studyData = {
+                    todayDuration: 0,
+                    todaySessions: 0,
+                    streak: 0,
+                    calendar: {}
+                };
+            }
+        }
+        
+        // 保存学习数据
+        function saveStudyData() {
+            localStorage.setItem('studyData', JSON.stringify(studyData));
+        }
+        
+        // 更新统计
+        function updateStats() {
+            document.getElementById('todayDuration').textContent = studyData.todayDuration || 0;
+            document.getElementById('todaySessions').textContent = studyData.todaySessions || 0;
+            document.getElementById('currentStreak').textContent = studyData.streak || 0;
+            document.getElementById('streakBadge').textContent = '🔥 连续学习 ' + (studyData.streak || 0) + ' 天';
+            
+            const dailyGoal = 120;
+            const progress = Math.min((studyData.todayDuration || 0) / dailyGoal * 100, 100);
+            document.getElementById('goalProgress').style.width = progress + '%';
+        }
+        
+        // 更新搭子状态
+        function updateBuddyStatus() {
+            const emoji = document.getElementById('buddyEmoji');
+            const status = document.getElementById('buddyStatus');
+            
+            if (isTimerRunning) {
+                emoji.textContent = '📚';
+                status.textContent = '正在努力学习中... 加油！';
+            } else if (studyData.todayDuration > 0) {
+                emoji.textContent = '😊';
+                status.textContent = '今天已经学习了 ' + studyData.todayDuration + ' 分钟，真棒！';
+            } else {
+                emoji.textContent = '😴';
+                status.textContent = '休息一下~ 准备好就开始学习吧！';
+            }
+        }
+        
+        // 计时器功能
+        function startTimer() {
+            if (isTimerRunning) {
+                pauseTimer();
+                return;
+            }
+            
+            isTimerRunning = true;
+            isRestMode = false;
+            document.getElementById('startBtnText').textContent = '⏸️ 暂停';
+            document.getElementById('timerDisplay').classList.add('running');
+            updatePomodoroStatus('学习中', false);
+            updateBuddyStatus();
+            
+            timerInterval = setInterval(() => {
+                remainingTime--;
+                updateTimerDisplay();
+                
+                if (remainingTime <= 0) {
+                    completeTimer();
+                }
+            }, 1000);
+        }
+        
+        function pauseTimer() {
+            if (!isTimerRunning) return;
+            
+            isTimerRunning = false;
+            clearInterval(timerInterval);
+            document.getElementById('startBtnText').textContent = '▶️ 继续';
+            document.getElementById('timerDisplay').classList.remove('running');
+            updatePomodoroStatus('已暂停', false);
+            updateBuddyStatus();
+        }
+        
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            isRestMode = false;
+            remainingTime = 25 * 60;
+            document.getElementById('startBtnText').textContent = '▶️ 开始学习';
+            updateTimerDisplay();
+            updatePomodoroStatus('准备学习', false);
+            hideRestReminder();
+            updateBuddyStatus();
+        }
+        
+        function completeTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            isRestMode = false;
+            remainingTime = 25 * 60;
+            document.getElementById('startBtnText').textContent = '▶️ 开始学习';
+            updateTimerDisplay();
+            
+            // 更新学习数据
+            studyData.todayDuration = (studyData.todayDuration || 0) + 25;
+            studyData.todaySessions = (studyData.todaySessions || 0) + 1;
+            saveStudyData();
+            updateStats();
+            
+            showRestReminder();
+            updatePomodoroStatus('休息中', true);
+            
+            updateBuddyStatus();
+            
+            showToast('🎉 完成一次学习！太棒了！', 'success');
+            playNotificationSound();
+        }
+        
+        function updatePomodoroStatus(status, rest) {
+            const statusEl = document.getElementById('pomodoroStatus');
+            const display = document.getElementById('pomodoroDisplay');
+            if (statusEl) statusEl.textContent = status;
+            if (rest) {
+                display.classList.add('rest-mode');
+            } else {
+                display.classList.remove('rest-mode');
+            }
+        }
+        
+        function showRestReminder() {
+            const reminder = document.getElementById('restReminder');
+            reminder.classList.add('show');
+        }
+        
+        function hideRestReminder() {
+            const reminder = document.getElementById('restReminder');
+            reminder.classList.remove('show');
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            document.getElementById('timerTime').textContent = 
+                String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+            
+            const label = isTimerRunning ? '学习中...' : '准备开始';
+            document.getElementById('timerLabel').textContent = label;
+        }
+        
+        function setPomodoro(minutes) {
+            resetTimer();
+            remainingTime = minutes * 60;
+            updateTimerDisplay();
+            updatePomodoroStatus('准备学习', false);
+            showToast('已设置为 ' + minutes + ' 分钟', 'success');
+        }
+        
+        function setTimerDuration(minutes, btn) {
+            const buttons = document.querySelectorAll('.quick-time-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            resetTimer();
+            remainingTime = minutes * 60;
+            updateTimerDisplay();
+            showToast('已设置为 ' + minutes + ' 分钟', 'success');
+        }
+        
+        // 日历功能
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const title = document.getElementById('calendarTitle');
+            
+            const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月',
+                               '七月', '八月', '九月', '十月', '十一月', '十二月'];
+            title.textContent = currentYear + '年 ' + monthNames[currentMonth];
+            
+            const dayHeaders = ['一', '二', '三', '四', '五', '六', '日'];
+            grid.innerHTML = dayHeaders.map(day => 
+                '<div class="calendar-day-header">' + day + '</div>'
+            ).join('');
+            
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startDay = (firstDay.getDay() + 6) % 7;
+            
+            for (let i = 0; i < startDay; i++) {
+                grid.innerHTML += '<div class="calendar-day empty"></div>';
+            }
+            
+            const today = new Date();
+            let monthTotal = 0;
+            let studyDays = 0;
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = currentYear + '-' + String(currentMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                const duration = studyData.calendar?.[dateStr] || 0;
+                const isToday = today.getFullYear() === currentYear && 
+                               today.getMonth() === currentMonth && 
+                               today.getDate() === day;
+                
+                let className = 'calendar-day';
+                if (isToday) className += ' today';
+                
+                let durationText = '';
+                let tooltipText = '';
+                let intensityClass = '';
+                
+                if (duration > 0) {
+                    className += ' has-study';
+                    monthTotal += duration;
+                    studyDays++;
+                    
+                    if (duration >= 120) {
+                        intensityClass = ' high';
+                    } else if (duration >= 60) {
+                        intensityClass = ' medium';
+                    } else {
+                        intensityClass = ' low';
+                    }
+                    
+                    durationText = '<div class="duration">' + duration + 'm</div>';
+                    tooltipText = '<div class="tooltip">📖 学习 ' + duration + ' 分钟</div>';
+                }
+                
+                grid.innerHTML += '<div class="' + className + intensityClass + '">' + tooltipText + day + durationText + '</div>';
+            }
+            
+            updateCalendarStats(monthTotal, studyDays, daysInMonth);
+        }
+        
+        function updateCalendarStats(monthTotal, studyDays, daysInMonth) {
+            document.getElementById('monthTotal').textContent = monthTotal;
+            document.getElementById('studyDays').textContent = studyDays;
+            const avgDaily = studyDays > 0 ? Math.round(monthTotal / studyDays) : 0;
+            document.getElementById('avgDaily').textContent = avgDaily;
+        }
+        
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar();
+        }
+        
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar();
+        }
+        
+        // AI 问答功能 (模拟)
+        function handleAiInput(event) {
+            if (event.key === 'Enter') {
+                sendAiQuestion();
+            }
+        }
+        
+        function sendAiQuestion() {
+            const input = document.getElementById('aiInput');
+            const question = input.value.trim();
+            if (!question) return;
+            
+            addChatMessage(question, 'user');
+            input.value = '';
+            
+            const sendBtn = document.getElementById('sendBtn');
+            const sendBtnText = document.getElementById('sendBtnText');
+            sendBtnText.innerHTML = '<span class="loading"></span>';
+            sendBtn.disabled = true;
+            
+            setTimeout(() => {
+                let answer = "这个问题很有意思！让我想想... 学习最重要的是坚持和正确的方法，你可以试试番茄工作法~ 📖";
+                if (question.includes("番茄")) answer = "番茄工作法：25分钟专注 + 5分钟休息，每4个番茄钟后休息15-30分钟，超高效！";
+                if (question.includes("记忆")) answer = "艾宾浩斯遗忘曲线：学习后1小时、1天、1周复习效果最好，试试间隔重复吧！";
+                addChatMessage(answer, 'ai');
+                sendBtnText.textContent = '发送';
+                sendBtn.disabled = false;
+            }, 800);
+        }
+        
+        function addChatMessage(text, type) {
+            const container = document.getElementById('chatMessages');
+            const message = document.createElement('div');
+            message.className = 'chat-message ' + type;
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            message.innerHTML = text + '<div class="message-time">' + timeStr + '</div>';
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 任务管理
+        function handleTaskInput(event) {
+            if (event.key === 'Enter') addTask();
+        }
+        function handleDeadlineInput(event) {
+            if (event.key === 'Enter') addTask();
+        }
+        
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const dateInput = document.getElementById('deadlineDate');
+            const timeInput = document.getElementById('deadlineTime');
+            const taskName = input.value.trim();
+            const deadlineDate = dateInput.value;
+            const deadlineTime = timeInput.value;
+            
+            if (!taskName) { showToast('请输入任务名称', 'error'); input.focus(); return; }
+            if (!deadlineDate || !deadlineTime) { showToast('请选择截止日期和时间', 'error'); return; }
+            
+            const task = {
+                id: Date.now(),
+                name: taskName,
+                deadline: new Date(deadlineDate + 'T' + deadlineTime),
+                completed: false,
+                createdAt: new Date()
+            };
+            tasks.unshift(task);
+            saveTasks();
+            renderTasks();
+            input.value = '';
+            showToast('任务添加成功！', 'success');
+        }
+        
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            const sortedTasks = [...tasks].sort((a, b) => {
+                if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                return a.deadline - b.deadline;
+            });
+            sortedTasks.forEach(task => {
+                const taskItem = document.createElement('div');
+                taskItem.className = 'task-item' + (task.completed ? ' completed' : '');
+                taskItem.dataset.id = task.id;
+                const deadlineStr = formatDeadline(task.deadline);
+                const deadlineClass = getDeadlineClass(task.deadline, task.completed);
+                taskItem.innerHTML = 
+                    '<div class="task-checkbox' + (task.completed ? ' checked' : '') + '" onclick="toggleTask(' + task.id + ')"></div>' +
+                    '<div class="task-content">' +
+                    '<div class="task-name">' + escapeHtml(task.name) + '</div>' +
+                    '<div class="task-deadline ' + deadlineClass + '">📅 ' + deadlineStr + '</div>' +
+                    '</div>' +
+                    '<button class="btn-delete" onclick="deleteTask(' + task.id + ')">×</button>';
+                taskList.appendChild(taskItem);
+            });
+        }
+        
+        function toggleTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                saveTasks();
+                renderTasks();
+                if (task.completed) showToast('任务完成！+1 分', 'success');
+            }
+        }
+        
+        function deleteTask(taskId) {
+            tasks = tasks.filter(t => t.id !== taskId);
+            saveTasks();
+            renderTasks();
+            showToast('任务已删除', 'success');
+        }
+        
+        function formatDeadline(deadline) {
+            const now = new Date();
+            const diff = deadline - now;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            if (days > 0) return days + '天 ' + hours + '小时后';
+            if (hours > 0) return hours + '小时 ' + minutes + '分钟后';
+            if (minutes > 0) return minutes + '分钟后';
+            return '即将截止！';
+        }
+        
+        function getDeadlineClass(deadline, completed) {
+            if (completed) return 'completed';
+            const diff = deadline - new Date();
+            const hours = diff / (1000 * 60 * 60);
+            if (hours < 0) return 'danger';
+            if (hours < 2) return 'danger';
+            if (hours < 24) return 'warning';
+            return 'normal';
+        }
+        
+        function loadTasks() {
+            const saved = localStorage.getItem('tasks');
+            if (saved) {
+                const savedTasks = JSON.parse(saved);
+                tasks = savedTasks.map(t => ({
+                    ...t,
+                    deadline: new Date(t.deadline),
+                    createdAt: new Date(t.createdAt)
+                }));
+            }
+        }
+        
+        function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+        
+        function startDeadlineCheck() {
+            checkDeadlines();
+            deadlineCheckInterval = setInterval(checkDeadlines, 60000);
+        }
+        
+        function checkDeadlines() {
+            const now = new Date();
+            tasks.forEach(task => {
+                if (task.completed) return;
+                const diff = task.deadline - now;
+                const hours = diff / (1000 * 60 * 60);
+                if ((hours > 0 && hours < 2 && !task.notified) || (diff < 0 && !task.notified)) {
+                    showDeadlineModal(task);
+                    task.notified = true;
+                    saveTasks();
+                }
+            });
+        }
+        
+        function showDeadlineModal(task) {
+            currentModalTaskId = task.id;
+            document.getElementById('modalTaskName').textContent = task.name;
+            const diff = task.deadline - new Date();
+            let timeText = '';
+            if (diff < 0) {
+                timeText = '已过期！';
+                document.getElementById('modalTimeRemaining').classList.add('urgent');
+            } else {
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                timeText = hours + '小时 ' + minutes + '分钟';
+                document.getElementById('modalTimeRemaining').classList.remove('urgent');
+            }
+            document.getElementById('modalTimeRemaining').textContent = timeText;
+            document.getElementById('deadlineModal').classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('deadlineModal').classList.remove('show');
+            currentModalTaskId = null;
+        }
+        
+        function markTaskCompleteFromModal() {
+            if (currentModalTaskId) toggleTask(currentModalTaskId);
+            closeModal();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + type;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function playNotificationSound() {
+            try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbqWEyMmCfutvMYjU0YJ+628xiNTQ=');
+                audio.play().catch(() => {});
+            } catch (e) {}
+        }
+        
+        let currentChartType = 'week';
+        function switchChart(type) {
+            currentChartType = type;
+            const tabs = document.querySelectorAll('.chart-tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            renderChart();
+        }
+        
+        function renderChart() {
+            const wrapper = document.getElementById('chartWrapper');
+            const labels = document.getElementById('chartLabels');
+            wrapper.innerHTML = '';
+            labels.innerHTML = '';
+            let chartData = [];
+            let chartLabels = [];
+            if (currentChartType === 'week') {
+                const today = new Date();
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    const dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+                    const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                    chartLabels.push(dayNames[date.getDay()]);
+                    chartData.push(studyData.calendar?.[dateStr] || 0);
+                }
+            } else {
+                const today = new Date();
+                for (let i = 13; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    const dateStr = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+                    chartLabels.push(date.getDate() + '日');
+                    chartData.push(studyData.calendar?.[dateStr] || 0);
+                }
+            }
+            const maxValue = Math.max(...chartData, 60);
+            const barWidth = 100 / chartData.length;
+            chartData.forEach((value, index) => {
+                const height = (value / maxValue) * 100;
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.style.left = (index * barWidth + barWidth * 0.05) + '%';
+                bar.style.width = (barWidth * 0.8) + '%';
+                bar.style.height = height + '%';
+                const tooltip = document.createElement('div');
+                tooltip.className = 'chart-tooltip';
+                tooltip.textContent = value > 0 ? value + ' 分钟' : '未学习';
+                bar.appendChild(tooltip);
+                wrapper.appendChild(bar);
+                const label = document.createElement('div');
+                label.className = 'chart-label';
+                label.textContent = chartLabels[index];
+                labels.appendChild(label);
+            });
+        }
+        
+        // 初始化图表
+        renderChart();
+        
+    </script>
+</body>
+</html>
