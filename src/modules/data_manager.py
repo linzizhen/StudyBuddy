@@ -1,6 +1,9 @@
 """
-StudyBuddy 数据管理模块
+StudyPal 数据管理模块
 管理用户设置、座右铭、学习数据等持久化数据
+
+作者：StudyPal
+创建日期：2026-04-13
 """
 
 import json
@@ -10,7 +13,15 @@ from config import USER_DATA_FILE, DEFAULT_DAILY_GOAL
 
 
 class DataManager:
-    """数据管理类"""
+    """
+    数据管理类
+    
+    功能：
+    - 用户设置管理
+    - 座右铭管理
+    - 学习目标管理
+    - 数据持久化
+    """
     
     def __init__(self, data_file=None):
         """

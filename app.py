@@ -1,11 +1,23 @@
 """
-StudyBuddy Web 版本
+StudyPal Web 版本
 使用 Flask 构建 Web 服务器
+
+功能概述：
+- AI 学习助手问答
+- 番茄钟计时器
+- 任务管理
+- 学习计划生成
+- 学习日历统计
+- 成就系统
+- 用户设置管理
+
+作者：StudyPal
+创建日期：2026-04-13
 """
 
 from flask import Flask, render_template, jsonify, request
 from src.core.buddy import Buddy
-from src.ai.ai_helper import ask_ai
+from src.ai.ai_helper import ask_ai_with_context, get_ai_conversations, get_conversation_messages, delete_ai_conversation, new_ai_conversation
 from src.core.timer import StudyTimer, StudySupervisor
 from src.modules.data_manager import (
     load_user_settings, get_motto, set_motto,
@@ -18,8 +30,18 @@ import time
 
 app = Flask(__name__)
 
-# 全局变量存储会话状态
+# ==================== 全局会话管理 ====================
+
 class Session:
+    """
+    会话管理类
+    
+    每个会话包含：
+    - StudySupervisor: 番茄钟监督器
+    - Buddy: 学习伙伴
+    - StudyTimer: 计时器
+    - 用户设置缓存
+    """
     def __init__(self):
         self.supervisor = StudySupervisor()
         self.buddy = Buddy(self.supervisor)
@@ -32,16 +54,33 @@ class Session:
         # 使用持久化的每日目标
         self.supervisor.set_daily_goal(settings.get("daily_goal_minutes", 120))
 
+# 全局会话存储（键为 session_id）
 sessions = {}
+
+# ==================== 基础路由 ====================
 
 @app.route('/')
 def index():
-    """主页"""
+    """
+    主页路由
+    
+    返回主页面模板
+    """
     return render_template('index.html')
+
+# ==================== 状态 API ====================
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
-    """获取当前状态"""
+    """
+    获取当前会话状态
+    
+    返回：
+    - 情绪状态
+    - 计时器状态
+    - 番茄钟状态
+    - 学习统计
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -73,39 +112,70 @@ def get_status():
             }
         })
 
+# ==================== AI 问答 API ====================
+
 @app.route('/api/ask', methods=['POST'])
 def ask():
-    """提问 API"""
+    """
+    AI 问答 API
+    
+    请求体：
+    - question: 问题内容
+    - conversation_id: 对话 ID（可选，用于继续对话）
+    
+    返回：
+    - answer: AI 回答
+    - conversation_id: 对话 ID
+    - emotion: 当前情绪
+    - emoji: 当前表情
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
-    
+
     session = sessions[session_id]
     data = request.json
     question = data.get('question', '')
-    
+    conversation_id = data.get('conversation_id')  # 可选，指定对话 ID
+
     if not question:
         return jsonify({'error': '问题不能为空'}), 400
-    
+
     with session.lock:
         # 设置为思考状态
         session.buddy.update_by_action('ask')
-        
-        # 调用 AI
-        answer = ask_ai(question)
-        
+
+        try:
+            # 调用 AI，返回结果包含 answer 和 conversation_id
+            result = ask_ai_with_context(question, conversation_id)
+            answer = result['answer']
+            conv_id = result['conversation_id']
+        except Exception as e:
+            return jsonify({
+                'error': str(e),
+                'emotion': session.buddy.get_emotion(),
+                'emoji': session.buddy.get_emoji()
+            }), 500
+
         # 设置为开心状态
         session.buddy.update_by_action('answer_received')
-        
+
         return jsonify({
             'answer': answer,
+            'conversation_id': conv_id,
             'emotion': session.buddy.get_emotion(),
             'emoji': session.buddy.get_emoji()
         })
 
+# ==================== 学习计时器 API ====================
+
 @app.route('/api/study/start', methods=['POST'])
 def start_study():
-    """开始学习"""
+    """
+    开始学习
+    
+    启动计时器和番茄钟
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -133,7 +203,11 @@ def start_study():
 
 @app.route('/api/study/pause', methods=['POST'])
 def pause_study():
-    """暂停学习"""
+    """
+    暂停/继续学习
+    
+    如果正在学习则暂停，如果已暂停则继续
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -152,7 +226,11 @@ def pause_study():
 
 @app.route('/api/study/stop', methods=['POST'])
 def stop_study():
-    """停止学习"""
+    """
+    停止学习
+    
+    停止计时器，记录学习时长，完成番茄钟
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -191,7 +269,11 @@ def stop_study():
 
 @app.route('/api/reset', methods=['POST'])
 def reset():
-    """重置"""
+    """
+    重置会话
+    
+    重新初始化所有组件
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -210,7 +292,12 @@ def reset():
 
 @app.route('/api/set_goal', methods=['POST'])
 def set_goal_api():
-    """设置每日学习目标"""
+    """
+    设置每日学习目标
+    
+    请求体：
+    - minutes: 目标分钟数
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -231,7 +318,11 @@ def set_goal_api():
 
 @app.route('/api/pomodoro/start_break', methods=['POST'])
 def start_break():
-    """开始休息"""
+    """
+    开始休息
+    
+    番茄钟完成后进入休息模式
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -249,11 +340,59 @@ def start_break():
             'emoji': session.buddy.get_emoji()
         })
 
+@app.route('/api/timer', methods=['GET'])
+def get_timer():
+    """
+    获取计时器状态
+    
+    返回当前计时器信息
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    return jsonify({
+        'success': True,
+        'study_time': session.timer.get_current_duration(),
+        'target_time': session.timer._target_minutes,
+        'remaining': session.timer.get_remaining(),
+        'is_running': session.timer._is_running,
+        'is_paused': session.timer._pause_time is not None
+    })
+
+@app.route('/api/timer/set_target', methods=['POST'])
+def set_timer_target():
+    """
+    设置计时器目标时长
+    
+    请求体：
+    - minutes: 目标分钟数
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    data = request.json
+    minutes = data.get('minutes', 25)
+    
+    session.timer.set_target(minutes)
+    return jsonify({
+        'success': True,
+        'target': minutes
+    })
+
 # ==================== 任务管理 API ====================
 
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
-    """获取所有任务"""
+    """
+    获取所有任务
+    
+    查询参数：
+    - status: 任务状态 (all/pending/completed)
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -268,7 +407,14 @@ def get_tasks():
 
 @app.route('/api/tasks', methods=['POST'])
 def add_task():
-    """添加任务"""
+    """
+    添加新任务
+    
+    请求体：
+    - title: 任务标题（必填）
+    - description: 任务描述
+    - deadline: 截止时间 (YYYY-MM-DD HH:MM 格式)
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -284,8 +430,6 @@ def add_task():
     deadline = data.get('deadline')
     if deadline:
         # 将 datetime-local 格式转换为标准格式
-        # datetime-local 返回：YYYY-MM-DDTHH:MM
-        # 我们需要：YYYY-MM-DD HH:MM
         deadline = deadline.replace('T', ' ')
     
     task = session.buddy.task_manager.add_task(
@@ -302,7 +446,15 @@ def add_task():
 
 @app.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
-    """更新任务"""
+    """
+    更新任务
+    
+    请求体：
+    - title: 任务标题
+    - description: 任务描述
+    - deadline: 截止时间
+    - completed: 是否完成
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -321,7 +473,11 @@ def update_task(task_id):
 
 @app.route('/api/tasks/<int:task_id>/complete', methods=['POST'])
 def complete_task(task_id):
-    """完成任务"""
+    """
+    完成任务
+    
+    完成任务时触发成就系统
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -343,7 +499,9 @@ def complete_task(task_id):
 
 @app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
-    """删除任务"""
+    """
+    删除任务
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -354,7 +512,9 @@ def delete_task(task_id):
 
 @app.route('/api/tasks/stats', methods=['GET'])
 def get_task_stats():
-    """获取任务统计"""
+    """
+    获取任务统计信息
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -365,7 +525,11 @@ def get_task_stats():
 
 @app.route('/api/tasks/reminders', methods=['GET'])
 def get_task_reminders():
-    """获取任务提醒"""
+    """
+    获取任务提醒
+    
+    返回即将到期的任务
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -376,191 +540,17 @@ def get_task_reminders():
 
 # ==================== 学习日历 API ====================
 
-@app.route('/api/calendar/stats', methods=['GET'])
-def get_calendar_stats():
-    """获取学习日历统计"""
-    session_id = request.args.get('session_id', 'default')
-    if session_id not in sessions:
-        sessions[session_id] = Session()
-    
-    session = sessions[session_id]
-    stats = session.buddy.get_calendar_stats()
-    return jsonify({'success': True, 'stats': stats})
-
-@app.route('/api/calendar/log', methods=['POST'])
-def log_study():
-    """记录学习"""
-    session_id = request.args.get('session_id', 'default')
-    if session_id not in sessions:
-        sessions[session_id] = Session()
-    
-    session = sessions[session_id]
-    data = request.json
-    duration = data.get('duration', 25)
-    subject = data.get('subject', '学习')
-    
-    with session.lock:
-        session.buddy.log_study_session(duration)
-        today_duration = session.buddy.study_calendar.get_today_duration()
-        
-        return jsonify({
-            'success': True,
-            'today_duration': today_duration,
-            'emotion': session.buddy.get_emotion(),
-            'emoji': session.buddy.get_emoji()
-        })
-
-@app.route('/api/calendar/history', methods=['GET'])
-def get_study_history():
-    """获取学习历史"""
-    session_id = request.args.get('session_id', 'default')
-    if session_id not in sessions:
-        sessions[session_id] = Session()
-    
-    session = sessions[session_id]
-    days = request.args.get('days', 7, type=int)
-    # 使用 get_recent_activity 方法
-    activity = session.buddy.study_calendar.get_recent_activity(days)
-    return jsonify({'success': True, 'history': activity})
-
-# ==================== 计时器 API ====================
-
-@app.route('/api/timer', methods=['GET'])
-def get_timer():
-    """获取计时器状态"""
-    session_id = request.args.get('session_id', 'default')
-    if session_id not in sessions:
-        sessions[session_id] = Session()
-    
-    session = sessions[session_id]
-    return jsonify({
-        'success': True,
-        'study_time': session.timer.get_current_duration(),
-        'target_time': session.timer._target_minutes,
-        'remaining': session.timer.get_remaining(),
-        'is_running': session.timer._is_running,
-        'is_paused': session.timer._pause_time is not None
-    })
-
-@app.route('/api/timer/set_target', methods=['POST'])
-def set_timer_target():
-    """设置计时器目标"""
-    session_id = request.args.get('session_id', 'default')
-    if session_id not in sessions:
-        sessions[session_id] = Session()
-    
-    session = sessions[session_id]
-    data = request.json
-    minutes = data.get('minutes', 25)
-    
-    session.timer.set_target(minutes)
-    return jsonify({
-        'success': True,
-        'target': minutes
-    })
-
-# ==================== 统计 API ====================
-
-@app.route('/api/stats', methods=['GET'])
-def get_all_stats():
-    """获取所有统计数据"""
-    session_id = request.args.get('session_id', 'default')
-    if session_id not in sessions:
-        sessions[session_id] = Session()
-    
-    session = sessions[session_id]
-    
-    # 获取伙伴学习统计
-    buddy_stats = session.buddy.get_study_stats()
-    
-    # 获取日历统计
-    calendar_stats = session.buddy.get_calendar_stats()
-    
-    # 获取任务统计
-    task_stats = session.buddy.task_manager.get_stats()
-    
-    # 获取番茄钟统计
-    supervisor_status = session.supervisor.get_status()
-    
-    return jsonify({
-        'success': True,
-        'stats': {
-            'buddy': buddy_stats,
-            'calendar': calendar_stats,
-            'tasks': task_stats,
-            'pomodoro': {
-                'cycle': session.supervisor._current_pomodoro_cycle,
-                'completed': session.supervisor._completed_pomodoros,
-                'is_break_mode': session.supervisor._is_break_mode,
-                'daily_goal': session.supervisor._daily_goal_minutes,
-                'today_progress': supervisor_status.get('progress', {})
-            }
-        }
-    })
-
-# ==================== 日历 API ====================
-
-# ==================== 用户自定义数据 API ====================
-
-@app.route('/api/motto', methods=['GET'])
-def get_motto_api():
-    """获取座右铭"""
-    motto = get_motto()
-    return jsonify({
-        'success': True,
-        'motto': motto
-    })
-
-@app.route('/api/motto', methods=['POST'])
-def set_motto_api():
-    """设置座右铭"""
-    data = request.json
-    motto = data.get('motto', '').strip()
-    
-    if set_motto(motto):
-        # 更新当前会话
-        session_id = request.args.get('session_id', 'default')
-        if session_id in sessions:
-            sessions[session_id].motto = motto
-        return jsonify({
-            'success': True,
-            'message': '座右铭已更新',
-            'motto': motto
-        })
-    return jsonify({'success': False, 'error': '保存失败'}), 500
-
-@app.route('/api/favorite_quote', methods=['GET'])
-def get_favorite_quote_api():
-    """获取喜欢的激励语录"""
-    quote = get_favorite_quote()
-    return jsonify({
-        'success': True,
-        'favorite_quote': quote
-    })
-
-@app.route('/api/favorite_quote', methods=['POST'])
-def set_favorite_quote_api():
-    """设置喜欢的激励语录"""
-    data = request.json
-    quote = data.get('quote', '').strip()
-    
-    if set_favorite_quote(quote):
-        # 更新当前会话
-        session_id = request.args.get('session_id', 'default')
-        if session_id in sessions:
-            sessions[session_id].favorite_quote = quote
-        return jsonify({
-            'success': True,
-            'message': '激励语录已更新',
-            'quote': quote
-        })
-    return jsonify({'success': False, 'error': '保存失败'}), 500
-
-# ==================== 日历 API ====================
-
 @app.route('/api/calendar', methods=['GET'])
 def get_calendar():
-    """获取日历数据"""
+    """
+    获取日历数据
+    
+    查询参数：
+    - year: 年份
+    - month: 月份
+    
+    返回指定月份的学习记录
+    """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
@@ -595,7 +585,7 @@ def get_calendar():
             'duration': total_duration,
             'goal': goal_minutes,
             'progress': min(progress, 100),
-            'entries': entries  # 包含该日期的详细学习记录
+            'entries': entries
         })
     
     return jsonify({
@@ -606,7 +596,421 @@ def get_calendar():
         'month': month
     })
 
+@app.route('/api/calendar/stats', methods=['GET'])
+def get_calendar_stats():
+    """
+    获取学习日历统计
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    stats = session.buddy.get_calendar_stats()
+    return jsonify({'success': True, 'stats': stats})
+
+@app.route('/api/calendar/log', methods=['POST'])
+def log_study():
+    """
+    手动记录学习
+    
+    请求体：
+    - duration: 学习时长（分钟）
+    - subject: 学习科目
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    data = request.json
+    duration = data.get('duration', 25)
+    subject = data.get('subject', '学习')
+    
+    with session.lock:
+        session.buddy.log_study_session(duration)
+        today_duration = session.buddy.study_calendar.get_today_duration()
+        
+        return jsonify({
+            'success': True,
+            'today_duration': today_duration,
+            'emotion': session.buddy.get_emotion(),
+            'emoji': session.buddy.get_emoji()
+        })
+
+@app.route('/api/calendar/history', methods=['GET'])
+def get_study_history():
+    """
+    获取学习历史
+    
+    查询参数：
+    - days: 最近几天
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    days = request.args.get('days', 7, type=int)
+    activity = session.buddy.study_calendar.get_recent_activity(days)
+    return jsonify({'success': True, 'history': activity})
+
+# ==================== 统计 API ====================
+
+@app.route('/api/stats', methods=['GET'])
+def get_all_stats():
+    """
+    获取所有统计数据
+    
+    包含：
+    - 伙伴学习统计
+    - 日历统计
+    - 任务统计
+    - 番茄钟统计
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    buddy_stats = session.buddy.get_study_stats()
+    calendar_stats = session.buddy.get_calendar_stats()
+    task_stats = session.buddy.task_manager.get_stats()
+    supervisor_status = session.supervisor.get_status()
+    
+    return jsonify({
+        'success': True,
+        'stats': {
+            'buddy': buddy_stats,
+            'calendar': calendar_stats,
+            'tasks': task_stats,
+            'pomodoro': {
+                'cycle': session.supervisor._current_pomodoro_cycle,
+                'completed': session.supervisor._completed_pomodoros,
+                'is_break_mode': session.supervisor._is_break_mode,
+                'daily_goal': session.supervisor._daily_goal_minutes,
+                'today_progress': supervisor_status.get('progress', {})
+            }
+        }
+    })
+
+# ==================== 用户设置 API ====================
+
+@app.route('/api/motto', methods=['GET'])
+def get_motto_api():
+    """获取座右铭"""
+    motto = get_motto()
+    return jsonify({
+        'success': True,
+        'motto': motto
+    })
+
+@app.route('/api/motto', methods=['POST'])
+def set_motto_api():
+    """
+    设置座右铭
+    
+    请求体：
+    - motto: 座右铭内容
+    """
+    data = request.json
+    motto = data.get('motto', '').strip()
+    
+    if set_motto(motto):
+        session_id = request.args.get('session_id', 'default')
+        if session_id in sessions:
+            sessions[session_id].motto = motto
+        return jsonify({
+            'success': True,
+            'message': '座右铭已更新',
+            'motto': motto
+        })
+    return jsonify({'success': False, 'error': '保存失败'}), 500
+
+@app.route('/api/favorite_quote', methods=['GET'])
+def get_favorite_quote_api():
+    """获取喜欢的激励语录"""
+    quote = get_favorite_quote()
+    return jsonify({
+        'success': True,
+        'favorite_quote': quote
+    })
+
+@app.route('/api/favorite_quote', methods=['POST'])
+def set_favorite_quote_api():
+    """
+    设置喜欢的激励语录
+    
+    请求体：
+    - quote: 语录内容
+    """
+    data = request.json
+    quote = data.get('quote', '').strip()
+    
+    if set_favorite_quote(quote):
+        session_id = request.args.get('session_id', 'default')
+        if session_id in sessions:
+            sessions[session_id].favorite_quote = quote
+        return jsonify({
+            'success': True,
+            'message': '激励语录已更新',
+            'quote': quote
+        })
+    return jsonify({'success': False, 'error': '保存失败'}), 500
+
+# ==================== AI 历史记录 API ====================
+
+@app.route('/api/ai/history', methods=['GET'])
+def get_ai_history():
+    """获取所有 AI 对话历史列表"""
+    conversations = get_ai_conversations()
+    return jsonify({
+        'success': True,
+        'conversations': conversations
+    })
+
+@app.route('/api/ai/history/<conversation_id>', methods=['GET'])
+def get_ai_conversation(conversation_id):
+    """获取指定对话的详细消息"""
+    messages = get_conversation_messages(conversation_id)
+    return jsonify({
+        'success': True,
+        'conversation_id': conversation_id,
+        'messages': messages
+    })
+
+@app.route('/api/ai/history', methods=['POST'])
+def create_ai_conversation():
+    """创建新对话"""
+    data = request.json or {}
+    title = data.get('title')
+    conv_id = new_ai_conversation()
+    return jsonify({
+        'success': True,
+        'conversation_id': conv_id,
+        'message': '新对话已创建'
+    })
+
+@app.route('/api/ai/history/<conversation_id>', methods=['DELETE'])
+def delete_ai_history(conversation_id):
+    """删除指定对话"""
+    success = delete_ai_conversation(conversation_id)
+    return jsonify({
+        'success': success,
+        'message': '对话已删除' if success else '对话不存在'
+    })
+
+@app.route('/api/ai/stats', methods=['GET'])
+def get_ai_stats():
+    """获取 AI 使用统计"""
+    from src.ai.ai_helper import get_ai_instance
+    ai = get_ai_instance()
+    stats = ai.get_ai_stats()
+    return jsonify({
+        'success': True,
+        'stats': stats
+    })
+
 # ==================== 学习计划 API ====================
 
+@app.route('/api/plans', methods=['GET'])
+def get_study_plans():
+    """获取所有学习计划"""
+    from src.modules.plan_generator import get_plan_generator
+    generator = get_plan_generator()
+    
+    plans = generator.get_active_plans()
+    completed = generator.get_completed_plans()
+    stats = generator.get_stats()
+    
+    return jsonify({
+        'success': True,
+        'active_plans': [p.to_dict() for p in plans],
+        'completed_plans': [p.to_dict() for p in completed],
+        'stats': stats
+    })
+
+@app.route('/api/plans', methods=['POST'])
+def create_study_plan():
+    """
+    创建学习计划
+    
+    请求体：
+    - subject: 科目名称（必填）
+    - exam_date: 考试日期（必填）
+    - daily_hours: 每日学习时长（小时）
+    - use_ai: 是否使用 AI 生成
+    """
+    from src.modules.plan_generator import get_plan_generator
+    generator = get_plan_generator()
+    
+    data = request.json
+    subject = data.get('subject', '').strip()
+    exam_date = data.get('exam_date', '')
+    daily_hours = data.get('daily_hours', 2.0)
+    use_ai = data.get('use_ai', True)
+    
+    if not subject:
+        return jsonify({'success': False, 'error': '科目名称不能为空'}), 400
+    
+    if not exam_date:
+        return jsonify({'success': False, 'error': '考试日期不能为空'}), 400
+    
+    try:
+        if use_ai and generator.ai_helper:
+            plan = generator.generate_plan_ai(subject, exam_date, daily_hours)
+        else:
+            plan = generator.generate_plan_basic(subject, exam_date, daily_hours)
+        
+        return jsonify({
+            'success': True,
+            'message': '学习计划已生成',
+            'plan': plan.to_dict()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/plans/<int:plan_id>', methods=['GET'])
+def get_study_plan(plan_id):
+    """获取指定学习计划"""
+    from src.modules.plan_generator import get_plan_generator
+    generator = get_plan_generator()
+    
+    plan = generator.get_plan(plan_id)
+    if plan:
+        return jsonify({'success': True, 'plan': plan.to_dict()})
+    return jsonify({'success': False, 'error': '计划不存在'}), 404
+
+@app.route('/api/plans/<int:plan_id>', methods=['PUT'])
+def update_study_plan(plan_id):
+    """
+    更新学习计划
+    
+    请求体：
+    - completed: 是否完成
+    """
+    from src.modules.plan_generator import get_plan_generator
+    generator = get_plan_generator()
+    
+    data = request.json
+    plan = generator.get_plan(plan_id)
+    if plan:
+        if data.get('completed'):
+            plan.mark_complete()
+        generator._save_plans()
+        return jsonify({'success': True, 'plan': plan.to_dict()})
+    return jsonify({'success': False, 'error': '计划不存在'}), 404
+
+@app.route('/api/plans/<int:plan_id>', methods=['DELETE'])
+def delete_study_plan(plan_id):
+    """删除学习计划"""
+    from src.modules.plan_generator import get_plan_generator
+    generator = get_plan_generator()
+    
+    success = generator.delete_plan(plan_id)
+    return jsonify({'success': success})
+
+@app.route('/api/plans/expiring', methods=['GET'])
+def get_expiring_plans():
+    """
+    获取即将到期的学习计划
+    
+    查询参数：
+    - days: 剩余天数阈值
+    """
+    from src.modules.plan_generator import get_plan_generator
+    generator = get_plan_generator()
+    
+    days = request.args.get('days', 7, type=int)
+    plans = generator.get_expiring_plans(days)
+    
+    return jsonify({
+        'success': True,
+        'plans': [p.to_dict() for p in plans]
+    })
+
+# ==================== 成就系统 API ====================
+
+@app.route('/api/achievements', methods=['GET'])
+def get_achievements():
+    """获取用户成就"""
+    from src.modules.achievements import get_achievements_data
+    data = get_achievements_data()
+    return jsonify({
+        'success': True,
+        'achievements': data
+    })
+
+@app.route('/api/achievements/unlock', methods=['POST'])
+def unlock_achievement():
+    """解锁成就（由系统触发）"""
+    from src.modules.achievements import unlock_achievement as do_unlock
+    data = request.json
+    achievement_id = data.get('achievement_id')
+    if do_unlock(achievement_id):
+        return jsonify({'success': True, 'message': '成就解锁！'})
+    return jsonify({'success': False, 'message': '成就已存在'}), 400
+
+# ==================== 通知设置 API ====================
+
+@app.route('/api/notification/check', methods=['GET'])
+def check_notification_permission():
+    """检查通知权限状态"""
+    return jsonify({
+        'success': True,
+        'permission': 'granted'
+    })
+
+@app.route('/api/notification/settings', methods=['GET'])
+def get_notification_settings():
+    """获取通知设置"""
+    from src.modules.data_manager import get_data_manager
+    dm = get_data_manager()
+    data = dm.get_data()
+    return jsonify({
+        'success': True,
+        'settings': {
+            'pomodoro_complete': data.get('notification_pomodoro', True),
+            'goal_reached': data.get('notification_goal', True),
+            'task_reminder': data.get('notification_task', True)
+        }
+    })
+
+@app.route('/api/notification/settings', methods=['POST'])
+def set_notification_settings():
+    """
+    设置通知选项
+    
+    请求体：
+    - pomodoro_complete: 番茄钟完成通知
+    - goal_reached: 达成目标通知
+    - task_reminder: 任务提醒
+    """
+    from src.modules.data_manager import get_data_manager
+    dm = get_data_manager()
+    data = request.json
+
+    settings = {
+        'notification_pomodoro': data.get('pomodoro_complete', True),
+        'notification_goal': data.get('goal_reached', True),
+        'notification_task': data.get('task_reminder', True)
+    }
+
+    dm.update_settings(**settings)
+    return jsonify({
+        'success': True,
+        'message': '通知设置已更新',
+        'settings': settings
+    })
+
+# ==================== 应用启动 ====================
+
 if __name__ == '__main__':
+    """
+    应用入口
+    
+    启动 Flask 开发服务器
+    访问地址：http://localhost:5000
+    """
     app.run(debug=True, port=5000)

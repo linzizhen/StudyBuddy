@@ -1,6 +1,9 @@
 """
-StudyBuddy 学习日历模块
+StudyPal 学习日历模块
 记录学习历史、统计学习数据、生成学习报告
+
+作者：StudyPal
+创建日期：2026-04-13
 """
 
 import json
@@ -10,7 +13,15 @@ from config import CALENDAR_DATA_FILE
 
 
 class StudyCalendar:
-    """学习日历类"""
+    """
+    学习日历类
+    
+    功能：
+    - 学习记录
+    - 时长统计
+    - 连续天数计算
+    - 学习报告生成
+    """
     
     def __init__(self, data_file=None):
         """

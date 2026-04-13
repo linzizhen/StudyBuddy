@@ -1,9 +1,13 @@
 """
 StudyBuddy 配置文件
 包含所有可配置的参数，方便用户自定义设置
+
+作者：StudyBuddy
+创建日期：2026-04-13
 """
 
 # ==================== AI 配置 ====================
+
 # 多模型配置字典
 # 每个模型配置包含：
 #   - name: 显示名称
@@ -68,17 +72,20 @@ MODEL_NAME = "qwen3.5:9b"
 API_KEY = ""
 
 # ==================== 情绪配置 ====================
+
 # 情绪更新间隔（秒）
 # 每隔这个时间，宠物会根据学习状态更新情绪
 MOOD_UPDATE_INTERVAL = 30
 
 # ==================== 学习配置 ====================
+
 # 学习计时器默认时长（分钟）
 # 点击"开始学习"后的默认计时时长
 DEFAULT_TIMER_MINUTES = 25
 
 # ==================== 表情状态 ====================
-# 表情图片路径（预留接口，命令行版用文字表示）
+
+# 表情符号配置（命令行/Web 版本使用）
 EMOJIS = {
     # 原有情绪
     "idle": "😴",        # 空闲/休息状态 - 默认状态
@@ -108,6 +115,7 @@ EMOTION_IMAGES = {
 }
 
 # ==================== 任务配置 ====================
+
 # 任务数据文件路径
 TASK_DATA_FILE = "data/tasks.json"
 
@@ -116,6 +124,7 @@ TASK_DATA_FILE = "data/tasks.json"
 REMINDER_BEFORE_MINUTES = 30
 
 # ==================== 学习日程配置 ====================
+
 # 学习日志数据文件路径
 STUDY_LOG_DATA_FILE = "data/study_log.json"
 
@@ -126,8 +135,19 @@ CALENDAR_DATA_FILE = "data/calendar.json"
 DAILY_GOAL_MINUTES = 120
 
 # ==================== 用户数据配置 ====================
+
 # 用户数据文件路径
 USER_DATA_FILE = "data/user_settings.json"
 
 # 默认每日学习目标（分钟）
 DEFAULT_DAILY_GOAL = 120
+
+# ==================== AI 历史记录配置 ====================
+
+# AI 对话历史数据文件路径
+AI_HISTORY_FILE = "data/ai_history.json"
+
+# ==================== 成就系统配置 ====================
+
+# 成就数据文件路径
+ACHIEVEMENTS_FILE = "data/achievements.json"

@@ -1,6 +1,9 @@
 """
-StudyBuddy AI 学习计划生成模块
+StudyPal AI 学习计划生成模块
 根据考试日期、科目和可用时间，生成个性化学习计划
+
+作者：StudyPal
+创建日期：2026-04-13
 """
 
 import json
@@ -18,7 +21,17 @@ logger = logging.getLogger(__name__)
 
 
 class StudyPlan:
-    """单个学习计划"""
+    """
+    单个学习计划类
+    
+    属性：
+    - subject: 科目名称
+    - exam_date: 考试日期
+    - daily_hours: 每日学习时长
+    - tasks: 任务列表
+    - total_hours: 总学习时长
+    - completed: 是否完成
+    """
     
     def __init__(self, subject: str, exam_date: str, daily_hours: float = 2.0):
         """
@@ -89,7 +102,15 @@ class StudyPlan:
 
 
 class PlanGenerator:
-    """学习计划生成器"""
+    """
+    学习计划生成器类
+    
+    功能：
+    - AI 生成计划
+    - 基础生成计划
+    - 计划管理
+    - 统计信息
+    """
     
     def __init__(self, ai_helper=None):
         """

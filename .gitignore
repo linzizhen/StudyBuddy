@@ -51,3 +51,5 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+
+.cursor/

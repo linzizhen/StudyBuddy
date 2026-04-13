@@ -1,6 +1,9 @@
 """
-StudyBuddy 任务管理模块
+StudyPal 任务管理模块
 管理今日任务、截止时间和提醒功能
+
+作者：StudyPal
+创建日期：2026-04-13
 """
 
 import json
@@ -10,7 +13,17 @@ from config import TASK_DATA_FILE, REMINDER_BEFORE_MINUTES
 
 
 class Task:
-    """单个任务类"""
+    """
+    单个任务类
+    
+    属性：
+    - id: 任务 ID
+    - title: 任务标题
+    - description: 任务描述
+    - completed: 是否完成
+    - deadline: 截止时间
+    - created_at: 创建时间
+    """
     
     def __init__(self, title, description="", deadline=None):
         """
@@ -130,7 +143,15 @@ class Task:
 
 
 class TaskManager:
-    """任务管理器类"""
+    """
+    任务管理器类
+    
+    功能：
+    - 任务增删改查
+    - 截止时间管理
+    - 提醒功能
+    - 任务统计
+    """
     
     def __init__(self, data_file=None):
         """

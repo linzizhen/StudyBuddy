@@ -1,5 +1,5 @@
 """
-StudyBuddy 情绪管理类
+StudyPal 情绪管理类
 管理宠物的情绪状态和表情变化
 
 情绪状态列表：
@@ -10,8 +10,11 @@ StudyBuddy 情绪管理类
 - thinking(🤔): 思考/AI 回答中
 - angry(😡): 生气/用户一直玩手机时
 - excited(🎉): 兴奋/完成学习目标时
-- sleepy(😪): 困倦/深夜学习时
-- proud(😤): 自豪/用户坚持学习时
+- sleepy(😪): 困倦/深夜学习时（23:00-6:00）
+- proud(😤): 自豪/用户坚持学习时（连续学习 3 次以上）
+
+作者：StudyPal
+创建日期：2026-04-13
 """
 
 from datetime import datetime
@@ -21,13 +24,21 @@ from src.modules.study_calendar import StudyCalendar
 
 
 class Buddy:
-    """StudyBuddy 宠物类，负责管理情绪状态"""
+    """
+    StudyPal 宠物类
+    
+    功能：
+    - 管理情绪状态
+    - 表情变化
+    - 学习统计
+    - 任务完成回调
+    """
     
     def __init__(self, supervisor=None):
         """
         初始化宠物，默认情绪为 idle（空闲）
         
-        参数:
+        参数：
             supervisor: StudySupervisor 实例，用于联动
         """
         self._current_emotion = "idle"  # 当前情绪名称
@@ -47,8 +58,9 @@ class Buddy:
         """
         设置宠物的情绪状态
         
-        参数:
-            emotion_name: 情绪名称 (idle/happy/sad/study/thinking/angry/excited/sleepy/proud)
+        参数：
+            emotion_name: 情绪名称 
+                (idle/happy/sad/study/thinking/angry/excited/sleepy/proud)
         """
         # 记录旧情绪到历史
         if self._current_emotion != emotion_name:
@@ -65,7 +77,7 @@ class Buddy:
         """
         获取当前情绪名称
         
-        返回:
+        返回：
             当前情绪名称字符串
         """
         return self._current_emotion
@@ -74,7 +86,7 @@ class Buddy:
         """
         获取当前情绪的 emoji 字符
         
-        返回:
+        返回：
             对应的 emoji 字符
         """
         return EMOJIS.get(self._current_emotion, "❓")
@@ -83,7 +95,7 @@ class Buddy:
         """
         获取当前情绪对应的图片路径（预留接口）
         
-        返回:
+        返回：
             图片文件路径字符串
         """
         return f"assets/{self._current_emotion}.png"
@@ -92,7 +104,7 @@ class Buddy:
         """
         根据用户动作自动更新情绪
         
-        参数:
+        参数：
             action: 动作名称
                 - "ask": 提问 -> 进入思考状态
                 - "answer_received": 收到回答 -> 开心
@@ -122,7 +134,7 @@ class Buddy:
         """
         根据时间和活动情况自动更新情绪
         
-        返回:
+        返回：
             是否需要更新情绪
         """
         now = datetime.now()
@@ -163,10 +175,10 @@ class Buddy:
         """
         根据 StudySupervisor 的状态更新情绪
         
-        参数:
+        参数：
             supervisor_status: StudySupervisor.get_status() 返回的字典
         
-        返回:
+        返回：
             是否需要更新情绪
         """
         updated = False
@@ -198,7 +210,7 @@ class Buddy:
         """
         记录一次学习会话
         
-        参数:
+        参数：
             duration_minutes: 学习时长（分钟）
         """
         self._study_duration += duration_minutes
@@ -217,7 +229,7 @@ class Buddy:
         """
         番茄钟完成时的回调
         
-        返回:
+        返回：
             是否更新了情绪
         """
         self.set_emotion("excited")
@@ -228,7 +240,7 @@ class Buddy:
         """
         达到日目标时的回调
         
-        返回:
+        返回：
             是否更新了情绪
         """
         self.set_emotion("proud")
@@ -239,7 +251,7 @@ class Buddy:
         """
         获取学习统计数据
         
-        返回:
+        返回：
             包含学习统计的字典
         """
         return {
@@ -251,10 +263,10 @@ class Buddy:
         """
         任务完成时的回调
         
-        参数:
+        参数：
             task_title: 完成的任务标题
         
-        返回:
+        返回：
             是否更新了情绪
         """
         self.set_emotion("happy")
@@ -271,7 +283,7 @@ class Buddy:
         """
         检查任务提醒
         
-        返回:
+        返回：
             提醒信息字典
         """
         return self.task_manager.check_reminders()
@@ -280,7 +292,7 @@ class Buddy:
         """
         获取学习日历统计
         
-        返回:
+        返回：
             统计信息字典
         """
         return self.study_calendar.get_stats()
@@ -289,7 +301,7 @@ class Buddy:
         """
         记录学习会话到日历
         
-        参数:
+        参数：
             duration_minutes: 学习时长（分钟）
         """
         self.study_calendar.log_study(duration_minutes)
@@ -303,7 +315,7 @@ class Buddy:
         """
         获取当前情绪的描述文字
         
-        返回:
+        返回：
             情绪描述字符串
         """
         descriptions = {
@@ -323,7 +335,7 @@ class Buddy:
         """
         获取情绪变化历史（可选功能）
         
-        返回:
+        返回：
             情绪变化历史记录列表
         """
         return self._emotion_history
@@ -339,5 +351,10 @@ class Buddy:
         self._consecutive_study_sessions = 0
     
     def __str__(self):
-        """字符串表示，显示当前状态"""
+        """
+        字符串表示，显示当前状态
+        
+        返回：
+            字符串形式的状态描述
+        """
         return f"Buddy[{self._current_emotion}]: {self.get_emoji()}"

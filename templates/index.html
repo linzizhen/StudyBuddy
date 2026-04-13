@@ -1,9 +1,24 @@
 <!DOCTYPE html>
+<!--
+    StudyBuddy - 智能学习助手
+    主界面 HTML 文件
+    作者：StudyBuddy
+    创建日期：2026-04-13
+    
+    功能模块:
+    - 学习计时器
+    - 番茄钟
+    - AI 学习助手
+    - 学习状态监测
+    - 学习日历
+    - 任务管理
+    - 成就系统
+-->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>StudyBuddy - 你的智能学习搭子</title>
+    <title>StudyPal - 你的智能学习搭子</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,11 +58,11 @@
             /* 日历 */
             --calendar-empty: #f1f5f9;
             --calendar-hover: rgba(99, 102, 241, 0.1);
-            /* 统一圆角 */
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
+        /* 统一圆角 */
+        --radius-sm: 12px;
+        --radius-md: 16px;
+        --radius-lg: 20px;
+        --radius-xl: 28px;
             /* 字体 */
             --font-sans: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
             --font-mono: 'SF Mono', 'Consolas', monospace;
@@ -114,6 +129,63 @@
         .panel:nth-child(3), .pomodoro-display { animation-delay: 0.3s; }
         .panel:nth-child(4) { animation-delay: 0.4s; }
         .panel:nth-child(5) { animation-delay: 0.5s; }
+
+        /* 三栏布局面板容器 */
+        .left-panel, .center-panel, .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 通用内边距控制 */
+        .section-gap {
+            margin-bottom: 20px;
+        }
+
+        .section-gap-lg {
+            margin-bottom: 28px;
+        }
+
+        /* 标签页通用样式 */
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        /* 头部信息通用样式 */
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        /* 头部信息通用样式 - 大间距版 */
+        .header-flex-lg {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        /* 进度条容器通用样式 */
+        .progress-container {
+            margin-bottom: 14px;
+        }
+
+        .progress-container-sm {
+            margin-bottom: 10px;
+        }
+
+        /* 图表标签通用样式 */
+        .chart-labels-inline {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
         
         /* 按钮 hover 效果 */
         .btn:hover, .quick-time-btn:hover, .quick-action-btn:hover, .calendar-nav button:hover, .chat-input button:hover, .add-task-form button:hover {
@@ -294,21 +366,52 @@
         
         .main-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
+            grid-template-columns: 320px 1fr 320px;
+            gap: 28px;
+            align-items: start;
         }
-        
+
+        @media (max-width: 1400px) {
+            .main-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .left-panel { order: 1; }
+            .right-panel { order: 2; }
+            .center-panel { order: 3; grid-column: span 2; }
+        }
+
         @media (max-width: 1100px) {
-            .main-grid { grid-template-columns: 1fr; }
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            .left-panel, .center-panel, .right-panel { order: unset; }
+            .center-panel { grid-column: unset; }
             .header h1 { font-size: 32px; }
+        }
+
+        /* AI 助手核心地位 - 中间面板扩展样式 */
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .center-panel .ai-assistant-panel {
+            flex: 1;
         }
         
         .panel {
             background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-            border-radius: 24px;
-            padding: 24px;
-            border: 1px solid rgba(99, 102, 241, 0.1);
+            border-radius: var(--radius-xl);
+            padding: 28px;
+            border: 1px solid rgba(99, 102, 241, 0.08);
             transition: all 0.3s ease;
+            margin-bottom: 24px;
+        }
+
+        .panel:last-child {
+            margin-bottom: 0;
         }
         
         .panel:hover {
@@ -318,20 +421,424 @@
         
         .panel-title {
             font-size: 18px;
-            font-weight: 600;
+            font-weight: 700;
             color: #1f2937;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         
+        /* AI 助手面板增强样式 */
+        .ai-assistant-panel {
+            border: 2px solid rgba(99, 102, 241, 0.2);
+            background: linear-gradient(145deg, #ffffff 0%, #f0f4ff 100%);
+        }
+
+        /* ==================== 学习状态监测模块样式 ==================== */
+        .study-monitor-panel {
+            border: 2px solid rgba(16, 185, 129, 0.2);
+            background: linear-gradient(145deg, #ffffff 0%, #f0fdf9 100%);
+        }
+
+        .study-monitor-panel.active {
+            border-color: rgba(16, 185, 129, 0.5);
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
+        }
+
+        /* 监测控制区 */
+        .monitor-control {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+
+        .monitor-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 开关样式 */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: 0.3s;
+            border-radius: 28px;
+        }
+
+        .toggle-slider::before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(24px);
+        }
+
+        .monitor-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .monitor-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: statusPulse 2s infinite;
+        }
+
+        .status-dot.inactive {
+            background: #cbd5e1;
+            animation: none;
+        }
+
+        .status-dot.active {
+            background: #10b981;
+        }
+
+        .status-dot.warning {
+            background: #f59e0b;
+        }
+
+        .status-dot.alert {
+            background: #ef4444;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        /* 当前状态展示 */
+        .study-status-display {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .study-status-display.studying {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .study-status-display.idle {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .study-status-display.alert {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-icon {
+            font-size: 48px;
+            width: 72px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .status-info {
+            flex: 1;
+        }
+
+        .status-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .status-desc {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        /* 检测指标卡片 */
+        .detection-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .metric-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .metric-info {
+            flex: 1;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        /* 活动时间线 */
+        .activity-timeline {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .timeline-chart {
+            height: 80px;
+            position: relative;
+        }
+
+        .timeline-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 60px;
+            gap: 6px;
+        }
+
+        .timeline-bar {
+            flex: 1;
+            background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 4px 4px 0 0;
+            min-height: 4px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .timeline-bar:hover {
+            opacity: 0.8;
+            transform: scaleY(1.05);
+        }
+
+        .timeline-bar::after {
+            content: attr(data-value);
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #64748b;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .timeline-bar:hover::after {
+            opacity: 1;
+        }
+
+        .timeline-bar.inactive {
+            background: #e2e8f0;
+        }
+
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        /* 检测记录列表 */
+        .detection-log {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .log-count {
+            font-size: 11px;
+            color: #94a3b8;
+            background: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .log-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-empty {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 13px;
+            padding: 20px;
+        }
+
+        .log-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .log-item:hover {
+            transform: translateX(4px);
+        }
+
+        .log-time {
+            font-size: 11px;
+            color: #94a3b8;
+            min-width: 50px;
+        }
+
+        .log-icon {
+            font-size: 16px;
+        }
+
+        .log-content {
+            flex: 1;
+        }
+
+        .log-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 2px;
+        }
+
+        .log-desc {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .detection-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .study-status-display {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .monitor-control {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+
+        /* 面板标题前的装饰线 */
         .panel-title::before {
             content: '';
-            width: 4px;
-            height: 24px;
+            width: 5px;
+            height: 26px;
             background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
-            border-radius: 2px;
+            border-radius: 3px;
         }
         
         .buddy-display {
@@ -1743,7 +2250,397 @@
         @keyframes skipButtonShow {
             to { opacity: 1; }
         }
-        
+
+        /* ==================== 成就系统样式 ==================== */
+        .achievement-level {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .achievement-level .level-icon {
+            font-size: 24px;
+        }
+
+        .achievement-level .level-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .achievement-level .level-points {
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: rgba(99, 102, 241, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .achievement-badge {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 22px;
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid rgba(99, 102, 241, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .achievement-badge:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .achievement-badge.unlocked {
+            background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%);
+            border-color: #f59e0b;
+        }
+
+        .achievement-badge.locked {
+            opacity: 0.5;
+            filter: grayscale(0.5);
+        }
+
+        .achievement-badge .achievement-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+            margin-bottom: 5px;
+            max-width: 200px;
+            white-space: normal;
+            text-align: left;
+        }
+
+        .achievement-badge:hover .achievement-tooltip {
+            opacity: 1;
+        }
+
+        .achievement-badge .achievement-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(30, 41, 59, 0.95);
+        }
+
+        .achievement-list-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+            transition: all 0.2s;
+        }
+
+        .achievement-list-item:hover {
+            background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
+        }
+
+        .achievement-list-item.unlocked {
+            background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%);
+        }
+
+        .achievement-list-item .achievement-icon {
+            font-size: 32px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .achievement-list-item.locked .achievement-icon {
+            filter: grayscale(1);
+            opacity: 0.5;
+        }
+
+        .achievement-list-item .achievement-info {
+            flex: 1;
+        }
+
+        .achievement-list-item .achievement-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .achievement-list-item .achievement-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .achievement-list-item .achievement-reward {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f59e0b;
+        }
+
+        /* ==================== AI 历史记录样式 ==================== */
+        .chat-history-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chat-history-item:hover {
+            background: #f1f5f9;
+            transform: translateX(5px);
+        }
+
+        .chat-history-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .chat-history-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .chat-history-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-history-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-history-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .chat-history-delete {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: #94a3b8;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        .chat-history-delete:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .chat-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .chat-empty-state .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* ==================== 通知样式 ==================== */
+        .notification-request {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            animation: slideUp 0.3s ease;
+        }
+
+        .notification-request.show {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-request .notification-icon {
+            font-size: 32px;
+        }
+
+        .notification-request .notification-text {
+            flex: 1;
+        }
+
+        .notification-request .notification-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .notification-request .notification-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .notification-request .notification-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .notification-request .notification-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .notification-request .notification-btn.accept {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .notification-request .notification-btn.accept:hover {
+            background: var(--primary-dark);
+        }
+
+        .notification-request .notification-btn.deny {
+            background: #f1f5f9;
+            color: var(--text-secondary);
+        }
+
+        .notification-request .notification-btn.deny:hover {
+            background: #e2e8f0;
+        }
+
+        /* 成就解锁弹窗 */
+        .achievement-unlock-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(245, 158, 11, 0.4);
+            z-index: 3000;
+            display: none;
+            animation: achievementUnlock 0.5s ease;
+        }
+
+        .achievement-unlock-toast.show {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        @keyframes achievementUnlock {
+            0% {
+                transform: translateX(100px) scale(0.8);
+                opacity: 0;
+            }
+            50% {
+                transform: translateX(-10px) scale(1.05);
+            }
+            100% {
+                transform: translateX(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .achievement-unlock-toast .unlock-icon {
+            font-size: 36px;
+        }
+
+        .achievement-unlock-toast .unlock-text {
+            font-weight: 600;
+        }
+
+        .achievement-unlock-toast .unlock-name {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .achievement-unlock-toast .unlock-points {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* 模拟数据指示器 */
+        .simulation-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .simulation-badge::before {
+            content: '🎭';
+        }
+
     </style>
 </head>
 <body>
@@ -1773,7 +2670,7 @@
             </div>
         </div>
 
-        <h1 class="splash-title">StudyBuddy</h1>
+        <h1 class="splash-title">StudyPal</h1>
         <p class="splash-subtitle">你的智能学习搭子</p>
         
         <div class="typing-text" id="typingText">
@@ -1791,20 +2688,20 @@
     <div class="container">
         <div class="header">
             <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
-            <h1>📚 StudyBuddy</h1>
+            <h1>📚 StudyPal</h1>
             <p>你的智能学习搭子，陪你一起变优秀！</p>
             <span class="header-badge" id="streakBadge">🔥 连续学习 0 天</span>
         </div>
         
         <div class="main-grid">
-            <!-- 左侧面板 -->
+            <!-- 左侧面板 - 核心学习工具 -->
             <div class="left-panel">
                 <!-- 学习搭子显示 -->
                 <div class="buddy-display">
                     <span class="buddy-emoji" id="buddyEmoji">😴</span>
                     <div class="buddy-status" id="buddyStatus">休息一下~ 准备好就开始学习吧！</div>
                 </div>
-                
+
                 <!-- 学习计时器 -->
                 <div class="panel">
                     <div class="panel-title">⏱️ 学习计时器</div>
@@ -1818,7 +2715,7 @@
                         <button class="quick-time-btn" onclick="setTimerDuration(45, this)">45 分钟</button>
                         <button class="quick-time-btn" onclick="setTimerDuration(60, this)">60 分钟</button>
                     </div>
-                    <div class="btn-group" style="margin-top: 15px;">
+                    <div class="btn-group" style="margin-top: 18px;">
                         <button class="btn btn-primary" id="startBtn" onclick="startTimer()">
                             <span id="startBtnText">▶️ 开始学习</span>
                         </button>
@@ -1827,9 +2724,9 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- 番茄钟 -->
-                <div class="panel" style="margin-top: 25px;">
+                <div class="panel">
                     <div class="panel-title">🍅 番茄钟</div>
                     <div class="pomodoro-display" id="pomodoroDisplay">
                         <div class="pomodoro-title">
@@ -1847,7 +2744,7 @@
                         <div class="progress-bar">
                             <div class="progress-fill" id="goalProgress" style="width: 0%"></div>
                         </div>
-                        <div class="pomodoro-info" style="margin-top: 10px;">
+                        <div class="pomodoro-info" style="margin-top: 12px;">
                             <span>学习次数：<strong id="todaySessions">0</strong></span>
                             <span>连续天数：<strong id="currentStreak">0</strong></span>
                         </div>
@@ -1856,21 +2753,151 @@
                         </div>
                     </div>
                     <div class="btn-group">
-                        <button class="btn btn-success" onclick="setPomodoro(25)">
-                            🍅 25 分钟
-                        </button>
-                        <button class="btn btn-success" onclick="setPomodoro(45)">
-                            🍅 45 分钟
-                        </button>
-                        <button class="btn btn-success" onclick="setPomodoro(60)">
-                            🍅 60 分钟
-                        </button>
+                        <button class="btn btn-success" onclick="setPomodoro(25)">🍅 25 分钟</button>
+                        <button class="btn btn-success" onclick="setPomodoro(45)">🍅 45 分钟</button>
+                        <button class="btn btn-success" onclick="setPomodoro(60)">🍅 60 分钟</button>
                     </div>
                 </div>
             </div>
-            
-            <!-- 右侧面板 -->
-            <div class="right-panel">
+
+            <!-- 中间面板 - AI 助手与学习日历 -->
+            <div class="center-panel">
+                <!-- AI 学习助手 - 核心模块 -->
+                <div class="panel ai-assistant-panel">
+                    <div class="panel-title">🤖 AI 学习助手</div>
+                    <div class="ai-chat-container">
+                        <div class="chat-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <div class="chat-tabs" style="display: flex; gap: 10px;">
+                                <button class="chart-tab active" id="chatTabCurrent" onclick="switchChatTab('current')">当前对话</button>
+                                <button class="chart-tab" id="chatTabHistory" onclick="switchChatTab('history')">历史记录</button>
+                            </div>
+                            <button class="quick-action-btn" onclick="startNewChat()" style="padding: 6px 12px; font-size: 11px;">+ 新对话</button>
+                        </div>
+
+                        <!-- 当前对话视图 -->
+                        <div id="currentChatView">
+                            <div class="chat-messages" id="chatMessages">
+                                <div class="chat-message ai">
+                                    嗨！我是你的学习搭子 StudyPal～有什么学习问题可以问我哦！💪
+                                </div>
+                            </div>
+                            <div class="chat-input">
+                                <input type="text" id="aiInput" placeholder="输入你的问题..." onkeypress="handleAiInput(event)">
+                                <button onclick="sendAiQuestion()" id="sendBtn">
+                                    <span id="sendBtnText">发送</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 历史记录视图 -->
+                        <div id="historyChatView" style="display: none;">
+                            <div class="chat-history-list" id="chatHistoryList" style="max-height: 400px; overflow-y: auto;"></div>
+                        </div>
+
+                        <!-- 对话详情视图 -->
+                        <div id="chatDetailView" style="display: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                                <button class="quick-action-btn" onclick="backToHistoryList()" style="padding: 6px 12px; font-size: 11px;">← 返回</button>
+                                <button class="quick-action-btn" onclick="deleteCurrentChat()" style="padding: 6px 12px; font-size: 11px; color: #ef4444;">🗑️ 删除</button>
+                            </div>
+                            <div class="chat-messages" id="chatDetailMessages" style="max-height: 350px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 学习状态监测模块 -->
+                <div class="panel study-monitor-panel">
+                    <div class="panel-title">📡 学习状态监测</div>
+
+                    <!-- 监测控制区 -->
+                    <div class="monitor-control">
+                        <div class="monitor-toggle">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="monitorSwitch" onchange="toggleMonitor()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="monitor-label" id="monitorLabel">监督模式：关闭</span>
+                        </div>
+                        <div class="monitor-status" id="monitorStatus">
+                            <span class="status-dot inactive"></span>
+                            <span class="status-text">未监测</span>
+                        </div>
+                    </div>
+
+                    <!-- 当前状态展示 -->
+                    <div class="study-status-display" id="studyStatusDisplay">
+                        <div class="status-icon" id="statusIcon">💤</div>
+                        <div class="status-info">
+                            <div class="status-title" id="statusTitle">等待开始学习</div>
+                            <div class="status-desc" id="statusDesc">开启监督模式，我会在你学习时帮你保持专注</div>
+                        </div>
+                    </div>
+
+                    <!-- 检测指标卡片 -->
+                    <div class="detection-metrics">
+                        <div class="metric-card">
+                            <div class="metric-icon">🎯</div>
+                            <div class="metric-info">
+                                <div class="metric-value" id="focusScore">--</div>
+                                <div class="metric-label">专注度</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">⏱️</div>
+                            <div class="metric-info">
+                                <div class="metric-value" id="activeTime">0 分钟</div>
+                                <div class="metric-label">活跃时长</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">📊</div>
+                            <div class="metric-info">
+                                <div class="metric-value" id="efficiencyRate">--%</div>
+                                <div class="metric-label">效率</div>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">🔄</div>
+                            <div class="metric-info">
+                                <div class="metric-value" id="breakCount">0</div>
+                                <div class="metric-label">休息次数</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 活动时间线 -->
+                    <div class="activity-timeline">
+                        <div class="timeline-header">
+                            <span>📈 今日活动趋势</span>
+                            <button class="quick-action-btn" onclick="toggleTimelineDetail()" style="padding: 4px 8px; font-size: 10px;">详情</button>
+                        </div>
+                        <div class="timeline-chart" id="timelineChart">
+                            <div class="timeline-bars" id="timelineBars">
+                                <!-- 时间条将通过 JS 动态生成 -->
+                            </div>
+                            <div class="timeline-labels">
+                                <span>6点</span>
+                                <span>9点</span>
+                                <span>12点</span>
+                                <span>15点</span>
+                                <span>18点</span>
+                                <span>21点</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 检测记录列表 -->
+                    <div class="detection-log">
+                        <div class="log-header">
+                            <span>📋 检测记录</span>
+                            <span class="log-count" id="logCount">0 条</span>
+                        </div>
+                        <div class="log-list" id="detectionLogList">
+                            <div class="log-empty">暂无检测记录</div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 学习日历 -->
                 <div class="panel">
                     <div class="panel-title">📅 学习日历</div>
@@ -1921,9 +2948,12 @@
                         </div>
                     </div>
                 </div>
-                
+            </div>
+
+            <!-- 右侧面板 - 任务管理与统计 -->
+            <div class="right-panel">
                 <!-- 任务管理 -->
-                <div class="panel" style="margin-top: 25px;">
+                <div class="panel">
                     <div class="panel-title">✅ 任务详情</div>
                     <div class="add-task-form">
                         <input type="text" id="taskInput" placeholder="添加新任务..." onkeypress="handleTaskInput(event)">
@@ -1938,10 +2968,56 @@
                             <input type="time" id="deadlineTime" onkeypress="handleDeadlineInput(event)">
                         </label>
                     </div>
-                    <div class="task-list" id="taskList">
+                    <div class="task-list" id="taskList"></div>
+                </div>
+
+                <!-- 成就徽章 -->
+                <div class="panel">
+                    <div class="panel-title">🏆 成就中心</div>
+                    <div class="achievement-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div class="achievement-level" id="achievementLevel">
+                            <span class="level-icon" id="levelIcon">🌱</span>
+                            <span class="level-name" id="levelName">学习小白</span>
+                            <span class="level-points" id="levelPoints">0 积分</span>
+                        </div>
+                        <button class="quick-action-btn" onclick="showAllAchievements()" style="padding: 6px 12px; font-size: 11px;">查看全部</button>
+                    </div>
+                    <div class="achievement-progress" style="margin-bottom: 16px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                            <span id="unlockedCount">0</span>
+                            <span id="totalCount">0</span>
+                        </div>
+                        <div style="background: rgba(99, 102, 241, 0.1); border-radius: 10px; height: 8px; overflow: hidden;">
+                            <div id="achievementProgressBar" style="background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)); height: 100%; width: 0%; border-radius: 10px; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                    <div class="achievement-grid" id="achievementGrid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;"></div>
+                </div>
+
+                <!-- 学习时长图表 -->
+                <div class="panel">
+                    <div class="panel-title">📊 学习时长统计</div>
+                    <div class="study-chart-container">
+                        <div class="chart-tabs">
+                            <button class="chart-tab active" onclick="switchChart('week')">本周</button>
+                            <button class="chart-tab" onclick="switchChart('month')">本月</button>
+                        </div>
+                        <div class="chart-wrapper" id="chartWrapper"></div>
+                        <div class="chart-labels" id="chartLabels"></div>
                     </div>
                 </div>
-                
+
+                <!-- 成就详情弹窗 -->
+                <div class="modal-overlay" id="achievementModal">
+                    <div class="modal" style="max-width: 500px; max-height: 80vh; overflow-y: auto;">
+                        <div class="modal-header">
+                            <div class="modal-title">🏆 成就列表</div>
+                            <button class="modal-close" onclick="closeAchievementModal()">×</button>
+                        </div>
+                        <div class="modal-body" id="achievementModalBody"></div>
+                    </div>
+                </div>
+
                 <!-- 到期提醒弹窗 -->
                 <div class="modal-overlay" id="deadlineModal">
                     <div class="modal">
@@ -1960,47 +3036,292 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- AI 问答 -->
-                <div class="panel" style="margin-top: 25px;">
-                    <div class="panel-title">🤖 AI 学习助手</div>
-                    <div class="ai-chat-container">
-                        <div class="chat-messages" id="chatMessages">
-                            <div class="chat-message ai">
-                                嗨！我是你的学习搭子 StudyBuddy～有什么学习问题可以问我哦！💪
-                            </div>
-                        </div>
-                        <div class="chat-input">
-                            <input type="text" id="aiInput" placeholder="输入你的问题..." onkeypress="handleAiInput(event)">
-                            <button onclick="sendAiQuestion()" id="sendBtn">
-                                <span id="sendBtnText">发送</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 学习时长图表 -->
-                <div class="panel" style="margin-top: 25px;">
-                    <div class="panel-title">📊 学习时长统计</div>
-                    <div class="study-chart-container">
-                        <div class="chart-tabs">
-                            <button class="chart-tab active" onclick="switchChart('week')">本周</button>
-                            <button class="chart-tab" onclick="switchChart('month')">本月</button>
-                        </div>
-                        <div class="chart-wrapper" id="chartWrapper">
-                            <!-- 图表柱将通过 JS 动态生成 -->
-                        </div>
-                        <div class="chart-labels" id="chartLabels">
-                            <!-- 标签将通过 JS 动态生成 -->
-                        </div>
-                    </div>
-                </div>
-                
             </div>
         </div>
     </div>
-    
+
+    <!-- 通知权限请求 -->
+    <div class="notification-request" id="notificationRequest">
+        <div class="notification-icon">🔔</div>
+        <div class="notification-text">
+            <div class="notification-title">开启学习提醒</div>
+            <div class="notification-desc">番茄钟完成时，我们将通过桌面通知提醒你</div>
+        </div>
+        <div class="notification-actions">
+            <button class="notification-btn accept" onclick="requestNotificationPermission()">允许</button>
+            <button class="notification-btn deny" onclick="dismissNotificationRequest()">暂不需要</button>
+        </div>
+    </div>
+
+    <!-- 成就解锁通知 -->
+    <div class="achievement-unlock-toast" id="achievementUnlockToast">
+        <div class="unlock-icon" id="unlockToastIcon">🏆</div>
+        <div class="unlock-text">
+            <div class="unlock-name" id="unlockToastName">成就解锁</div>
+            <div class="unlock-points" id="unlockToastPoints">+10 积分</div>
+        </div>
+    </div>
+
     <script>
+        // ==================== 学习状态监测模块 ====================
+        // 全局变量
+        let isMonitoring = false;
+        let studyStartTime = null;
+        let activeTimeSeconds = 0;
+        let breakCount = 0;
+        let focusScore = 0;
+        let efficiencyRate = 0;
+        let detectionLogs = [];
+        let monitoringInterval = null;
+        let simulationInterval = null;
+
+        // 模拟数据
+        const simulationData = {
+            focusLevels: [85, 92, 78, 95, 88, 72, 91, 83, 96, 89],
+            activeMinutes: [0, 5, 15, 25, 40, 55, 70, 85, 100, 115],
+            events: [
+                { icon: '🎯', title: '专注度提升', desc: '继续保持！专注度达到 95%' },
+                { icon: '⏰', title: '学习提醒', desc: '你已经学习了 30 分钟，建议休息一下' },
+                { icon: '💪', title: '效率提高', desc: '效率相比昨天提升了 15%' },
+                { icon: '🌟', title: '完成里程碑', desc: '今日学习时长突破 2 小时！' },
+                { icon: '📚', title: '任务进展', desc: '已完成今日学习目标的 80%' }
+            ]
+        };
+
+        // 切换监督模式
+        function toggleMonitor() {
+            const switchEl = document.getElementById('monitorSwitch');
+            const labelEl = document.getElementById('monitorLabel');
+            const statusEl = document.getElementById('monitorStatus');
+            const panelEl = document.querySelector('.study-monitor-panel');
+            const statusDisplay = document.getElementById('studyStatusDisplay');
+
+            isMonitoring = switchEl.checked;
+
+            if (isMonitoring) {
+                // 开启监督模式
+                labelEl.textContent = '监督模式：开启';
+                statusEl.innerHTML = '<span class="status-dot active"></span><span class="status-text">监测中</span>';
+                panelEl.classList.add('active');
+
+                studyStartTime = new Date();
+                activeTimeSeconds = 0;
+
+                // 初始化模拟数据
+                focusScore = 88;
+                efficiencyRate = 85;
+                updateMetricsDisplay();
+
+                // 开始模拟监测
+                startSimulation();
+
+                // 更新状态显示
+                updateStudyStatus('studying');
+
+                // 添加启动记录
+                addDetectionLog('🚀', '监督模式已开启', '开始监测学习状态');
+            } else {
+                // 关闭监督模式
+                labelEl.textContent = '监督模式：关闭';
+                statusEl.innerHTML = '<span class="status-dot inactive"></span><span class="status-text">未监测</span>';
+                panelEl.classList.remove('active');
+
+                // 停止模拟
+                stopSimulation();
+
+                // 更新状态显示
+                updateStudyStatus('inactive');
+
+                // 添加关闭记录
+                addDetectionLog('⏸️', '监督模式已关闭', '学习监测已停止');
+            }
+        }
+
+        // 开始模拟监测
+        function startSimulation() {
+            let eventIndex = 0;
+            let barIndex = 0;
+
+            // 更新活动时间线
+            updateTimelineChart();
+
+            // 定时更新数据
+            simulationInterval = setInterval(() => {
+                // 更新活跃时长
+                activeTimeSeconds += 30;
+                updateMetricsDisplay();
+
+                // 模拟专注度波动
+                focusScore = 70 + Math.floor(Math.random() * 30);
+                efficiencyRate = 75 + Math.floor(Math.random() * 20);
+
+                // 更新指标显示
+                updateMetricsDisplay();
+
+                // 随机触发事件
+                if (Math.random() > 0.7 && eventIndex < simulationData.events.length) {
+                    const event = simulationData.events[eventIndex];
+                    addDetectionLog(event.icon, event.title, event.desc);
+                    eventIndex++;
+                }
+
+                // 更新状态显示
+                if (focusScore >= 90) {
+                    updateStudyStatus('studying');
+                } else if (focusScore >= 70) {
+                    updateStudyStatus('idle');
+                } else {
+                    updateStudyStatus('alert');
+                }
+
+                // 更新活动时间线
+                updateTimelineProgress(barIndex % 12);
+                barIndex++;
+
+            }, 3000);
+
+            // 定时更新活跃时长显示
+            monitoringInterval = setInterval(() => {
+                updateActiveTimeDisplay();
+            }, 1000);
+        }
+
+        // 停止模拟
+        function stopSimulation() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+            }
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+            }
+        }
+
+        // 更新指标显示
+        function updateMetricsDisplay() {
+            document.getElementById('focusScore').textContent = focusScore + '%';
+            document.getElementById('efficiencyRate').textContent = efficiencyRate + '%';
+            document.getElementById('breakCount').textContent = breakCount;
+        }
+
+        // 更新活跃时长显示
+        function updateActiveTimeDisplay() {
+            const minutes = Math.floor(activeTimeSeconds / 60);
+            document.getElementById('activeTime').textContent = minutes + ' 分钟';
+        }
+
+        // 更新学习状态显示
+        function updateStudyStatus(status) {
+            const statusDisplay = document.getElementById('studyStatusDisplay');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusDesc = document.getElementById('statusDesc');
+
+            statusDisplay.className = 'study-status-display';
+
+            switch (status) {
+                case 'studying':
+                    statusIcon.textContent = '📚';
+                    statusTitle.textContent = '专注学习中';
+                    statusDesc.textContent = '保持专注！你现在的学习状态很好';
+                    statusDisplay.classList.add('studying');
+                    document.getElementById('monitorStatus').innerHTML = '<span class="status-dot active"></span><span class="status-text">专注中</span>';
+                    break;
+                case 'idle':
+                    statusIcon.textContent = '💭';
+                    statusTitle.textContent = '注意力分散';
+                    statusDesc.textContent = '看起来有点走神了，要不要休息一下？';
+                    statusDisplay.classList.add('idle');
+                    document.getElementById('monitorStatus').innerHTML = '<span class="status-dot warning"></span><span class="status-text">注意力分散</span>';
+                    break;
+                case 'alert':
+                    statusIcon.textContent = '⚠️';
+                    statusTitle.textContent = '需要关注';
+                    statusDesc.textContent = '检测到学习状态异常，请检查是否在学习';
+                    statusDisplay.classList.add('alert');
+                    document.getElementById('monitorStatus').innerHTML = '<span class="status-dot alert"></span><span class="status-text">异常</span>';
+                    break;
+                default:
+                    statusIcon.textContent = '💤';
+                    statusTitle.textContent = '等待开始学习';
+                    statusDesc.textContent = '开启监督模式，我会在你学习时帮你保持专注';
+            }
+        }
+
+        // 添加检测记录
+        function addDetectionLog(icon, title, desc) {
+            const logList = document.getElementById('detectionLogList');
+            const logCount = document.getElementById('logCount');
+
+            // 移除空状态提示
+            const emptyEl = logList.querySelector('.log-empty');
+            if (emptyEl) {
+                emptyEl.remove();
+            }
+
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+            const logItem = document.createElement('div');
+            logItem.className = 'log-item';
+            logItem.innerHTML = `
+                <span class="log-time">${timeStr}</span>
+                <span class="log-icon">${icon}</span>
+                <div class="log-content">
+                    <div class="log-title">${title}</div>
+                    <div class="log-desc">${desc}</div>
+                </div>
+            `;
+
+            // 添加动画
+            logItem.style.opacity = '0';
+            logItem.style.transform = 'translateY(-10px)';
+            logList.insertBefore(logItem, logList.firstChild);
+
+            setTimeout(() => {
+                logItem.style.opacity = '1';
+                logItem.style.transform = 'translateY(0)';
+            }, 50);
+
+            // 更新计数
+            detectionLogs.unshift({ icon, title, desc, time: now });
+            logCount.textContent = detectionLogs.length + ' 条';
+        }
+
+        // 更新时间线图表
+        function updateTimelineChart() {
+            const timelineBars = document.getElementById('timelineBars');
+            const hours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+            const currentHour = new Date().getHours();
+
+            let barsHTML = '';
+            hours.forEach((hour, index) => {
+                const isPast = hour <= currentHour;
+                const height = isPast ? 20 + Math.random() * 60 : 4;
+                const value = isPast ? Math.floor(height) + 'm' : '--';
+
+                barsHTML += `<div class="timeline-bar ${isPast ? '' : 'inactive'}" style="height: ${height}px" data-value="${value}" title="${hour}点"></div>`;
+            });
+
+            timelineBars.innerHTML = barsHTML;
+        }
+
+        // 更新时间线进度
+        function updateTimelineProgress(index) {
+            const bars = document.querySelectorAll('.timeline-bar');
+            if (bars[index]) {
+                const newHeight = 20 + Math.random() * 60;
+                bars[index].style.height = newHeight + 'px';
+                bars[index].setAttribute('data-value', Math.floor(newHeight) + 'm');
+            }
+        }
+
+        // 切换时间线详情
+        function toggleTimelineDetail() {
+            alert('时间线详情功能：\n显示每小时的详细学习数据，包括专注度变化、学习效率评估等。');
+        }
+
         // ==================== 开屏动画脚本 ====================
         const typingMessages = [
             "正在唤醒你的学习搭子...",
@@ -2083,25 +3404,7 @@
         let deadlineCheckInterval = null;
         let plans = [];
         let currentPlanFilter = 'all';
-        
-        // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            createParticles();
-            loadStudyData();
-            loadTasks();
-            renderCalendar();
-            updateStats();
-            updateBuddyStatus();
-            loadTheme();
-            renderTasks();
-            startDeadlineCheck();
-            
-            // 设置默认日期为今天
-            const today = new Date();
-            const dateInput = document.getElementById('deadlineDate');
-            if (dateInput) dateInput.value = today.toISOString().split('T')[0];
-        });
-        
+
         // 主题切换功能
         function loadTheme() {
             const savedTheme = localStorage.getItem('theme') || 'light';
@@ -2245,14 +3548,44 @@
             studyData.todaySessions = (studyData.todaySessions || 0) + 1;
             saveStudyData();
             updateStats();
-            
+
             showRestReminder();
             updatePomodoroStatus('休息中', true);
-            
+
             updateBuddyStatus();
-            
+
             showToast('🎉 完成一次学习！太棒了！', 'success');
             playNotificationSound();
+
+            // 显示桌面通知
+            notifyPomodoroComplete(25);
+
+            // 检查成就
+            checkPomodoroAchievements();
+        }
+
+        async function checkPomodoroAchievements() {
+            // 获取统计数据检查成就
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                if (data.success) {
+                    // 检查番茄钟相关成就
+                    const completed = data.stats.pomodoro?.completed || 0;
+
+                    // 这里简化处理，实际应该由后端检查并返回新解锁的成就
+                    if (completed === 1) {
+                        showAchievementUnlockToast({ icon: '🌱', name: '初出茅庐', reward: 10 });
+                    } else if (completed === 5) {
+                        showAchievementUnlockToast({ icon: '🌿', name: '小有所成', reward: 20 });
+                    } else if (completed === 10) {
+                        showAchievementUnlockToast({ icon: '🌳', name: '渐入佳境', reward: 30 });
+                    }
+                }
+            } catch (error) {
+                console.error('检查成就失败:', error);
+            }
         }
         
         function updatePomodoroStatus(status, rest) {
@@ -2394,45 +3727,248 @@
             renderCalendar();
         }
         
-        // AI 问答功能 (模拟)
+        // AI 问答功能 (调用真实 API)
+        let currentConversationId = null;
+
         function handleAiInput(event) {
             if (event.key === 'Enter') {
                 sendAiQuestion();
             }
         }
-        
-        function sendAiQuestion() {
+
+        async function sendAiQuestion() {
             const input = document.getElementById('aiInput');
             const question = input.value.trim();
             if (!question) return;
-            
+
             addChatMessage(question, 'user');
             input.value = '';
-            
+
             const sendBtn = document.getElementById('sendBtn');
             const sendBtnText = document.getElementById('sendBtnText');
             sendBtnText.innerHTML = '<span class="loading"></span>';
             sendBtn.disabled = true;
-            
-            setTimeout(() => {
-                let answer = "这个问题很有意思！让我想想... 学习最重要的是坚持和正确的方法，你可以试试番茄工作法~ 📖";
-                if (question.includes("番茄")) answer = "番茄工作法：25分钟专注 + 5分钟休息，每4个番茄钟后休息15-30分钟，超高效！";
-                if (question.includes("记忆")) answer = "艾宾浩斯遗忘曲线：学习后1小时、1天、1周复习效果最好，试试间隔重复吧！";
-                addChatMessage(answer, 'ai');
+
+            // 添加加载中的消息
+            const loadingMsg = addChatMessage('', 'ai', true);
+
+            try {
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        conversation_id: currentConversationId
+                    })
+                });
+
+                const data = await response.json();
+
+                // 移除加载中的消息
+                if (loadingMsg) loadingMsg.remove();
+
+                if (response.ok) {
+                    addChatMessage(data.answer, 'ai');
+                    // 保存对话 ID
+                    if (data.conversation_id) {
+                        currentConversationId = data.conversation_id;
+                    }
+                } else {
+                    // 显示错误信息
+                    addChatMessage('❌ 错误：' + data.error, 'ai');
+                }
+            } catch (error) {
+                // 移除加载中的消息
+                if (loadingMsg) loadingMsg.remove();
+                // 显示错误信息
+                addChatMessage('❌ 错误：无法连接到服务器', 'ai');
+                console.error('AI 请求失败:', error);
+            } finally {
                 sendBtnText.textContent = '发送';
                 sendBtn.disabled = false;
-            }, 800);
+            }
         }
-        
-        function addChatMessage(text, type) {
+
+        function addChatMessage(text, type, isLoading = false) {
             const container = document.getElementById('chatMessages');
             const message = document.createElement('div');
             message.className = 'chat-message ' + type;
-            const now = new Date();
-            const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-            message.innerHTML = text + '<div class="message-time">' + timeStr + '</div>';
+            if (isLoading) {
+                message.classList.add('loading');
+                message.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+            } else {
+                const now = new Date();
+                const timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                message.innerHTML = text + '<div class="message-time">' + timeStr + '</div>';
+            }
             container.appendChild(message);
             container.scrollTop = container.scrollHeight;
+            return message;
+        }
+
+        // AI 历史记录功能
+        function switchChatTab(tab) {
+            const currentTab = document.getElementById('chatTabCurrent');
+            const historyTab = document.getElementById('chatTabHistory');
+            const currentView = document.getElementById('currentChatView');
+            const historyView = document.getElementById('historyChatView');
+            const detailView = document.getElementById('chatDetailView');
+
+            if (tab === 'current') {
+                currentTab.classList.add('active');
+                historyTab.classList.remove('active');
+                currentView.style.display = 'block';
+                historyView.style.display = 'none';
+                detailView.style.display = 'none';
+            } else {
+                currentTab.classList.remove('active');
+                historyTab.classList.add('active');
+                currentView.style.display = 'none';
+                historyView.style.display = 'block';
+                detailView.style.display = 'none';
+                loadChatHistory();
+            }
+        }
+
+        async function loadChatHistory() {
+            try {
+                const response = await fetch('/api/ai/history');
+                const data = await response.json();
+
+                const historyList = document.getElementById('chatHistoryList');
+                if (data.conversations && data.conversations.length > 0) {
+                    historyList.innerHTML = data.conversations.map(conv => {
+                        const date = new Date(conv.updated_at);
+                        const timeStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                        return `
+                            <div class="chat-history-item" onclick="openChatDetail('${conv.id}')">
+                                <div class="chat-history-icon">💬</div>
+                                <div class="chat-history-info">
+                                    <div class="chat-history-title">${escapeHtml(conv.title)}</div>
+                                    <div class="chat-history-meta">${conv.message_count} 条消息 · ${timeStr}</div>
+                                </div>
+                                <button class="chat-history-delete" onclick="event.stopPropagation(); deleteChatHistory('${conv.id}')">×</button>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    historyList.innerHTML = `
+                        <div class="chat-empty-state">
+                            <div class="empty-icon">💭</div>
+                            <div>暂无历史对话</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载历史记录失败:', error);
+            }
+        }
+
+        async function openChatDetail(conversationId) {
+            try {
+                const response = await fetch('/api/ai/history/' + conversationId);
+                const data = await response.json();
+
+                if (data.messages && data.messages.length > 0) {
+                    const currentView = document.getElementById('currentChatView');
+                    const historyView = document.getElementById('historyChatView');
+                    const detailView = document.getElementById('chatDetailView');
+
+                    currentView.style.display = 'none';
+                    historyView.style.display = 'none';
+                    detailView.style.display = 'block';
+
+                    const detailMessages = document.getElementById('chatDetailMessages');
+                    detailMessages.innerHTML = data.messages.map(msg => {
+                        const date = new Date(msg.timestamp);
+                        const timeStr = date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                        const roleClass = msg.role === 'user' ? 'user' : 'ai';
+                        return `
+                            <div class="chat-message ${roleClass}">
+                                ${escapeHtml(msg.content)}
+                                <div class="message-time">${timeStr}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    detailMessages.scrollTop = detailMessages.scrollHeight;
+
+                    // 保存当前查看的对话 ID
+                    window.currentDetailConversationId = conversationId;
+                }
+            } catch (error) {
+                console.error('加载对话详情失败:', error);
+            }
+        }
+
+        function backToHistoryList() {
+            const currentView = document.getElementById('currentChatView');
+            const historyView = document.getElementById('historyChatView');
+            const detailView = document.getElementById('chatDetailView');
+
+            currentView.style.display = 'none';
+            historyView.style.display = 'block';
+            detailView.style.display = 'none';
+        }
+
+        async function deleteChatHistory(conversationId) {
+            if (!confirm('确定要删除这条对话记录吗？')) return;
+
+            try {
+                const response = await fetch('/api/ai/history/' + conversationId, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showToast('对话已删除', 'success');
+                    loadChatHistory();
+
+                    // 如果删除的是当前对话，重置
+                    if (window.currentDetailConversationId === conversationId) {
+                        backToHistoryList();
+                    }
+                }
+            } catch (error) {
+                console.error('删除对话失败:', error);
+            }
+        }
+
+        async function startNewChat() {
+            try {
+                const response = await fetch('/api/ai/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    currentConversationId = data.conversation_id;
+
+                    // 清空当前对话
+                    const chatMessages = document.getElementById('chatMessages');
+                    chatMessages.innerHTML = `
+                        <div class="chat-message ai">
+                            嗨！新对话开始啦～有什么学习问题可以问我哦！💪
+                        </div>
+                    `;
+
+                    // 切换回当前对话视图
+                    switchChatTab('current');
+                    showToast('新对话已创建', 'success');
+                }
+            } catch (error) {
+                console.error('创建新对话失败:', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         // 任务管理
@@ -2674,7 +4210,250 @@
         
         // 初始化图表
         renderChart();
-        
+
+        // ==================== 成就系统 ====================
+        let achievementsData = null;
+
+        async function loadAchievements() {
+            try {
+                const response = await fetch('/api/achievements');
+                const data = await response.json();
+
+                if (data.success) {
+                    achievementsData = data.achievements;
+                    updateAchievementDisplay(data.achievements);
+                }
+            } catch (error) {
+                console.error('加载成就失败:', error);
+            }
+        }
+
+        function updateAchievementDisplay(data) {
+            // 更新等级信息
+            if (data.level) {
+                document.getElementById('levelIcon').textContent = data.level.level.icon;
+                document.getElementById('levelName').textContent = data.level.level.name;
+                document.getElementById('levelPoints').textContent = data.level.points + ' 积分';
+            }
+
+            // 更新进度条
+            if (data.stats) {
+                document.getElementById('unlockedCount').textContent = data.stats.unlocked_count;
+                document.getElementById('totalCount').textContent = data.stats.total_achievements;
+                document.getElementById('achievementProgressBar').style.width = data.stats.completion_rate + '%';
+            }
+
+            // 更新成就网格（显示前10个）
+            const grid = document.getElementById('achievementGrid');
+            if (data.achievements && data.achievements.length > 0) {
+                const displayAchievements = data.achievements.slice(0, 10);
+                grid.innerHTML = displayAchievements.map(ach => {
+                    const unlockedClass = ach.unlocked ? 'unlocked' : 'locked';
+                    return `
+                        <div class="achievement-badge ${unlockedClass}" onclick="showAchievementDetail('${ach.id}')">
+                            ${ach.icon}
+                            <div class="achievement-tooltip">
+                                <strong>${ach.name}</strong><br>
+                                ${ach.description}<br>
+                                ${ach.unlocked ? '✅ 已解锁' : `奖励: +${ach.reward}积分`}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function showAchievementDetail(achievementId) {
+            if (!achievementsData) return;
+            const achievement = achievementsData.achievements.find(a => a.id === achievementId);
+            if (achievement) {
+                showToast(`${achievement.icon} ${achievement.name}: ${achievement.description}`, 'success');
+            }
+        }
+
+        function showAllAchievements() {
+            const modal = document.getElementById('achievementModal');
+            const body = document.getElementById('achievementModalBody');
+
+            if (achievementsData && achievementsData.achievements) {
+                // 按类型分组
+                const categories = {
+                    'pomodoro': { name: '🍅 番茄钟', items: [] },
+                    'streak': { name: '🔥 连续学习', items: [] },
+                    'study': { name: '📚 学习时长', items: [] },
+                    'task': { name: '✅ 任务完成', items: [] },
+                    'ai': { name: '💬 AI 对话', items: [] }
+                };
+
+                achievementsData.achievements.forEach(ach => {
+                    let category = 'pomodoro';
+                    if (ach.id.includes('streak')) category = 'streak';
+                    else if (ach.id.includes('study') || ach.id.includes('hour')) category = 'study';
+                    else if (ach.id.includes('task')) category = 'task';
+                    else if (ach.id.includes('question') || ach.id.includes('conversation')) category = 'ai';
+
+                    categories[category].items.push(ach);
+                });
+
+                let html = '';
+                for (const cat in categories) {
+                    if (categories[cat].items.length > 0) {
+                        html += `<h4 style="margin: 15px 0 10px 0; color: var(--text-primary);">${categories[cat].name}</h4>`;
+                        html += categories[cat].items.map(ach => {
+                            const unlockedClass = ach.unlocked ? 'unlocked' : '';
+                            return `
+                                <div class="achievement-list-item ${unlockedClass}">
+                                    <div class="achievement-icon">${ach.icon}</div>
+                                    <div class="achievement-info">
+                                        <div class="achievement-name">${ach.name}</div>
+                                        <div class="achievement-desc">${ach.description}</div>
+                                    </div>
+                                    <div class="achievement-reward">${ach.unlocked ? '✅' : '+' + ach.reward + '积分'}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+
+                body.innerHTML = html;
+            }
+
+            modal.classList.add('show');
+        }
+
+        function closeAchievementModal() {
+            document.getElementById('achievementModal').classList.remove('show');
+        }
+
+        function showAchievementUnlockToast(achievement) {
+            const toast = document.getElementById('achievementUnlockToast');
+            document.getElementById('unlockToastIcon').textContent = achievement.icon;
+            document.getElementById('unlockToastName').textContent = achievement.name;
+            document.getElementById('unlockToastPoints').textContent = '+' + achievement.reward + ' 积分';
+
+            toast.classList.add('show');
+
+            // 播放音效
+            playNotificationSound();
+
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ==================== 桌面通知系统 ====================
+        let notificationPermission = Notification.permission;
+
+        function checkNotificationPermission() {
+            if ('Notification' in window) {
+                notificationPermission = Notification.permission;
+
+                // 如果从未询问过，显示请求提示
+                if (notificationPermission === 'default') {
+                    setTimeout(() => {
+                        const requestEl = document.getElementById('notificationRequest');
+                        if (requestEl && !localStorage.getItem('notificationDismissed')) {
+                            requestEl.classList.add('show');
+                        }
+                    }, 5000); // 5秒后显示
+                }
+            }
+        }
+
+        async function requestNotificationPermission() {
+            try {
+                const permission = await Notification.requestPermission();
+                notificationPermission = permission;
+
+                if (permission === 'granted') {
+                    showToast('桌面通知已开启！', 'success');
+                    // 保存通知设置到服务器
+                    fetch('/api/notification/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pomodoro_complete: true, goal_reached: true, task_reminder: true })
+                    });
+                } else {
+                    showToast('通知权限被拒绝', 'error');
+                }
+            } catch (error) {
+                console.error('请求通知权限失败:', error);
+            }
+
+            dismissNotificationRequest();
+        }
+
+        function dismissNotificationRequest() {
+            const requestEl = document.getElementById('notificationRequest');
+            if (requestEl) {
+                requestEl.classList.remove('show');
+                localStorage.setItem('notificationDismissed', 'true');
+            }
+        }
+
+        function showNotification(title, body, icon = '🎉') {
+            if (notificationPermission === 'granted') {
+                try {
+                    const notification = new Notification(title, {
+                        body: body,
+                        icon: icon,
+                        badge: icon,
+                        tag: 'studypal'
+                    });
+
+                    notification.onclick = () => {
+                        window.focus();
+                        notification.close();
+                    };
+
+                    // 5秒后自动关闭
+                    setTimeout(() => notification.close(), 5000);
+                } catch (error) {
+                    console.error('显示通知失败:', error);
+                }
+            }
+        }
+
+        // 番茄钟完成时显示通知
+        function notifyPomodoroComplete(duration) {
+            showNotification(
+                '🍅 番茄钟完成！',
+                `恭喜你完成了 ${duration} 分钟的专注学习！休息一下吧～`,
+                '🍅'
+            );
+        }
+
+        // 目标达成时显示通知
+        function notifyGoalReached() {
+            showNotification(
+                '🎉 目标达成！',
+                '太棒了！你今天的学习目标已经完成啦！',
+                '🎉'
+            );
+        }
+
+        // ==================== 初始化 ====================
+        // DOM 加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            createParticles();
+            loadStudyData();
+            loadTasks();
+            renderCalendar();
+            updateStats();
+            updateBuddyStatus();
+            loadTheme();
+            renderTasks();
+            startDeadlineCheck();
+            loadAchievements();
+            checkNotificationPermission();
+
+            // 设置默认日期为今天
+            const today = new Date();
+            const dateInput = document.getElementById('deadlineDate');
+            if (dateInput) dateInput.value = today.toISOString().split('T')[0];
+        });
+
     </script>
 </body>
 </html>
