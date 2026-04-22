@@ -27,6 +27,37 @@ from src.modules.data_manager import (
 from datetime import datetime
 import threading
 import time
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ==================== AI 监督模块集成 ====================
+
+# 延迟导入 ai_supervisor，实现优雅降级
+_monitor_class = None
+_monitor_enabled = False
+
+try:
+    import sys
+    import os
+
+    # 将 ai_supervisor 添加到模块搜索路径
+    ai_supervisor_path = os.path.join(os.path.dirname(__file__), 'ai_supervisor')
+    if ai_supervisor_path not in sys.path:
+        sys.path.insert(0, ai_supervisor_path)
+
+    from ai_supervisor import Monitor
+    _monitor_class = Monitor
+    _monitor_enabled = True
+    logger.info("AI Monitor 模块加载成功")
+except Exception as e:
+    logger.warning(f"AI Monitor 模块未加载，功能受限: {type(e).__name__}: {e}")
+    _monitor_class = None
+    _monitor_enabled = False
+except Exception as e:
+    logger.warning(f"加载 AI Monitor 模块时发生错误: {e}")
+    _monitor_class = None
+    _monitor_enabled = False
 
 app = Flask(__name__)
 
@@ -40,6 +71,7 @@ class Session:
     - StudySupervisor: 番茄钟监督器
     - Buddy: 学习伙伴
     - StudyTimer: 计时器
+    - Monitor: AI 监督器（可选）
     - 用户设置缓存
     """
     def __init__(self):
@@ -47,12 +79,91 @@ class Session:
         self.buddy = Buddy(self.supervisor)
         self.timer = StudyTimer()
         self.lock = threading.Lock()
+        # AI 监督模块（可选）
+        self.monitor = None
+        self._monitor_thread = None
+        self._monitor_running = False
         # 加载用户设置
         settings = load_user_settings()
         self.motto = settings.get("motto", "")
         self.favorite_quote = settings.get("favorite_quote", "")
         # 使用持久化的每日目标
         self.supervisor.set_daily_goal(settings.get("daily_goal_minutes", 120))
+        # 尝试初始化 AI 监督器
+        self._init_monitor()
+
+    def _init_monitor(self):
+        """初始化 AI 监督器（可选功能）"""
+        global _monitor_class, _monitor_enabled
+        if not _monitor_enabled or _monitor_class is None:
+            return
+        
+        try:
+            self.monitor = _monitor_class()
+            logger.info("Session 中的 AI Monitor 实例已创建")
+        except Exception as e:
+            logger.warning(f"创建 AI Monitor 实例失败: {e}")
+            self.monitor = None
+
+    def start_monitor(self):
+        """启动 AI 监督监控"""
+        if self.monitor is None:
+            return False
+        
+        if self._monitor_running:
+            return False
+        
+        try:
+            self.monitor.start()
+            self._monitor_running = True
+            logger.info("AI Monitor 已启动")
+            return True
+        except Exception as e:
+            logger.warning(f"启动 AI Monitor 失败: {e}")
+            return False
+
+    def stop_monitor(self):
+        """停止 AI 监督监控"""
+        if self.monitor is None or not self._monitor_running:
+            return False
+        
+        try:
+            self.monitor.stop()
+            self._monitor_running = False
+            logger.info("AI Monitor 已停止")
+            return True
+        except Exception as e:
+            logger.warning(f"停止 AI Monitor 失败: {e}")
+            return False
+
+    def get_focus_status(self):
+        """获取专注度状态（来自 AI Monitor）"""
+        if self.monitor is None or not self._monitor_running:
+            return None
+        
+        try:
+            state = self.monitor.get_state()
+            score = self.monitor.get_score()
+            report = self.monitor.get_report()
+            return {
+                'state': state,
+                'score': score,
+                'report': report,
+                'monitor_enabled': True
+            }
+        except Exception as e:
+            logger.warning(f"获取专注度状态失败: {e}")
+            return None
+
+    def get_monitor_camera_frame(self):
+        """获取摄像头画面（用于前端显示）"""
+        if self.monitor is None:
+            return None
+        
+        try:
+            return self.monitor.get_camera_frame()
+        except Exception:
+            return None
 
 # 全局会话存储（键为 session_id）
 sessions = {}
@@ -80,6 +191,7 @@ def get_status():
     - 计时器状态
     - 番茄钟状态
     - 学习统计
+    - 专注度状态（AI Monitor）
     """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
@@ -93,6 +205,14 @@ def get_status():
         # 获取监督器状态并更新情绪
         supervisor_status = session.supervisor.get_status()
         session.buddy.update_by_supervisor(supervisor_status)
+        
+        # 获取专注度状态并更新情绪（如果有 AI Monitor）
+        focus_status = session.get_focus_status()
+        if focus_status:
+            session.buddy.update_by_focus(
+                focus_status.get('score'),
+                focus_status.get('state')
+            )
         
         return jsonify({
             'emotion': session.buddy.get_emotion(),
@@ -109,7 +229,9 @@ def get_status():
                 'cycle': session.supervisor._current_pomodoro_cycle,
                 'completed': session.supervisor._completed_pomodoros,
                 'is_break_mode': session.supervisor._is_break_mode
-            }
+            },
+            'focus': focus_status,
+            'focus_stats': session.buddy.get_focus_stats()
         })
 
 # ==================== AI 问答 API ====================
@@ -174,7 +296,7 @@ def start_study():
     """
     开始学习
     
-    启动计时器和番茄钟
+    启动计时器和番茄钟，同时启动 AI 监督（如果可用）
     """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
@@ -188,12 +310,18 @@ def start_study():
             # 启动番茄钟
             session.supervisor.record_activity()
             pomodoro_info = session.supervisor.start_pomodoro()
+            # 启动 AI 监督
+            monitor_started = session.start_monitor()
             return jsonify({
                 'success': True,
                 'message': pomodoro_info['message'],
                 'emotion': session.buddy.get_emotion(),
                 'emoji': session.buddy.get_emoji(),
-                'pomodoro': pomodoro_info
+                'pomodoro': pomodoro_info,
+                'monitor': {
+                    'enabled': _monitor_enabled,
+                    'started': monitor_started
+                }
             })
         else:
             return jsonify({
@@ -229,7 +357,7 @@ def stop_study():
     """
     停止学习
     
-    停止计时器，记录学习时长，完成番茄钟
+    停止计时器，记录学习时长，完成番茄钟，同时停止 AI 监督
     """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
@@ -238,6 +366,9 @@ def stop_study():
     session = sessions[session_id]
     
     with session.lock:
+        # 停止 AI 监督
+        session.stop_monitor()
+        
         duration = session.timer.stop()
         if session.timer.check_finish():
             session.buddy.update_by_action('study_finish')
@@ -272,7 +403,7 @@ def reset():
     """
     重置会话
     
-    重新初始化所有组件
+    重新初始化所有组件，包括 AI Monitor
     """
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
@@ -281,9 +412,15 @@ def reset():
     session = sessions[session_id]
     
     with session.lock:
+        # 先停止 AI 监督
+        session.stop_monitor()
+        
         session.supervisor = StudySupervisor()
         session.buddy = Buddy(session.supervisor)
         session.timer = StudyTimer()
+        # 重新初始化 AI 监督器
+        session._init_monitor()
+        
         return jsonify({
             'success': True,
             'emotion': session.buddy.get_emotion(),
@@ -381,6 +518,191 @@ def set_timer_target():
     return jsonify({
         'success': True,
         'target': minutes
+    })
+
+# ==================== AI 监督专注度 API ====================
+
+@app.route('/api/monitor/status', methods=['GET'])
+def get_monitor_status():
+    """
+    获取 AI Monitor 状态
+    
+    返回：
+    - enabled: 是否可用
+    - running: 是否正在运行
+    - state: 当前专注状态
+    - score: 专注度评分
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    return jsonify({
+        'enabled': _monitor_enabled,
+        'running': session._monitor_running,
+        'state': session.monitor.get_state() if session.monitor else None,
+        'score': session.monitor.get_score() if session.monitor else None,
+        'monitor_available': session.monitor is not None
+    })
+
+@app.route('/api/monitor/start', methods=['POST'])
+def start_monitor():
+    """
+    启动 AI 监督
+    
+    开始监控专注度和行为
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    if not _monitor_enabled:
+        return jsonify({
+            'success': False,
+            'error': 'AI Monitor 模块未启用'
+        }), 400
+    
+    success = session.start_monitor()
+    if success:
+        return jsonify({
+            'success': True,
+            'message': 'AI 监督已启动'
+        })
+    return jsonify({
+        'success': False,
+        'error': '监督已在运行或初始化失败'
+    })
+
+@app.route('/api/monitor/stop', methods=['POST'])
+def stop_monitor():
+    """
+    停止 AI 监督
+    
+    停止监控专注度
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    success = session.stop_monitor()
+    if success:
+        return jsonify({
+            'success': True,
+            'message': 'AI 监督已停止'
+        })
+    return jsonify({
+        'success': False,
+        'error': '监督未在运行'
+    })
+
+@app.route('/api/monitor/report', methods=['GET'])
+def get_monitor_report():
+    """
+    获取专注度分析报告
+    
+    返回详细的专注度分析报告
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    if session.monitor is None:
+        return jsonify({
+            'success': False,
+            'error': 'AI Monitor 未初始化'
+        }), 400
+    
+    try:
+        report = session.monitor.get_report()
+        return jsonify({
+            'success': True,
+            'report': report
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/monitor/camera', methods=['GET'])
+def get_camera_frame():
+    """
+    获取摄像头画面（用于实时显示）
+    
+    返回 base64 编码的图像
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    if session.monitor is None:
+        return jsonify({
+            'success': False,
+            'error': 'AI Monitor 未初始化'
+        }), 400
+    
+    try:
+        frame = session.get_monitor_camera_frame()
+        if frame is None:
+            return jsonify({
+                'success': False,
+                'error': '无法获取摄像头画面'
+            }), 400
+        
+        import base64
+        import cv2
+        import numpy as np
+        
+        # 将 OpenCV 图像转换为 base64
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        return jsonify({
+            'success': True,
+            'frame': frame_base64
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/monitor/focus', methods=['GET'])
+def get_focus_data():
+    """
+    获取专注度数据（用于前端显示）
+    
+    返回专注度状态和评分
+    """
+    session_id = request.args.get('session_id', 'default')
+    if session_id not in sessions:
+        sessions[session_id] = Session()
+    
+    session = sessions[session_id]
+    
+    focus_status = session.get_focus_status()
+    if focus_status is None:
+        return jsonify({
+            'success': True,
+            'enabled': _monitor_enabled,
+            'monitor_available': session.monitor is not None,
+            'focus': None
+        })
+    
+    return jsonify({
+        'success': True,
+        'enabled': _monitor_enabled,
+        'focus': focus_status
     })
 
 # ==================== 任务管理 API ====================

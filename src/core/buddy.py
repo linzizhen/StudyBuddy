@@ -48,6 +48,11 @@ class Buddy:
         self._consecutive_study_sessions = 0  # 连续学习次数
         self._supervisor = supervisor  # 学习监督器引用
         
+        # AI Monitor 专注度状态
+        self._last_focus_score = None  # 上次专注度评分
+        self._distracted_count = 0  # 分心次数统计
+        self._focused_streak = 0  # 连续专注时长
+        
         # 任务管理
         self.task_manager = TaskManager()
         
@@ -170,6 +175,62 @@ class Buddy:
                 return True
         
         return False
+    
+    def update_by_focus(self, focus_score, focus_state=None):
+        """
+        根据 AI Monitor 的专注度状态更新情绪
+        
+        参数：
+            focus_score: 专注度评分 (0-100)
+            focus_state: 专注状态字符串 (focused/normal/distracted/unknown)
+        
+        返回：
+            是否更新了情绪
+        """
+        if focus_score is None:
+            return False
+        
+        updated = False
+        old_score = self._last_focus_score
+        self._last_focus_score = focus_score
+        
+        # 根据专注度状态更新情绪
+        if focus_state == 'distracted' or focus_score < 40:
+            self._distracted_count += 1
+            if self._current_emotion == "study":
+                self.set_emotion("sad")
+                updated = True
+        elif focus_state == 'focused' or focus_score >= 65:
+            self._focused_streak += 1
+            # 连续专注时增加自豪感
+            if self._focused_streak >= 3 and self._current_emotion in ["study", "happy"]:
+                self.set_emotion("proud")
+                updated = True
+        else:
+            # 恢复正常状态时重置分心计数
+            if focus_score >= 40:
+                self._distracted_count = 0
+        
+        return updated
+    
+    def get_focus_stats(self):
+        """
+        获取专注度统计信息
+        
+        返回：
+            包含专注度统计的字典
+        """
+        return {
+            "last_focus_score": self._last_focus_score,
+            "distracted_count": self._distracted_count,
+            "focused_streak": self._focused_streak
+        }
+    
+    def reset_focus_stats(self):
+        """重置专注度统计数据"""
+        self._last_focus_score = None
+        self._distracted_count = 0
+        self._focused_streak = 0
     
     def update_by_supervisor(self, supervisor_status):
         """
@@ -349,6 +410,7 @@ class Buddy:
         self._last_activity_time = datetime.now()
         self._study_duration = 0
         self._consecutive_study_sessions = 0
+        self.reset_focus_stats()
     
     def __str__(self):
         """
