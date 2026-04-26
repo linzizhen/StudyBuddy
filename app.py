@@ -797,25 +797,84 @@ def update_task(task_id):
 def complete_task(task_id):
     """
     完成任务
-    
+
     完成任务时触发成就系统
     """
+    from datetime import datetime
     session_id = request.args.get('session_id', 'default')
     if session_id not in sessions:
         sessions[session_id] = Session()
-    
+
     session = sessions[session_id]
-    
+
     with session.lock:
         success = session.buddy.task_manager.mark_complete(task_id)
         if success:
             task = session.buddy.task_manager.get_task(task_id)
             session.buddy.on_task_complete(task.title)
+
+            # 检查成就系统
+            from src.modules.achievements import check_achievements, get_achievement_manager
+            manager = get_achievement_manager()
+
+            # 获取用户统计
+            task_stats = session.buddy.task_manager.get_stats()
+            study_stats = session.buddy.get_study_stats()
+            calendar_stats = session.buddy.get_calendar_stats()
+            now = datetime.now()
+
+            user_stats = {
+                'tasks_completed': task_stats.get('completed', 0),
+                'total_pomodoros': task_stats.get('completed', 0),
+                'streak_days': session.supervisor.get_streak_days() if hasattr(session.supervisor, 'get_streak_days') else 0,
+                'total_study_minutes': study_stats.get('total_minutes', 0),
+                'single_day_minutes': calendar_stats.get('today_minutes', 0),
+                'ai_questions': session.buddy.ai_memory.get_question_count() if hasattr(session.buddy, 'ai_memory') else 0,
+                'goals_reached': calendar_stats.get('goals_reached', 0),
+                'conversations_count': session.buddy.ai_memory.get_conversation_count() if hasattr(session.buddy, 'ai_memory') else 0,
+                # 隐藏成就的统计
+                'early_bird': 1 if now.hour < 6 else 0,
+                'night_owl': 1 if now.hour >= 23 else 0,
+                'perfectionist': 1 if task_stats.get('pending', 0) == 0 and task_stats.get('completed', 0) > 0 else 0,
+                'daily_tasks_3': calendar_stats.get('daily_completed_tasks', 0),
+                'daily_tasks_5': calendar_stats.get('daily_completed_tasks', 0),
+                'focus_hour': 1 if calendar_stats.get('today_minutes', 0) >= 60 else 0,
+                'weekend_study': 1 if now.weekday() >= 5 else 0,
+                'tasks_created': task_stats.get('total', 0),
+                'midnight_study': 1 if now.hour >= 1 else 0,
+                'efficiency_day': 1 if calendar_stats.get('daily_completed_tasks', 0) >= 5 and calendar_stats.get('today_minutes', 0) >= 120 else 0,
+            }
+
+            # 检查并解锁新成就
+            new_achievements = check_achievements(user_stats)
+
+            # 检查是否等级提升
+            level_info = manager.get_level()
+            prev_points = level_info['points'] - sum(a['reward'] for a in new_achievements)
+            level_up = False
+            for lvl in [
+                {"name": "学习小白", "min_points": 0, "icon": "🌱"},
+                {"name": "学习新手", "min_points": 50, "icon": "🌿"},
+                {"name": "学习少年", "min_points": 150, "icon": "🌳"},
+                {"name": "学习达人", "min_points": 300, "icon": "⭐"},
+                {"name": "学习精英", "min_points": 500, "icon": "🌟"},
+                {"name": "学习大师", "min_points": 800, "icon": "🏆"},
+                {"name": "学习传奇", "min_points": 1200, "icon": "👑"},
+            ]:
+                if prev_points < lvl["min_points"] <= level_info['points']:
+                    level_up = True
+                    level_info['level'] = lvl
+                    break
+
             return jsonify({
                 'success': True,
                 'task': task.to_dict(),
                 'emotion': session.buddy.get_emotion(),
-                'emoji': session.buddy.get_emoji()
+                'emoji': session.buddy.get_emoji(),
+                'new_achievements': new_achievements,
+                'level_up': level_up,
+                'level_info': level_info['level'],
+                'points_earned': sum(a['reward'] for a in new_achievements)
             })
     return jsonify({'success': False, 'error': '任务不存在'}), 404
 

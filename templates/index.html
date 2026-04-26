@@ -49,19 +49,20 @@
         }
 
         [data-theme="dark"] {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #1e293b;
-            --bg-card: #1e293b;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --border: rgba(255,255,255,0.06);
-            --border-hover: rgba(99,102,241,0.3);
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-            --shadow-md: 0 4px 6px rgba(0,0,0,0.25);
-            --shadow-lg: 0 10px 40px rgba(0,0,0,0.4);
-            --shadow-primary: 0 8px 24px rgba(99, 102, 241, 0.35);
+            /* 护眼深色模式 - 暖色调深色背景 */
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --bg-card: rgba(22, 33, 62, 0.85);
+            --text-primary: #e8e8e8;
+            --text-secondary: #b8c5d6;
+            --text-muted: #7a8ba3;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 102, 241, 0.4);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);
+            --shadow-primary: 0 8px 24px rgba(99, 102, 241, 0.3);
         }
 
         html { scroll-behavior: smooth; }
@@ -170,6 +171,173 @@
 
         .nav-search input::placeholder { color: var(--text-muted); }
         .nav-search-icon { color: var(--text-muted); font-size: 14px; }
+
+        /* ====== 搜索弹窗 ====== */
+        .search-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            padding-top: 80px;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .search-overlay.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .search-modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            width: 560px;
+            max-width: 90%;
+            max-height: 70vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .search-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-header-icon {
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .search-header input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .search-header input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .search-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .search-results {
+            max-height: calc(70vh - 140px);
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .search-section {
+            margin-bottom: 16px;
+        }
+
+        .search-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 12px 4px;
+        }
+
+        .search-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .search-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .search-item-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .search-item-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .search-item-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .search-item-tag {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+        }
+
+        .search-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .search-empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .search-empty-text {
+            font-size: 14px;
+        }
+
+        .search-highlight {
+            background: rgba(99,102,241,0.2);
+            color: var(--primary);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
 
         .nav-actions {
             display: flex;
@@ -915,6 +1083,461 @@
                 0 8px 30px rgba(0, 0, 0, 0.6),
                 0 0 60px rgba(139, 92, 246, 0.25);
             border-color: rgba(139, 92, 246, 0.5);
+        }
+
+        /* ====== 深色模式全局优化 ====== */
+        
+        /* 主容器背景 */
+        [data-theme="dark"] .main-content {
+            background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%);
+        }
+
+        /* 侧边栏深色优化 */
+        [data-theme="dark"] .sidebar {
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            border-right-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .sidebar-nav-item {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        [data-theme="dark"] .sidebar-nav-item:hover {
+            background: rgba(99, 102, 241, 0.15);
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .sidebar-nav-item.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.2));
+            color: #a5b4fc;
+        }
+
+        /* 顶部导航栏 */
+        [data-theme="dark"] .top-nav {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .nav-brand-text {
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .nav-search {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] .nav-search:focus-within {
+            background: rgba(30, 41, 59, 1);
+            border-color: var(--primary);
+        }
+
+        [data-theme="dark"] .nav-search input {
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .nav-btn {
+            background: rgba(30, 41, 59, 0.8);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        [data-theme="dark"] .nav-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+        }
+
+        [data-theme="dark"] .nav-streak {
+            background: rgba(30, 41, 59, 0.8);
+            color: #f1f5f9;
+        }
+
+        /* 卡片深色优化 */
+        [data-theme="dark"] .card {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        [data-theme="dark"] .card:hover {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 计时器卡片 */
+        [data-theme="dark"] .timer-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        [data-theme="dark"] .timer-time {
+            color: #f1f5f9;
+            text-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+        }
+
+        [data-theme="dark"] .timer-mode-label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* AI 助手卡片 */
+        [data-theme="dark"] .ai-card {
+            background: linear-gradient(145deg, #1e293b 0%, #1e1b4b 100%);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        [data-theme="dark"] .ai-chat-messages {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        [data-theme="dark"] .ai-msg-bubble {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        [data-theme="dark"] .ai-input-row input {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .ai-input-row input:focus {
+            background: rgba(15, 23, 42, 1);
+            border-color: var(--primary);
+        }
+
+        /* 任务卡片 */
+        [data-theme="dark"] .tasks-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border-color: rgba(236, 72, 153, 0.3);
+        }
+
+        [data-theme="dark"] .task-item {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .task-item:hover {
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        [data-theme="dark"] .task-item.done {
+            opacity: 0.7;
+        }
+
+        [data-theme="dark"] .task-check {
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        [data-theme="dark"] .task-check:hover {
+            border-color: var(--primary);
+        }
+
+        [data-theme="dark"] .task-check.checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        [data-theme="dark"] .add-task-input {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .add-task-input:focus {
+            background: rgba(15, 23, 42, 1);
+            border-color: var(--primary);
+        }
+
+        /* 统计卡片 */
+        [data-theme="dark"] .stats-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        [data-theme="dark"] .stat-value {
+            color: #f1f5f9;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        /* 专注监测卡片 */
+        [data-theme="dark"] .monitor-card {
+            background: linear-gradient(145deg, #1e293b 0%, #1e1b4b 100%);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        [data-theme="dark"] .focus-value {
+            text-shadow: 0 0 30px rgba(16, 185, 129, 0.5);
+        }
+
+        [data-theme="dark"] .focus-history-item {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        /* 日历卡片 */
+        [data-theme="dark"] .calendar-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        [data-theme="dark"] .calendar-day {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .calendar-day.empty {
+            background: transparent;
+        }
+
+        [data-theme="dark"] .calendar-legend {
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        [data-theme="dark"] .calendar-stat-item {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        [data-theme="dark"] .calendar-nav-btn {
+            background: rgba(30, 41, 59, 0.8);
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .calendar-nav-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        /* 成就卡片 */
+        [data-theme="dark"] .achievements-card {
+            background: linear-gradient(145deg, #1e293b 0%, #1e1b4b 100%);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        [data-theme="dark"] .achievement-card {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme="dark"] .achievement-card:hover {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        [data-theme="dark"] .achievement-card.unlocked {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(234, 179, 8, 0.1));
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        [data-theme="dark"] .achievement-card-icon {
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        [data-theme="dark"] .achievement-card.unlocked .achievement-card-icon {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(234, 179, 8, 0.2));
+        }
+
+        [data-theme="dark"] .achievement-level-row {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        [data-theme="dark"] .achievement-progress-bar {
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        /* 图表深色优化 */
+        [data-theme="dark"] .chart-container {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: var(--radius-md);
+        }
+
+        [data-theme="dark"] .timeline-chart {
+            background: rgba(15, 23, 42, 0.4);
+        }
+
+        [data-theme="dark"] .chart-bar {
+            background: linear-gradient(180deg, var(--primary), rgba(99, 102, 241, 0.5));
+        }
+
+        [data-theme="dark"] .chart-label {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* 模态框深色优化 */
+        [data-theme="dark"] .modal {
+            background: rgba(30, 41, 59, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="dark"] .modal-header {
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme="dark"] .modal-title {
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .modal-close {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        [data-theme="dark"] .modal-close:hover {
+            color: #f1f5f9;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] .modal-body {
+            color: #e2e8f0;
+        }
+
+        /* 成就列表项 */
+        [data-theme="dark"] .achievement-list-item {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        [data-theme="dark"] .achievement-list-item:hover {
+            background: rgba(30, 41, 59, 0.8);
+        }
+
+        [data-theme="dark"] .achievement-list-item.unlocked {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(234, 179, 8, 0.1));
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        [data-theme="dark"] .achievement-list-icon {
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        /* 搜索弹窗深色优化 */
+        [data-theme="dark"] .search-overlay {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        [data-theme="dark"] .search-modal {
+            background: rgba(30, 41, 59, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme="dark"] .search-header {
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme="dark"] .search-header input {
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] .search-hint {
+            background: rgba(15, 23, 42, 0.8);
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        [data-theme="dark"] .search-item {
+            border-radius: 8px;
+        }
+
+        [data-theme="dark"] .search-item:hover {
+            background: rgba(99, 102, 241, 0.15);
+        }
+
+        [data-theme="dark"] .search-item-icon {
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        [data-theme="dark"] .search-item-tag {
+            background: rgba(15, 23, 42, 0.8);
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 学习搭子卡片 */
+        [data-theme="dark"] .buddy-card {
+            background: linear-gradient(145deg, #1e293b 0%, #1e1b4b 100%);
+            border-color: rgba(139, 92, 246, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 滚动条深色优化 */
+        [data-theme="dark"] ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 4px;
+        }
+
+        [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+
+        /* 按钮深色优化 */
+        [data-theme="dark"] .theme-btn {
+            background: rgba(30, 41, 59, 0.8);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        [data-theme="dark"] .theme-btn:hover {
+            background: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
+        }
+
+        /* 输入框深色优化 */
+        [data-theme="dark"] input,
+        [data-theme="dark"] textarea,
+        [data-theme="dark"] select {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+
+        [data-theme="dark"] input:focus,
+        [data-theme="dark"] textarea:focus,
+        [data-theme="dark"] select:focus {
+            background: rgba(15, 23, 42, 1);
+            border-color: var(--primary);
+        }
+
+        /* 进度条和动画优化 */
+        [data-theme="dark"] .progress-bar {
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        [data-theme="dark"] .timer-progress {
+            stroke: rgba(99, 102, 241, 0.3);
+        }
+
+        [data-theme="dark"] .timer-progress-fill {
+            filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.6));
+        }
+
+        /* 通知请求弹窗 */
+        [data-theme="dark"] .notification-request {
+            background: rgba(30, 41, 59, 0.98);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Toast 通知 */
+        [data-theme="dark"] .toast {
+            background: rgba(30, 41, 59, 0.95);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme="dark"] .toast.success {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        [data-theme="dark"] .toast.error {
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* 快捷键提示 */
+        [data-theme="dark"] .shortcut-key {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
         }
 
         /* ====== 侧边栏音乐播放器 ====== */
@@ -2042,51 +2665,97 @@
         }
 
         .achievement-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 4px 0;
+            max-height: 280px;
+            overflow-y: auto;
         }
 
-        .achievement-badge {
-            aspect-ratio: 1;
+        .achievement-grid::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .achievement-grid::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .achievement-grid::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .achievement-card {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            border-radius: var(--radius-md);
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
             background: var(--bg-tertiary);
             border: 1px solid var(--border);
             cursor: pointer;
-            transition: all 0.25s;
-            position: relative;
+            transition: all 0.2s;
         }
 
-        .achievement-badge:hover { transform: scale(1.12); box-shadow: var(--shadow-md); }
-        .achievement-badge.unlocked { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: var(--warning); }
-        .achievement-badge.locked { opacity: 0.45; filter: grayscale(0.4); }
+        .achievement-card:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-hover);
+        }
 
-        .achievement-badge-tip {
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(30,41,59,0.9);
-            color: white;
-            padding: 6px 10px;
-            border-radius: 8px;
+        .achievement-card.unlocked {
+            background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.06));
+            border-color: rgba(99,102,241,0.15);
+        }
+
+        .achievement-card.locked {
+            opacity: 0.5;
+        }
+
+        .achievement-card-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .achievement-card.unlocked .achievement-card-icon {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+        }
+
+        .achievement-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .achievement-card-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1px;
+        }
+
+        .achievement-card-desc {
             font-size: 10px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-            margin-bottom: 5px;
-            z-index: 20;
-            text-align: left;
-            max-width: 180px;
-            white-space: normal;
+            color: var(--text-secondary);
         }
 
-        .achievement-badge:hover .achievement-badge-tip { opacity: 1; }
+        .achievement-card-reward {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .achievement-card.unlocked .achievement-card-reward {
+            color: var(--success);
+        }
 
         /* ====== 学习搭子卡片 ====== */
         .buddy-card {
@@ -2496,14 +3165,25 @@
             cursor: pointer;
             font-size: 13px;
             font-weight: 500;
-            opacity: 0;
-            animation: skipAppear 0.5s ease-out 2s forwards;
+            opacity: 1;
             transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .splash-skip:hover { background: rgba(255,255,255,0.18); transform: scale(1.05); }
 
-        @keyframes skipAppear { to { opacity: 1; } }
+        .splash-skip-kbd {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: var(--font-mono);
+        }
 
         /* ====== 公共动画 ====== */
         .btn, .timer-quick-btn, .pomo-btn, .timer-btn, .ai-send-btn, .task-add-btn, .calendar-nav-btn, .chart-tab, .notif-btn, .modal-btn {
@@ -2563,7 +3243,7 @@
             <div id="splashLoadingMsg" style="color:rgba(255,255,255,0.7);font-size:13px;font-family:var(--font-mono);height:18px;">正在唤醒你的学习搭子...</div>
         </div>
 
-        <button class="splash-skip" onclick="skipSplash()">跳过 →</button>
+        <button class="splash-skip" onclick="skipSplash()">跳过 <span class="splash-skip-kbd">Enter ↵</span></button>
     </div>
 
     <!-- ==================== 顶部导航 ==================== -->
@@ -2579,9 +3259,9 @@
         </div>
 
         <div class="nav-center">
-            <div class="nav-search">
+            <div class="nav-search" onclick="openSearch()" style="cursor: pointer;">
                 <span class="nav-search-icon">🔍</span>
-                <input type="text" placeholder="搜索任务、日历、成就..." onkeypress="if(event.key==='Enter'){showToast('搜索功能开发中', 'success')}">
+                <input type="text" placeholder="搜索任务、日历、成就..." onclick="openSearch()" id="navSearchInput" readonly>
             </div>
         </div>
 
@@ -2611,36 +3291,36 @@
 
     <!-- ==================== 左侧工具栏 ==================== -->
     <nav class="sidebar">
-        <div class="sidebar-item active" data-page="dashboard" onclick="switchPage('dashboard', this)" title="仪表盘">
+        <div class="sidebar-item active" data-page="dashboard" onclick="scrollToTop(); setActiveSidebar(this)" title="仪表盘">
             <span class="sidebar-item-icon">🏠</span>
             <span class="sidebar-item-label">首页</span>
         </div>
-        <div class="sidebar-item" data-page="timer" onclick="switchPage('dashboard', this)" title="计时器">
+        <div class="sidebar-item" data-page="timer" onclick="scrollToSection('section-timer'); setActiveSidebar(this)" title="计时器">
             <span class="sidebar-item-icon">⏱️</span>
             <span class="sidebar-item-label">计时</span>
         </div>
-        <div class="sidebar-item" data-page="ai" onclick="switchPage('dashboard', this)" title="AI助手">
+        <div class="sidebar-item" data-page="ai" onclick="scrollToSection('section-ai'); setActiveSidebar(this)" title="AI助手">
             <span class="sidebar-item-icon">🤖</span>
             <span class="sidebar-item-label">AI</span>
         </div>
-        <div class="sidebar-item" data-page="tasks" onclick="switchPage('dashboard', this)" title="任务">
+        <div class="sidebar-item" data-page="tasks" onclick="scrollToSection('section-tasks'); setActiveSidebar(this)" title="任务">
             <span class="sidebar-item-icon">✅</span>
             <span class="sidebar-item-label">任务</span>
         </div>
-        <div class="sidebar-item" data-page="calendar" onclick="switchPage('dashboard', this)" title="日历">
+        <div class="sidebar-item" data-page="calendar" onclick="scrollToSection('section-calendar'); setActiveSidebar(this)" title="日历">
             <span class="sidebar-item-icon">📅</span>
             <span class="sidebar-item-label">日历</span>
         </div>
         <div class="sidebar-divider"></div>
-        <div class="sidebar-item" data-page="monitor" onclick="switchPage('dashboard', this)" title="学习监测">
+        <div class="sidebar-item" data-page="monitor" onclick="scrollToSection('section-monitor'); setActiveSidebar(this)" title="学习监测">
             <span class="sidebar-item-icon">📡</span>
             <span class="sidebar-item-label">监测</span>
         </div>
-        <div class="sidebar-item" data-page="stats" onclick="switchPage('dashboard', this)" title="统计">
+        <div class="sidebar-item" data-page="stats" onclick="scrollToSection('section-stats'); setActiveSidebar(this)" title="统计">
             <span class="sidebar-item-icon">📊</span>
             <span class="sidebar-item-label">统计</span>
         </div>
-        <div class="sidebar-item" data-page="achievements" onclick="switchPage('dashboard', this)" title="成就">
+        <div class="sidebar-item" data-page="achievements" onclick="scrollToSection('section-achievements'); setActiveSidebar(this)" title="成就">
             <span class="sidebar-item-icon">🏆</span>
             <span class="sidebar-item-label">成就</span>
         </div>
@@ -2656,7 +3336,7 @@
             <div class="dashboard-grid">
 
                 <!-- 左侧区域：计时器 -->
-                <div class="card timer-card" style="padding: 0; overflow: hidden;">
+                <div class="card timer-card" id="section-timer" style="padding: 0; overflow: hidden;">
                     <div class="timer-header">
                         <div class="timer-header-left">
                             <span class="timer-tomato">🍅</span>
@@ -2725,7 +3405,7 @@
                 </div>
 
                 <!-- AI 助手（中间，跨两行） -->
-                <div class="card ai-card">
+                <div class="card ai-card" id="section-ai">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:white;">🤖</div>
@@ -2769,7 +3449,7 @@
                 </div>
 
                 <!-- 音乐播放器卡片 -->
-                <div class="card music-card">
+                <div class="card music-card" id="section-music">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6); color: white;">🎵</div>
@@ -2789,7 +3469,7 @@
                 </div>
 
                 <!-- 任务清单 -->
-                <div class="card tasks-card">
+                <div class="card tasks-card" id="section-tasks">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
@@ -2844,7 +3524,7 @@
                 </div>
 
                 <!-- 学习统计（左下） -->
-                <div class="card stats-card">
+                <div class="card stats-card" id="section-stats">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;">📊</div>
@@ -2897,7 +3577,7 @@
                 </div>
 
                 <!-- 学习监测（右下） -->
-                <div class="card monitor-card">
+                <div class="card monitor-card" id="section-monitor">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background:linear-gradient(135deg,var(--mint),#0d9488);color:white;">📡</div>
@@ -2973,7 +3653,7 @@
                 </div>
 
                 <!-- 学习日历（底部跨两列） -->
-                <div class="card calendar-card">
+                <div class="card calendar-card" id="section-calendar">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;">📅</div>
@@ -3011,7 +3691,7 @@
                 </div>
 
                 <!-- 成就（右侧底部） -->
-                <div class="card achievements-card">
+                <div class="card achievements-card" id="section-achievements">
                     <div class="card-header">
                         <div class="card-title">
                             <div class="card-title-icon" style="background:linear-gradient(135deg,var(--warning),#d97706);color:white;">🏆</div>
@@ -3042,7 +3722,23 @@
 
             </div>
         </section>
-    </main>
+
+    <!-- ==================== 搜索弹窗 ==================== -->
+    <div class="search-overlay" id="searchOverlay" onclick="closeSearchOnOverlay(event)">
+        <div class="search-modal" onclick="event.stopPropagation()">
+            <div class="search-header">
+                <span class="search-header-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="输入关键词搜索..." oninput="performSearch()" onkeydown="handleSearchKeydown(event)">
+                <span class="search-hint">ESC 关闭</span>
+            </div>
+            <div class="search-results" id="searchResults">
+                <div class="search-empty">
+                    <div class="search-empty-icon">🔍</div>
+                    <div class="search-empty-text">输入关键词开始搜索</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ==================== 模态框 ==================== -->
     <!-- 成就详情 -->
@@ -3114,33 +3810,97 @@
             starsEl.appendChild(star);
         }
 
-        // Canvas 粒子
+        // Canvas 粒子系统 - 带鼠标交互
         const canvas = document.getElementById('splashCanvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        
+        let mouseX = -1000, mouseY = -1000;
+        canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+        canvas.addEventListener('mouseleave', () => { mouseX = -1000; mouseY = -1000; });
+        
         const particles = [];
-        for (let i = 0; i < 50; i++) {
+        const colors = [
+            { r: 168, g: 85, b: 247 },   // 紫色
+            { r: 236, g: 72, b: 153 },   // 粉色
+            { r: 99, g: 102, b: 241 },   // 蓝色
+            { r: 16, g: 185, b: 129 },   // 绿色
+            { r: 245, g: 158, b: 11 }    // 橙色
+        ];
+        
+        for (let i = 0; i < 120; i++) {
+            const color = colors[Math.floor(Math.random() * colors.length)];
             particles.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: (Math.random() - 0.5) * 0.5,
-                r: Math.random() * 2 + 1,
-                alpha: Math.random() * 0.5 + 0.1
+                vx: (Math.random() - 0.5) * 1.2,
+                vy: (Math.random() - 0.5) * 1.2,
+                r: Math.random() * 3 + 1.5,
+                alpha: Math.random() * 0.6 + 0.2,
+                color: color,
+                trail: []
             });
         }
+        
         function drawParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(15, 15, 26, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
             particles.forEach(p => {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(168,85,247,${p.alpha})`;
-                ctx.fill();
+                // 鼠标排斥效果
+                const dx = p.x - mouseX;
+                const dy = p.y - mouseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const repelRadius = 120;
+                if (dist < repelRadius && dist > 0) {
+                    const force = (repelRadius - dist) / repelRadius * 3;
+                    p.vx += (dx / dist) * force;
+                    p.vy += (dy / dist) * force;
+                }
+                
+                // 阻尼
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+                
+                // 更新位置
                 p.x += p.vx;
                 p.y += p.vy;
+                
+                // 边界反弹
                 if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
                 if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                p.x = Math.max(0, Math.min(canvas.width, p.x));
+                p.y = Math.max(0, Math.min(canvas.height, p.y));
+                
+                // 绘制拖尾
+                p.trail.push({ x: p.x, y: p.y, alpha: p.alpha });
+                if (p.trail.length > 8) p.trail.shift();
+                
+                p.trail.forEach((t, i) => {
+                    const trailAlpha = (i / p.trail.length) * 0.4;
+                    ctx.beginPath();
+                    ctx.arc(t.x, t.y, p.r * 0.6, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${trailAlpha})`;
+                    ctx.fill();
+                });
+                
+                // 绘制主粒子
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 2);
+                gradient.addColorStop(0, `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${p.alpha})`);
+                gradient.addColorStop(1, `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, 0)`);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // 鼠标靠近时发光
+                if (dist < repelRadius) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${p.color.r}, ${p.color.g}, ${p.color.b}, ${0.3 * (1 - dist / repelRadius)})`;
+                    ctx.fill();
+                }
             });
             requestAnimationFrame(drawParticles);
         }
@@ -3179,20 +3939,58 @@
             setTimeout(() => { splash.style.display = 'none'; }, 1000);
         };
 
+        // Enter 键跳过
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.getElementById('splashScreen').style.display !== 'none') {
+                window.skipSplash();
+            }
+        });
+
         setTimeout(() => { window.skipSplash(); }, 5000);
     })();
 
     // ==================== 页面导航 ====================
     function switchPage(page, el) {
+        // 清除所有激活状态
         document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-        const target = document.getElementById('page-' + page);
-        if (target) target.classList.add('active');
-
         document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
         if (el) el.classList.add('active');
 
-        // 滚动到顶部
+        // 仪表盘页面 - 滚动到对应模块
+        if (page === 'dashboard') {
+            // 确保仪表盘页面处于激活状态
+            const dashboardPage = document.getElementById('page-dashboard');
+            if (dashboardPage) dashboardPage.classList.add('active');
+            // 不需要滚动，因为首页内容已经在视口中
+        } else {
+            // 其他页面切换（如果有的话）
+            const target = document.getElementById('page-' + page);
+            if (target) target.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    // 滚动到指定模块
+    function scrollToSection(sectionId) {
+        const section = document.getElementById(sectionId);
+        if (section) {
+            // 计算偏移量（顶部导航高度 + 额外间距）
+            const offset = 80;
+            const sectionTop = section.getBoundingClientRect().top + window.pageYOffset - offset;
+            window.scrollTo({ top: sectionTop, behavior: 'smooth' });
+        }
+    }
+
+    // 设置侧边栏激活状态
+    function setActiveSidebar(el) {
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        if (el) el.classList.add('active');
+    }
+
+    // 滚动到页面顶部
+    function scrollToTop() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        setActiveSidebar(document.querySelector('.sidebar-item[data-page="dashboard"]'));
     }
 
     // ==================== 主题 ====================
@@ -3611,6 +4409,15 @@
     function renderTasks() {
         const list = document.getElementById('taskList');
         if (!list) return;
+
+        // 更新右上角的任务统计
+        const pendingCount = tasks.filter(t => !t.completed).length;
+        const completedCount = tasks.filter(t => t.completed).length;
+        const pendingEl = document.querySelector('.task-count.pending');
+        const doneEl = document.querySelector('.task-count.done');
+        if (pendingEl) pendingEl.textContent = pendingCount;
+        if (doneEl) doneEl.textContent = completedCount;
+
         if (tasks.length === 0) {
             list.innerHTML = '<div class="task-empty"><div class="task-empty-icon">📝</div>暂无任务<br><span style="font-size:11px;color:var(--text-muted)">添加一个任务开始规划吧</span></div>';
             return;
@@ -3634,11 +4441,106 @@
     function toggleTask(taskId) {
         const task = tasks.find(t => t.id === taskId);
         if (task) {
+            const wasCompleted = task.completed;
             task.completed = !task.completed;
             saveTasks();
             renderTasks();
-            if (task.completed) showToast('任务完成！+1 分', 'success');
+
+            if (task.completed) {
+                // 使用前端成就系统
+                const prevPoints = userPoints;
+                const completedTasks = tasks.filter(t => t.completed).length;
+                const pendingTasks = tasks.filter(t => !t.completed).length;
+                const now = new Date();
+
+                const stats = {
+                    tasks_completed: completedTasks,
+                    daily_tasks: completedTasks,
+                    pomodoros: parseInt(localStorage.getItem('completedPomodoros') || '0'),
+                    early_bird: now.getHours() < 6 ? 1 : 0,
+                    night_owl: now.getHours() >= 23 ? 1 : 0,
+                    perfectionist: (pendingTasks === 0 && completedTasks > 0) ? 1 : 0,
+                    daily_tasks_3: completedTasks >= 3 ? 1 : 0,
+                    daily_tasks_5: completedTasks >= 5 ? 1 : 0,
+                    weekend_study: now.getDay() === 0 || now.getDay() === 6 ? 1 : 0,
+                    midnight_study: now.getHours() >= 1 ? 1 : 0,
+                };
+
+                // 检查成就
+                const newAchievements = checkAndUnlockAchievements(stats);
+                const levelUp = checkLevelUp(prevPoints);
+
+                // 计算积分
+                const pointsEarned = newAchievements.reduce((sum, a) => sum + a.reward, 0);
+                showToast('任务完成！+' + pointsEarned + ' 积分', 'success');
+
+                // 显示成就解锁通知
+                if (newAchievements.length > 0) {
+                    setTimeout(() => {
+                        newAchievements.forEach((ach, index) => {
+                            setTimeout(() => {
+                                showAchievementUnlock(ach);
+                            }, index * 2000);
+                        });
+                    }, 500);
+                }
+
+                // 显示等级提升通知
+                if (levelUp) {
+                    setTimeout(() => {
+                        showToast('🎉 等级提升！现在是 ' + levelUp.name, 'success');
+                    }, 1000);
+                }
+
+                // 更新积分显示
+                updatePointsDisplay();
+            }
         }
+    }
+
+    async function completeTaskAPI(taskId) {
+        try {
+            const resp = await fetch('/api/tasks/' + taskId + '/complete', {
+                method: 'POST'
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('任务完成！+5 积分', 'success');
+
+                // 检查是否有新成就解锁
+                if (result.new_achievements && result.new_achievements.length > 0) {
+                    // 延迟显示成就通知，让用户先看到任务完成提示
+                    setTimeout(() => {
+                        result.new_achievements.forEach((ach, index) => {
+                            setTimeout(() => {
+                                showAchievementUnlock(ach);
+                            }, index * 2000); // 每个成就间隔2秒显示
+                        });
+                    }, 500);
+                }
+
+                // 如果有等级提升，显示等级提升通知
+                if (result.level_up) {
+                    setTimeout(() => {
+                        showLevelUpNotification(result.level_info);
+                    }, 1000);
+                }
+
+                // 更新积分显示
+                updatePointsDisplay();
+            }
+        } catch (e) {
+            console.error('完成任务失败:', e);
+        }
+    }
+
+    function showLevelUpNotification(levelInfo) {
+        showToast('🎉 等级提升！现在是 ' + levelInfo.name, 'success');
+    }
+
+    async function updatePointsDisplay() {
+        const data = getAchievementsData();
+        updateAchievementDisplay(data);
     }
 
     function deleteTask(taskId) {
@@ -3768,18 +4670,390 @@
         }
     }
 
+    // ==================== 搜索系统 ====================
+    let searchOverlay = null;
+    let searchInput = null;
+    let searchResults = null;
+
+    function openSearch() {
+        searchOverlay = document.getElementById('searchOverlay');
+        searchInput = document.getElementById('searchInput');
+        searchResults = document.getElementById('searchResults');
+        if (searchOverlay) {
+            searchOverlay.classList.add('show');
+            setTimeout(() => {
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.value = '';
+                }
+                showSearchInitial();
+            }, 50);
+        }
+    }
+
+    function closeSearch() {
+        if (searchOverlay) {
+            searchOverlay.classList.remove('show');
+        }
+    }
+
+    function closeSearchOnOverlay(event) {
+        if (event.target.id === 'searchOverlay') {
+            closeSearch();
+        }
+    }
+
+    function handleSearchKeydown(event) {
+        if (event.key === 'Escape') {
+            closeSearch();
+        }
+    }
+
+    function showSearchInitial() {
+        if (!searchResults) return;
+        const results = {
+            tasks: tasks.slice(0, 3).map(t => ({
+                id: t.id,
+                name: t.name,
+                completed: t.completed,
+                deadline: t.deadline
+            })),
+            achievements: ALL_ACHIEVEMENTS.slice(0, 3).map(a => ({
+                id: a.id,
+                name: a.name,
+                description: a.desc,
+                icon: a.icon
+            }))
+        };
+
+        let html = '';
+        if (results.tasks.length > 0) {
+            html += '<div class="search-section"><div class="search-section-title">最近任务</div>';
+            results.tasks.forEach(task => {
+                html += '<div class="search-item" onclick="navigateToSection(\'tasks\'); closeSearch();">' +
+                    '<div class="search-item-icon">📋</div>' +
+                    '<div class="search-item-content"><div class="search-item-title">' + escapeHtml(task.name) + '</div>' +
+                    '<div class="search-item-desc">' + (task.completed ? '已完成' : '待办') + '</div></div>' +
+                    '<span class="search-item-tag">任务</span></div>';
+            });
+            html += '</div>';
+        }
+        if (results.achievements.length > 0) {
+            html += '<div class="search-section"><div class="search-section-title">成就</div>';
+            results.achievements.forEach(ach => {
+                html += '<div class="search-item" onclick="showAllAchievements(); closeSearch();">' +
+                    '<div class="search-item-icon">' + ach.icon + '</div>' +
+                    '<div class="search-item-content"><div class="search-item-title">' + ach.name + '</div>' +
+                    '<div class="search-item-desc">' + ach.description + '</div></div></div>';
+            });
+            html += '</div>';
+        }
+        if (!html) {
+            html = '<div class="search-empty"><div class="search-empty-icon">🔍</div><div class="search-empty-text">暂无数据</div></div>';
+        }
+        searchResults.innerHTML = html;
+    }
+
+    function performSearch() {
+        if (!searchInput || !searchResults) return;
+        const query = searchInput.value.trim().toLowerCase();
+
+        if (!query) {
+            showSearchInitial();
+            return;
+        }
+
+        const results = {
+            tasks: [],
+            achievements: [],
+            features: []
+        };
+
+        // 搜索任务
+        tasks.forEach(task => {
+            if (task.name.toLowerCase().includes(query)) {
+                results.tasks.push({
+                    id: task.id,
+                    name: task.name,
+                    completed: task.completed,
+                    deadline: task.deadline
+                });
+            }
+        });
+
+        // 搜索成就
+        ALL_ACHIEVEMENTS.forEach(ach => {
+            if (ach.name.toLowerCase().includes(query) || ach.desc.toLowerCase().includes(query)) {
+                const isUnlocked = unlockedAchievements.includes(ach.id);
+                results.achievements.push({
+                    id: ach.id,
+                    name: ach.name,
+                    description: ach.desc,
+                    icon: ach.icon,
+                    unlocked: isUnlocked
+                });
+            }
+        });
+
+        // 搜索功能
+        const features = [
+            { name: '任务清单', desc: '管理今日任务和截止时间', icon: '📋', action: () => navigateToSection('tasks') },
+            { name: '学习日历', desc: '查看学习记录和统计', icon: '📅', action: () => navigateToSection('calendar') },
+            { name: '成就中心', desc: '查看和解锁成就徽章', icon: '🏆', action: () => showAllAchievements() },
+            { name: '番茄钟', desc: '专注学习计时器', icon: '🍅', action: () => navigateToSection('timer') },
+            { name: '学习搭子', desc: 'AI 学习伙伴', icon: '🤖', action: () => navigateToSection('buddy') },
+            { name: '专注监测', desc: '实时监测学习专注度', icon: '📊', action: () => navigateToSection('monitor') },
+            { name: '音乐播放器', desc: '学习背景音乐', icon: '🎵', action: () => toggleMusicPanel() },
+            { name: 'AI 问答', desc: '学习问题智能问答', icon: '💬', action: () => navigateToSection('ai') },
+        ];
+        features.forEach(f => {
+            if (f.name.toLowerCase().includes(query) || f.desc.toLowerCase().includes(query)) {
+                results.features.push(f);
+            }
+        });
+
+        // 渲染结果
+        let html = '';
+        let hasResults = false;
+
+        if (results.tasks.length > 0) {
+            hasResults = true;
+            html += '<div class="search-section"><div class="search-section-title">任务 (' + results.tasks.length + ')</div>';
+            results.tasks.forEach(task => {
+                html += '<div class="search-item" onclick="navigateToSection(\'tasks\'); closeSearch();">' +
+                    '<div class="search-item-icon">📋</div>' +
+                    '<div class="search-item-content"><div class="search-item-title">' + highlightText(task.name, query) + '</div>' +
+                    '<div class="search-item-desc">' + (task.completed ? '已完成' : '待办') + '</div></div>' +
+                    '<span class="search-item-tag">' + (task.completed ? '✅' : '⏳') + '</span></div>';
+            });
+            html += '</div>';
+        }
+
+        if (results.achievements.length > 0) {
+            hasResults = true;
+            html += '<div class="search-section"><div class="search-section-title">成就 (' + results.achievements.length + ')</div>';
+            results.achievements.forEach(ach => {
+                html += '<div class="search-item" onclick="showAllAchievements(); closeSearch();">' +
+                    '<div class="search-item-icon">' + ach.icon + '</div>' +
+                    '<div class="search-item-content"><div class="search-item-title">' + highlightText(ach.name, query) + '</div>' +
+                    '<div class="search-item-desc">' + ach.description + '</div></div>' +
+                    '<span class="search-item-tag">' + (ach.unlocked ? '已解锁' : '🔒') + '</span></div>';
+            });
+            html += '</div>';
+        }
+
+        if (results.features.length > 0) {
+            hasResults = true;
+            html += '<div class="search-section"><div class="search-section-title">功能 (' + results.features.length + ')</div>';
+            results.features.forEach(f => {
+                html += '<div class="search-item" onclick="navigateToSection(\'' + f.name + '\'); closeSearch();">' +
+                    '<div class="search-item-icon">' + f.icon + '</div>' +
+                    '<div class="search-item-content"><div class="search-item-title">' + highlightText(f.name, query) + '</div>' +
+                    '<div class="search-item-desc">' + f.desc + '</div></div></div>';
+            });
+            html += '</div>';
+        }
+
+        if (!hasResults) {
+            html = '<div class="search-empty"><div class="search-empty-icon">😕</div><div class="search-empty-text">没有找到 "' + escapeHtml(query) + '" 相关结果</div></div>';
+        }
+
+        searchResults.innerHTML = html;
+    }
+
+    function highlightText(text, query) {
+        if (!query) return escapeHtml(text);
+        const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        return escapeHtml(text).replace(regex, '<span class="search-highlight">$1</span>');
+    }
+
+    function navigateToSection(section) {
+        // 滚动到对应区域
+        const sectionMap = {
+            'tasks': 'section-tasks',
+            'calendar': 'section-calendar',
+            'timer': 'section-timer',
+            'buddy': 'section-ai',
+            'monitor': 'section-monitor',
+            'ai': 'section-ai',
+            '音乐播放器': 'section-music',
+            '番茄钟': 'section-timer',
+            '任务清单': 'section-tasks',
+            '学习日历': 'section-calendar',
+            '成就中心': 'section-achievements',
+            'AI 问答': 'section-ai',
+        };
+        const sectionId = sectionMap[section] || 'section-' + section;
+        const element = document.getElementById(sectionId);
+        if (element) {
+            // 取消动画并立即显示
+            element.style.animation = 'none';
+            element.style.opacity = '1';
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // 添加强调效果
+            element.style.boxShadow = '0 0 0 3px var(--primary)';
+            setTimeout(() => {
+                element.style.boxShadow = '';
+            }, 1000);
+        }
+    }
+
+    // 键盘快捷键
+    document.addEventListener('keydown', function(event) {
+        // Ctrl/Cmd + K 打开搜索
+        if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+            event.preventDefault();
+            openSearch();
+        }
+    });
+
     // ==================== 成就系统 ====================
     let achievementsData = null;
+    let userPoints = 0;
+    let unlockedAchievements = [];
 
-    async function loadAchievements() {
-        try {
-            const response = await fetch('/api/achievements');
-            const data = await response.json();
-            if (data.success) {
-                achievementsData = data.achievements;
-                updateAchievementDisplay(data.achievements);
+    // 预定义成就列表
+    const ALL_ACHIEVEMENTS = [
+        { id: "first_task", name: "任务新手", desc: "完成第一个任务", icon: "✅", condition: "tasks_completed", target: 1, reward: 10 },
+        { id: "ten_tasks", name: "任务达人", desc: "累计完成10个任务", icon: "📝", condition: "tasks_completed", target: 10, reward: 30 },
+        { id: "fifty_tasks", name: "任务大师", desc: "累计完成50个任务", icon: "📋", condition: "tasks_completed", target: 50, reward: 100 },
+        { id: "early_bird", name: "早起鸟", desc: "在早上6点前开始学习", icon: "🐦", condition: "early_bird", target: 1, reward: 25 },
+        { id: "night_owl", name: "夜猫子", desc: "在晚上11点后继续学习", icon: "🦉", condition: "night_owl", target: 1, reward: 25 },
+        { id: "perfectionist", name: "完美主义者", desc: "一次性完成所有待办任务", icon: "💎", condition: "perfectionist", target: 1, reward: 40 },
+        { id: "multi_tasker", name: "多任务达人", desc: "一天内完成3个以上任务", icon: "🎪", condition: "daily_tasks_3", target: 1, reward: 35 },
+        { id: "study_maniac", name: "学习狂魔", desc: "一天内完成5个以上任务", icon: "🔥", condition: "daily_tasks_5", target: 1, reward: 60 },
+        { id: "weekend_warrior", name: "周末战士", desc: "在周末完成学习任务", icon: "⚔️", condition: "weekend_study", target: 1, reward: 30 },
+        { id: "midnight_explorer", name: "深夜探险家", desc: "在凌晨1点后还在学习", icon: "🌙", condition: "midnight_study", target: 1, reward: 50 },
+        { id: "first_pomodoro", name: "初出茅庐", desc: "完成第一个番茄钟", icon: "🌱", condition: "pomodoros", target: 1, reward: 10 },
+        { id: "five_pomodoros", name: "小有所成", desc: "累计完成5个番茄钟", icon: "🌿", condition: "pomodoros", target: 5, reward: 20 },
+        { id: "ten_pomodoros", name: "渐入佳境", desc: "累计完成10个番茄钟", icon: "🌳", condition: "pomodoros", target: 10, reward: 30 },
+    ];
+
+    const LEVELS = [
+        { name: "学习小白", min: 0, icon: "🌱" },
+        { name: "学习新手", min: 50, icon: "🌿" },
+        { name: "学习少年", min: 150, icon: "🌳" },
+        { name: "学习达人", min: 300, icon: "⭐" },
+        { name: "学习精英", min: 500, icon: "🌟" },
+        { name: "学习大师", min: 800, icon: "🏆" },
+        { name: "学习传奇", min: 1200, icon: "👑" },
+    ];
+
+    function loadAchievementsFromStorage() {
+        const saved = localStorage.getItem('achievements_data');
+        if (saved) {
+            const data = JSON.parse(saved);
+            userPoints = data.points || 0;
+            unlockedAchievements = data.unlocked || [];
+        } else {
+            userPoints = 0;
+            unlockedAchievements = [];
+        }
+    }
+
+    function saveAchievementsToStorage() {
+        localStorage.setItem('achievements_data', JSON.stringify({
+            points: userPoints,
+            unlocked: unlockedAchievements,
+            lastUpdated: new Date().toISOString()
+        }));
+    }
+
+    function loadAchievements() {
+        loadAchievementsFromStorage();
+        const data = getAchievementsData();
+        achievementsData = data;  // 保存数据供其他函数使用
+        updateAchievementDisplay(data);
+    }
+
+    function getAchievementsData() {
+        const completedTasks = tasks.filter(t => t.completed).length;
+        const pendingTasks = tasks.filter(t => !t.completed).length;
+        const now = new Date();
+
+        const stats = {
+            tasks_completed: completedTasks,
+            daily_tasks: completedTasks,
+            pomodoros: parseInt(localStorage.getItem('completedPomodoros') || '0'),
+            early_bird: now.getHours() < 6 ? 1 : 0,
+            night_owl: now.getHours() >= 23 ? 1 : 0,
+            perfectionist: (pendingTasks === 0 && completedTasks > 0) ? 1 : 0,
+            daily_tasks_3: completedTasks >= 3 ? 1 : 0,
+            daily_tasks_5: completedTasks >= 5 ? 1 : 0,
+            weekend_study: now.getDay() === 0 || now.getDay() === 6 ? 1 : 0,
+            midnight_study: now.getHours() >= 1 ? 1 : 0,
+        };
+
+        const achievements = ALL_ACHIEVEMENTS.map(ach => ({
+            id: ach.id,
+            name: ach.name,
+            description: ach.desc,
+            icon: ach.icon,
+            reward: ach.reward,
+            unlocked: unlockedAchievements.includes(ach.id)
+        }));
+
+        const currentLevel = getCurrentLevel(userPoints);
+        const nextLevel = getNextLevel(userPoints);
+
+        return {
+            achievements: achievements,
+            level: {
+                level: currentLevel,
+                next_level: nextLevel,
+                points: userPoints,
+                progress: nextLevel ? Math.min(100, ((userPoints - currentLevel.min) / (nextLevel.min - currentLevel.min)) * 100) : 100
+            },
+            stats: {
+                total_achievements: ALL_ACHIEVEMENTS.length,
+                unlocked_count: unlockedAchievements.length,
+                completion_rate: (unlockedAchievements.length / ALL_ACHIEVEMENTS.length) * 100
             }
-        } catch (error) { console.error('加载成就失败:', error); }
+        };
+    }
+
+    function getCurrentLevel(points) {
+        for (let i = LEVELS.length - 1; i >= 0; i--) {
+            if (points >= LEVELS[i].min) return LEVELS[i];
+        }
+        return LEVELS[0];
+    }
+
+    function getNextLevel(points) {
+        for (const level of LEVELS) {
+            if (points < level.min) return level;
+        }
+        return null;
+    }
+
+    function checkAndUnlockAchievements(stats) {
+        const newUnlocks = [];
+        for (const ach of ALL_ACHIEVEMENTS) {
+            if (!unlockedAchievements.includes(ach.id)) {
+                const currentValue = stats[ach.condition] || 0;
+                if (currentValue >= ach.target) {
+                    unlockedAchievements.push(ach.id);
+                    userPoints += ach.reward;
+                    newUnlocks.push({
+                        id: ach.id,
+                        name: ach.name,
+                        description: ach.desc,
+                        icon: ach.icon,
+                        reward: ach.reward
+                    });
+                }
+            }
+        }
+        if (newUnlocks.length > 0) {
+            saveAchievementsToStorage();
+        }
+        return newUnlocks;
+    }
+
+    function checkLevelUp(prevPoints) {
+        const prevLevel = getCurrentLevel(prevPoints);
+        const currentLevel = getCurrentLevel(userPoints);
+        return prevLevel.name !== currentLevel.name ? currentLevel : null;
     }
 
     function updateAchievementDisplay(data) {
@@ -3802,11 +5076,14 @@
         }
         const grid = document.getElementById('achievementGrid');
         if (grid && data.achievements && data.achievements.length > 0) {
-            grid.innerHTML = data.achievements.slice(0, 10).map(ach => {
+            grid.innerHTML = data.achievements.map(ach => {
                 const cls = ach.unlocked ? 'unlocked' : 'locked';
-                return '<div class="achievement-badge ' + cls + '" onclick="showAchievementDetail(\'' + ach.id + '\')">' +
-                    ach.icon +
-                    '<div class="achievement-badge-tip"><strong>' + ach.name + '</strong><br>' + ach.description + '<br>' + (ach.unlocked ? '✅ 已解锁' : '奖励: +' + ach.reward + '积分') + '</div></div>';
+                return '<div class="achievement-card ' + cls + '" onclick="showAchievementDetail(\'' + ach.id + '\')">' +
+                    '<div class="achievement-card-icon">' + ach.icon + '</div>' +
+                    '<div class="achievement-card-info">' +
+                    '<div class="achievement-card-name">' + ach.name + '</div>' +
+                    '<div class="achievement-card-desc">' + ach.description + '</div></div>' +
+                    '<div class="achievement-card-reward">' + (ach.unlocked ? '✅' : '+' + ach.reward) + '</div></div>';
             }).join('');
         }
     }

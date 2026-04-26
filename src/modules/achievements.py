@@ -90,6 +90,26 @@ class Achievement:
             return current_value >= self.condition_value
         elif self.condition_type == "goals_reached":
             return current_value >= self.condition_value
+        elif self.condition_type == "early_bird":
+            return current_value >= self.condition_value
+        elif self.condition_type == "night_owl":
+            return current_value >= self.condition_value
+        elif self.condition_type == "perfectionist":
+            return current_value >= self.condition_value
+        elif self.condition_type == "daily_tasks_3":
+            return current_value >= self.condition_value
+        elif self.condition_type == "daily_tasks_5":
+            return current_value >= self.condition_value
+        elif self.condition_type == "focus_hour":
+            return current_value >= self.condition_value
+        elif self.condition_type == "weekend_study":
+            return current_value >= self.condition_value
+        elif self.condition_type == "tasks_created":
+            return current_value >= self.condition_value
+        elif self.condition_type == "midnight_study":
+            return current_value >= self.condition_value
+        elif self.condition_type == "efficiency_day":
+            return current_value >= self.condition_value
 
         return False
 
@@ -167,6 +187,48 @@ ALL_ACHIEVEMENTS = [
                 "🎯", "goals_reached", 1, 30),
     Achievement("seven_goals", "目标周", "累计达成7次每日目标",
                 "🏆", "goals_reached", 7, 70),
+
+    # ========== 隐藏成就（有趣的彩蛋）==========
+
+    # 早起鸟成就（早上6点前开始学习）
+    Achievement("early_bird", "早起鸟", "在早上6点前开始学习",
+                "🐦", "early_bird", 1, 25),
+
+    # 夜猫子成就（晚上11点后还在学习）
+    Achievement("night_owl", "夜猫子", "在晚上11点后继续学习",
+                "🦉", "night_owl", 1, 25),
+
+    # 完美主义者成就（一次完成所有待办任务）
+    Achievement("perfectionist", "完美主义者", "一次性完成所有待办任务",
+                "💎", "perfectionist", 1, 40),
+
+    # 多任务达人成就（一天内完成3个以上任务）
+    Achievement("multi_tasker", "多任务达人", "在一天内完成3个以上任务",
+                "🎪", "daily_tasks_3", 1, 35),
+
+    # 学习狂魔成就（一天内完成5个以上任务）
+    Achievement("study_maniac", "学习狂魔", "在一天内完成5个以上任务",
+                "🔥", "daily_tasks_5", 1, 60),
+
+    # 专注一小时成就（连续学习60分钟不中断）
+    Achievement("focus_hour", "专注一小时", "连续学习60分钟不中断",
+                "⏳", "focus_hour", 1, 45),
+
+    # 周末战士成就（在周末完成学习）
+    Achievement("weekend_warrior", "周末战士", "在周末完成学习任务",
+                "⚔️", "weekend_study", 1, 30),
+
+    # 任务创造者成就（创建10个任务）
+    Achievement("task_creator", "任务制造机", "累计创建10个任务",
+                "📝", "tasks_created", 10, 30),
+
+    # 深夜探险家成就（凌晨1点后还在学习）
+    Achievement("midnight_explorer", "深夜探险家", "在凌晨1点后还在学习",
+                "🌙", "midnight_study", 1, 50),
+
+    # 效率大师成就（单日完成5个任务且学习2小时）
+    Achievement("efficiency_master", "效率大师", "单日完成5个任务且学习超过2小时",
+                "⚡", "efficiency_day", 1, 80),
 ]
 
 
