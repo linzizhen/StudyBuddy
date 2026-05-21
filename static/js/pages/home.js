@@ -58,12 +58,26 @@ class HomePage {
             const el = document.getElementById(id);
             if (el) el.textContent = val;
         };
-        setText('buddy-avatar', buddy.emoji);
+
+        setText('buddy-avatar', buddy.role_emoji || buddy.emoji);
         setText('buddy-name', buddy.name);
         setText('buddy-emotion-emoji', buddy.emoji);
         setText('buddy-emotion-desc', buddy.emotion_desc);
-        setText('chat-buddy-avatar', buddy.emoji);
+        setText('chat-buddy-avatar', buddy.role_emoji || buddy.emoji);
         setText('chat-buddy-name', buddy.name);
+
+        // 更新搭子等级
+        if (buddy.level !== undefined) {
+            setText('buddy-level-badge', `Lv.${buddy.level}`);
+            setText('buddy-level-name', buddy.level_name || '初级搭子');
+        }
+
+        // 更新聊天页面角色信息
+        setText('chat-buddy-personality', buddy.personality || '在线');
+
+        // 更新行动按钮文字
+        const actionText = document.getElementById('buddy-action-text');
+        if (actionText) actionText.textContent = `🌟 和${buddy.name}聊聊`;
     }
 
     _updateCountdown(profile) {

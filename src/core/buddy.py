@@ -20,6 +20,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from src.buddy.buddy_profile import BuddyProfile, get_buddy_profile
 from src.buddy.buddy_memory import BuddyMemory, get_buddy_memory
 from src.buddy.caring_engine import CaringEngine, CaringEvent, get_caring_engine
+from src.buddy.buddy_roles import BuddyRoles, BUDDY_ROLES, ROLE_EMOTION_RESPONSES, BUDDY_LEVELS, get_buddy_roles_manager
 from src.study.study_tracker import StudyTracker, get_study_tracker
 from src.diary.diary import Diary, get_diary, EmotionTracker, get_emotion_tracker, DiaryEntry
 from src.ai.prompt_templates import get_prompt_templates
@@ -58,6 +59,7 @@ class Buddy:
         self.emotion_tracker: EmotionTracker = get_emotion_tracker()
         self.caring: CaringEngine = get_caring_engine()
         self.prompts = get_prompt_templates()
+        self.roles = get_buddy_roles_manager()
         self._supervisor = supervisor  # 兼容旧版 Session
 
         # 当前情绪状态
@@ -76,6 +78,9 @@ class Buddy:
 
         # 初始化时检查时间相关情绪
         self._check_time_emotion()
+
+        # 根据角色设置初始情绪
+        self._sync_role_emotion()
 
     # ========== 情绪系统 ==========
 
@@ -104,20 +109,42 @@ class Buddy:
 
     def update_emotion_by_action(self, action: str):
         """根据动作更新情绪"""
-        action_map = {
-            "ask": "thinking",
-            "answer_received": "happy",
-            "study_start": "study",
-            "study_finish": "excited",
-            "achievement": "proud",
-            "long_idle": "sad",
-            "very_long_idle": "angry",
-            "late_night": "sleepy",
-            "user_struggle": "worried",
-            "user_giving_up": "sad",
+        role_id = self.profile.get_buddy_role_id()
+        responses = ROLE_EMOTION_RESPONSES.get(role_id, ROLE_EMOTION_RESPONSES.get("xiaodou"))
+
+        event_map = {
+            "ask": "daily_reminder",
+            "answer_received": "daily_reminder",
+            "study_start": "study_start",
+            "study_finish": "study_finish",
+            "achievement": "achievement",
+            "long_idle": "user_lazy",
+            "very_long_idle": "user_lazy",
+            "late_night": "late_night",
+            "user_struggle": "user_sad",
+            "user_giving_up": "user_sad",
         }
-        if action in action_map:
-            self.set_emotion(action_map[action])
+
+        event = event_map.get(action)
+        if event and event in responses:
+            emotion_data = responses[event]
+            self.set_emotion(emotion_data.get("emotion", "idle"))
+        else:
+            action_map = {
+                "ask": "thinking",
+                "answer_received": "happy",
+                "study_start": "study",
+                "study_finish": "excited",
+                "achievement": "proud",
+                "long_idle": "sad",
+                "very_long_idle": "angry",
+                "late_night": "sleepy",
+                "user_struggle": "worried",
+                "user_giving_up": "sad",
+            }
+            if action in action_map:
+                self.set_emotion(action_map[action])
+
         self._last_active = datetime.now()
 
     # 兼容旧版接口
@@ -295,14 +322,86 @@ class Buddy:
         memory_context = self.memory.build_context_for_ai()
         current_phase = self.profile.get_current_phase()
         study_summary = self.profile.get_study_summary()
+        role_id = buddy_info.get("role_id", "xiaodou")
 
         return self.prompts.get_system_prompt(
             buddy_name=buddy_info.get("name", "小豆"),
             user_name=profile.get("name", ""),
             study_summary=study_summary,
             memory_context=memory_context,
-            current_phase=current_phase
+            current_phase=current_phase,
+            role_id=role_id
         )
+
+    def _sync_role_emotion(self):
+        """根据角色同步情绪"""
+        role_id = self.profile.get_buddy_role_id()
+        role = BUDDY_ROLES.get(role_id)
+        if role:
+            self.set_emotion("idle")
+
+    # ========== 角色系统 ==========
+
+    def get_current_role_id(self) -> str:
+        """获取当前角色ID"""
+        return self.profile.get_buddy_role_id()
+
+    def get_current_role(self) -> Dict[str, Any]:
+        """获取当前角色信息"""
+        role_id = self.profile.get_buddy_role_id()
+        return self.roles.get_role(role_id) or {}
+
+    def get_all_roles(self) -> List[Dict[str, Any]]:
+        """获取所有可选角色"""
+        return self.roles.get_all_roles()
+
+    def switch_role(self, role_id: str) -> Dict[str, Any]:
+        """切换搭子角色"""
+        if role_id not in BUDDY_ROLES:
+            return {"success": False, "message": "角色不存在"}
+
+        role = BUDDY_ROLES[role_id]
+        self.profile.update_buddy(
+            role_id=role_id,
+            name=role["name"],
+            emoji=role["emoji"],
+            personality=role["personality"]
+        )
+
+        return {
+            "success": True,
+            "message": f"已切换到 {role['name']}！{role['greeting']}",
+            "role": {
+                "id": role["id"],
+                "name": role["name"],
+                "emoji": role["emoji"],
+                "greeting": role["greeting"]
+            }
+        }
+
+    def get_buddy_level_info(self) -> Dict[str, Any]:
+        """获取搭子等级信息"""
+        level = self.profile.get_buddy_level()
+        streak = self.study.get_streak_days()
+        level_info = BUDDY_LEVELS.get(level, BUDDY_LEVELS[1])
+
+        next_level = level + 1
+        next_info = BUDDY_LEVELS.get(next_level)
+        progress = 0
+        if next_info:
+            progress = min(100, int((streak / next_info["threshold"]) * 100))
+        else:
+            progress = 100
+
+        return {
+            "level": level,
+            "name": level_info["name"],
+            "unlock": level_info["unlock"],
+            "next_level": next_level if next_info else None,
+            "next_threshold": next_info["threshold"] if next_info else None,
+            "progress": progress,
+            "days": streak
+        }
 
     def _build_user_message(
         self,
@@ -576,13 +675,22 @@ class Buddy:
         study_status = self.get_study_status()
         today_diary = self.get_today_diary()
         emotion_curve = self.get_emotion_curve(7)
+        buddy_info = self.profile.get_buddy_info()
+        role_id = buddy_info.get("role_id", "xiaodou")
+        level_info = self.get_buddy_level_info()
 
         return {
             "buddy": {
-                "name": self.profile.get_buddy_info().get("name", "小豆"),
-                "emotion": self.get_emotion(),
+                "name": buddy_info.get("name", "小豆"),
                 "emoji": self.get_emoji(),
+                "role_emoji": buddy_info.get("emoji", "🌸"),
+                "emotion": self.get_emotion(),
                 "emotion_desc": self.get_emotion_desc(),
+                "role_id": role_id,
+                "personality": buddy_info.get("personality", ""),
+                "level": level_info["level"],
+                "level_name": level_info["name"],
+                "level_progress": level_info["progress"],
             },
             "profile": {
                 "target_school": profile.get("user", {}).get("target_school", ""),

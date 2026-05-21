@@ -41,8 +41,14 @@ class BuddyProfile:
         },
         "buddy": {
             "name": "小豆",
-            "personality": "温暖但有原则",
-            "introduction": "我是小豆，会陪你走完这段考研路"
+            "emoji": "🌸",
+            "personality": "温柔但有原则",
+            "introduction": "我是小豆，会陪你走完这段考研路",
+            "role_id": "xiaodou",
+            "level": 1,
+            "custom_name": None,
+            "total_interactions": 0,
+            "created_at": ""
         }
     }
 
@@ -55,11 +61,23 @@ class BuddyProfile:
         """从文件加载数据"""
         data = atomic_read_json(self.data_file, self.DEFAULT_DATA.copy())
         self.data = data
-        # 确保结构完整
         if "user" not in self.data:
             self.data["user"] = self.DEFAULT_DATA["user"].copy()
         if "buddy" not in self.data:
             self.data["buddy"] = self.DEFAULT_DATA["buddy"].copy()
+        else:
+            defaults = self.DEFAULT_DATA["buddy"]
+            buddy = self.data["buddy"]
+            if "role_id" not in buddy:
+                buddy["role_id"] = defaults["role_id"]
+            if "level" not in buddy:
+                buddy["level"] = defaults["level"]
+            if "custom_name" not in buddy:
+                buddy["custom_name"] = defaults["custom_name"]
+            if "total_interactions" not in buddy:
+                buddy["total_interactions"] = defaults["total_interactions"]
+            if "emoji" not in buddy:
+                buddy["emoji"] = defaults["emoji"]
 
     def _save(self):
         """保存数据到文件"""
@@ -103,9 +121,25 @@ class BuddyProfile:
         """更新搭子信息"""
         if "buddy" not in self.data:
             self.data["buddy"] = {}
+        allowed_fields = ["name", "personality", "introduction", "role_id", "level", "custom_name", "emoji"]
         for key, value in kwargs.items():
-            if key in ["name", "personality", "introduction"]:
+            if key in allowed_fields:
                 self.data["buddy"][key] = value
+        self._save()
+
+    def get_buddy_role_id(self) -> str:
+        """获取当前搭子角色ID"""
+        return self.data.get("buddy", {}).get("role_id", "xiaodou")
+
+    def get_buddy_level(self) -> int:
+        """获取搭子等级"""
+        return self.data.get("buddy", {}).get("level", 1)
+
+    def increment_interactions(self):
+        """增加交互次数"""
+        if "buddy" not in self.data:
+            self.data["buddy"] = {}
+        self.data["buddy"]["total_interactions"] = self.data["buddy"].get("total_interactions", 0) + 1
         self._save()
 
     def get_days_remaining(self) -> int:

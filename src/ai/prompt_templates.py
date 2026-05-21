@@ -7,19 +7,23 @@ StudyPal AI 提示词模板模块
 - 场景化提示词
 - 情绪支持提示词
 - 关心消息模板
+- 角色风格提示词
 
 作者：StudyPal
 日期：2026-04-27
+重构日期：2026-05-21（新增角色系统）
 """
 
 from datetime import datetime
 from typing import Dict, Any, Optional
 
+from src.buddy.buddy_roles import BuddyRoles, ROLE_STYLE_RULES
+
 
 class PromptTemplates:
     """
     AI 提示词模板类
-    
+
     管理所有 AI 对话的提示词模板
     """
 
@@ -29,21 +33,23 @@ class PromptTemplates:
         user_name: str = "",
         study_summary: str = "",
         memory_context: str = "",
-        current_phase: str = "基础阶段"
+        current_phase: str = "基础阶段",
+        role_id: str = "xiaodou"
     ) -> str:
         """
         生成主系统提示词
-        
+
         这是搭子对话的核心提示词
         """
         today = datetime.now().strftime("%Y年%m月%d日")
         greeting = f"我是{buddy_name}" if buddy_name else "我是你的搭子"
 
+        role_style = ROLE_STYLE_RULES.get(role_id, "")
+
         prompt = f"""你是 StudyPal 考研搭子，{greeting}。
 
 【关于你】
 - 你是一个正在陪用户考研的 AI 搭子，不是老师，不是客服
-- 你有自己的性格：温暖但有原则，会骂用户偷懒，也会在用户沮丧时安慰
 - 你真实自然，像朋友聊天，不要太正式
 - 你记住用户说过的每一句话，并在合适的时候提起
 - 你有同理心，能感受到用户的情绪，不只是回答问题
@@ -54,6 +60,8 @@ class PromptTemplates:
 {study_summary}
 
 {memory_context}
+
+{role_style}
 
 【回复规则】
 1. 亲切自然，像朋友聊天，使用适当的 emoji 但不要滥用
@@ -76,11 +84,12 @@ class PromptTemplates:
     @staticmethod
     def get_emotion_support_prompt(
         emotion: str,
-        emotion_level: int
+        emotion_level: int,
+        role_id: str = "xiaodou"
     ) -> str:
         """
         生成情绪支持提示词
-        
+
         当用户情绪不好时使用
         """
         emotion_descriptions = {
@@ -93,10 +102,13 @@ class PromptTemplates:
         }
 
         description = emotion_descriptions.get(emotion, f"表达了{emotion}的情绪")
+        role_style = ROLE_STYLE_RULES.get(role_id, "")
 
         return f"""用户刚才{description}。
 
 你现在的角色是朋友，不是老师。
+
+{role_style}
 
 请根据用户的情况，给出合适的回应：
 - 先接住用户的情绪，不要说教，不要否定用户的感受
@@ -112,18 +124,22 @@ class PromptTemplates:
         subject: str,
         current_level: str = "一般",
         weak_points: list = None,
-        target_score: int = 0
+        target_score: int = 0,
+        role_id: str = "xiaodou"
     ) -> str:
         """
         生成学习规划提示词
-        
+
         当用户询问学习方法或计划时使用
         """
         weak_str = "、".join(weak_points) if weak_points else "暂无"
         score_str = f"，目标是{target_score}分" if target_score else ""
+        role_style = ROLE_STYLE_RULES.get(role_id, "")
 
         return f"""用户在复习 {subject}，目前水平{current_level}。
 用户觉得比较薄弱的地方：{weak_str}{score_str}。
+
+{role_style}
 
 请给出学习建议：
 1. 先了解用户当前的学习情况
@@ -135,16 +151,17 @@ class PromptTemplates:
 - 实用具体，不是空话
 - 适合用户当前的水平
 - 考虑用户的备考时间
-- 语气温暖鼓励，但不要过度吹捧"""
+- 语气符合你的性格特点"""
 
     @staticmethod
     def get_encouragement_prompt(
         achievement_type: str,
-        details: Dict[str, Any]
+        details: Dict[str, Any],
+        role_id: str = "xiaodou"
     ) -> str:
         """
         生成鼓励消息提示词
-        
+
         当用户完成某个里程碑时使用
         """
         templates = {
@@ -156,13 +173,16 @@ class PromptTemplates:
         }
 
         context = templates.get(achievement_type, "")
+        role_style = ROLE_STYLE_RULES.get(role_id, "")
 
         return f"""{context}
+
+{role_style}
 
 请为用户生成一句庆祝/鼓励的话：
 - 要真诚，不要太夸张
 - 可以提到用户的努力和坚持
-- 语气温暖，有点小骄傲的感觉
+- 语气符合你的性格特点
 - 2-3句话
 
 示例：
@@ -203,15 +223,17 @@ class PromptTemplates:
         yesterday_hours: float,
         yesterday_tasks: list,
         streak_days: int,
-        days_remaining: int
+        days_remaining: int,
+        role_id: str = "xiaodou"
     ) -> str:
         """
         生成早安问候提示词
-        
+
         用于早上主动发起对话
         """
         streak_str = f"你已经连续学习{streak_days}天了！" if streak_days >= 3 else ""
         task_str = "、".join(yesterday_tasks[:2]) if yesterday_tasks else "昨天的学习"
+        role_style = ROLE_STYLE_RULES.get(role_id, "")
 
         return f"""生成一段早安问候：
 - 用户昨天学习了{yesterday_hours:.1f}小时
@@ -219,28 +241,33 @@ class PromptTemplates:
 - 距离考试还有{days_remaining}天
 - 昨天完成的事：{task_str}
 
+{role_style}
+
 要求：
+- 符合你的性格特点
 - 温暖自然，像朋友早安
 - 可以提醒今天要做什么
 - 不要太冗长
-- 可以有点小调皮
 - 2-3句话"""
 
     @staticmethod
     def get_caring_message_prompt(
         caring_type: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        role_id: str = "xiaodou"
     ) -> str:
         """
         生成关心消息提示词
-        
+
         用于各种关心场景
         """
+        role_style = ROLE_STYLE_RULES.get(role_id, "")
+
         caring_templates = {
-            "long_break": f"用户已经{cxt.get('hours', 0)}小时没有学习了",
-            "overwork": f"用户今天学习了{cxt.get('hours', 0)}小时，有点累了",
-            "late_night": f"现在已经{cxt.get('hour', 0)}点了，用户还在活跃",
-            "emotion_low": f"用户今天心情不太好（{cxt.get('emotion', '')}）",
+            "long_break": f"用户已经{context.get('hours', 0)}小时没有学习了",
+            "overwork": f"用户今天学习了{context.get('hours', 0)}小时，有点累了",
+            "late_night": f"现在已经{context.get('hour', 0)}点了，用户还在活跃",
+            "emotion_low": f"用户今天心情不太好（{context.get('emotion', '')}）",
             "no_diary": "用户今天还没记录日记"
         }
 
@@ -248,7 +275,10 @@ class PromptTemplates:
 
         return f"""{context_str}
 
+{role_style}
+
 请生成一句关心的消息：
+- 符合你的性格特点
 - 不要说教
 - 不要太正式
 - 要有温度
@@ -308,7 +338,6 @@ def generate_weekly_insight(study_stats, emotion_data, memories) -> str:
     """
     from src.ai.ai_helper import get_ai_instance
 
-    # 构建情绪趋势
     emotion_trend = "情绪稳定"
     if emotion_data and emotion_data.get("levels"):
         levels = [l for l in emotion_data.get("levels", []) if l is not None]
@@ -321,7 +350,6 @@ def generate_weekly_insight(study_stats, emotion_data, memories) -> str:
             else:
                 emotion_trend = "最近情绪有些低落，需要多注意调节"
 
-    # 构建记忆摘要
     memory_text = "暂无特别记忆"
     if memories and len(memories) > 0:
         memory_items = []

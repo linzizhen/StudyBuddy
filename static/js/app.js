@@ -730,6 +730,121 @@ const App = {
         document.getElementById('achievement-overlay').classList.remove('visible');
     },
 
+    // ==================== 角色选择 ====================
+
+    currentRoleId: null,
+
+    async openRoleSelect() {
+        try {
+            const res = await fetch('/api/buddy/roles').then(r => r.json());
+            if (!res.success) return;
+
+            const roles = res.roles;
+            const currentId = res.current_role_id;
+            this.currentRoleId = currentId;
+
+            const grid = document.getElementById('role-grid');
+            if (!grid) return;
+
+            grid.innerHTML = roles.map(role => `
+                <div class="role-card ${role.id === currentId ? 'selected' : ''}"
+                     data-role-id="${role.id}"
+                     style="--role-color: ${role.color}; --role-color-rgb: ${this.hexToRgb(role.color)};"
+                     onclick="App.selectRole('${role.id}')">
+                    <div class="role-selected-badge">✓</div>
+                    <div class="role-emoji">${role.emoji}</div>
+                    <div class="role-name">${role.name}</div>
+                    <div class="role-type">${role.personality}</div>
+                    <div class="role-desc">${role.description}</div>
+                    <div class="role-tags">
+                        <span class="role-tag">适合：${this.getSuitableLabel(role.suitable_for)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('role-select-overlay').classList.add('visible');
+
+        } catch (e) {
+            console.error('加载角色列表失败', e);
+            this.showToast('加载角色失败');
+        }
+    },
+
+    closeRoleSelect() {
+        document.getElementById('role-select-overlay')?.classList.remove('visible');
+    },
+
+    async selectRole(roleId) {
+        if (roleId === this.currentRoleId) {
+            this.closeRoleSelect();
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/buddy/role/switch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ role_id: roleId })
+            }).then(r => r.json());
+
+            if (res.success) {
+                this.showToast(`已切换到 ${res.role.name}！`);
+                this.closeRoleSelect();
+                this.currentRoleId = roleId;
+
+                // 更新当前选中的卡片
+                document.querySelectorAll('.role-card').forEach(card => {
+                    card.classList.toggle('selected', card.dataset.roleId === roleId);
+                });
+
+                // 播放切换动画并刷新数据
+                const avatar = document.getElementById('buddy-avatar');
+                const chatAvatar = document.getElementById('chat-buddy-avatar');
+                if (avatar) {
+                    avatar.classList.add('role-switch-animation');
+                    avatar.textContent = res.role.emoji;
+                }
+                if (chatAvatar) {
+                    chatAvatar.classList.add('role-switch-animation');
+                    chatAvatar.textContent = res.role.emoji;
+                }
+
+                // 刷新全局数据
+                await this.loadGlobalData();
+
+                // 显示角色问候
+                setTimeout(() => {
+                    this.openChatWith(res.greeting);
+                }, 500);
+
+            } else {
+                this.showToast(res.error || '切换失败');
+            }
+        } catch (e) {
+            console.error('切换角色失败', e);
+            this.showToast('切换失败，请重试');
+        }
+    },
+
+    getSuitableLabel(text) {
+        if (!text) return '所有人';
+        if (text.includes('内向')) return '内向';
+        if (text.includes('自律')) return '自律性差';
+        if (text.includes('理工')) return '理工科';
+        if (text.includes('夜猫子')) return '夜猫子';
+        if (text.includes('压力')) return '压力大';
+        if (text.includes('高效')) return '追求效率';
+        return '所有人';
+    },
+
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        if (result) {
+            return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
+        }
+        return '102, 126, 234';
+    },
+
     _updateNavHighlight(page) {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.page === page);
@@ -737,7 +852,6 @@ const App = {
     },
 };
 
-// 挂载到全局
 window.App = App;
 
 // 应用启动

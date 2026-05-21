@@ -74,6 +74,18 @@
         </div>
     </div>
 
+    <!-- ===== 角色选择弹窗 ===== -->
+    <div class="achievement-overlay" id="role-select-overlay" style="display: none;">
+        <div class="achievement-modal" style="max-width: 95vw; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-close-btn" onclick="App.closeRoleSelect()">✕</div>
+            <div class="achievement-title">选择你的搭子</div>
+            <div class="text-sm text-muted mb-4" style="text-align: center;">每个搭子都有独特的性格，找到最懂你的那个</div>
+            <div class="role-grid" id="role-grid">
+                <!-- 角色卡片由 JS 动态生成 -->
+            </div>
+        </div>
+    </div>
+
     <!-- ===== 首页 ===== -->
     <div class="page active" id="page-home">
         <!-- 顶部问候区 -->
@@ -98,7 +110,7 @@
             <div class="buddy-card-bg-orb buddy-bg-orb-1"></div>
             <div class="buddy-card-bg-orb buddy-bg-orb-2"></div>
             <div class="buddy-card-header">
-                <div class="buddy-card-avatar" id="buddy-avatar">🐱</div>
+                <div class="buddy-card-avatar" id="buddy-avatar">🌸</div>
                 <div class="buddy-card-info">
                     <div class="buddy-card-name" id="buddy-name">小豆</div>
                     <div class="buddy-card-mood">
@@ -107,6 +119,10 @@
                     </div>
                 </div>
                 <div class="buddy-status-dot"></div>
+            </div>
+            <div class="buddy-card-level" id="buddy-level" onclick="App.openRoleSelect()">
+                <span class="level-badge" id="buddy-level-badge">Lv.1</span>
+                <span class="level-name" id="buddy-level-name">初级搭子</span>
             </div>
             <div class="buddy-card-message" id="buddy-message">
                 正在连接...
@@ -118,7 +134,7 @@
             </div>
             <button class="buddy-card-action" onclick="App.switchPage('chat')">
                 <span class="btn-glow-effect"></span>
-                <span class="btn-text">🌟 和小豆聊聊</span>
+                <span class="btn-text" id="buddy-action-text">🌟 和小豆聊聊</span>
             </button>
         </div>
 
@@ -286,17 +302,17 @@
                 ←
             </button>
             <div class="chat-header-info">
-                <div class="chat-header-avatar" id="chat-buddy-avatar">🐱</div>
+                <div class="chat-header-avatar" id="chat-buddy-avatar">🌸</div>
                 <div class="chat-header-detail">
                     <div class="chat-header-name" id="chat-buddy-name">小豆</div>
                     <div class="chat-header-status" id="chat-buddy-status">
                         <span class="status-online-dot"></span>
-                        在线
+                        <span id="chat-buddy-personality">温柔陪伴型</span>
                     </div>
                 </div>
             </div>
             <div class="chat-header-actions">
-                <button class="btn btn-icon btn-ghost">⋯</button>
+                <button class="btn btn-icon btn-ghost" onclick="App.openRoleSelect()" title="切换搭子">🔄</button>
             </div>
         </div>
 

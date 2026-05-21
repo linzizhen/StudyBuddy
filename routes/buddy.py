@@ -187,3 +187,69 @@ def trigger_achievement():
         'message': '太棒了！你真厉害！',
         'type': 'achievement'
     })
+
+
+# ========== 角色系统 API ==========
+
+@buddy_bp.route('/roles', methods=['GET'])
+def get_all_roles():
+    """获取所有可选角色"""
+    buddy = get_buddy()
+    roles = buddy.get_all_roles()
+
+    current_role_id = buddy.get_current_role_id()
+
+    return jsonify({
+        'success': True,
+        'roles': roles,
+        'current_role_id': current_role_id
+    })
+
+
+@buddy_bp.route('/role', methods=['GET'])
+def get_current_role():
+    """获取当前角色信息"""
+    buddy = get_buddy()
+    role = buddy.get_current_role()
+    level_info = buddy.get_buddy_level_info()
+
+    return jsonify({
+        'success': True,
+        'role': role,
+        'level': level_info
+    })
+
+
+@buddy_bp.route('/role/switch', methods=['POST'])
+def switch_role():
+    """切换搭子角色"""
+    data = request.json or {}
+    role_id = data.get('role_id')
+
+    if not role_id:
+        return jsonify({'success': False, 'error': '请选择要切换的角色'}), 400
+
+    buddy = get_buddy()
+    result = buddy.switch_role(role_id)
+
+    if result['success']:
+        return jsonify({
+            'success': True,
+            'message': result['message'],
+            'role': result['role'],
+            'greeting': result['role']['greeting']
+        })
+
+    return jsonify({'success': False, 'error': result.get('message', '切换失败')}), 400
+
+
+@buddy_bp.route('/role/level', methods=['GET'])
+def get_buddy_level():
+    """获取搭子等级信息"""
+    buddy = get_buddy()
+    level_info = buddy.get_buddy_level_info()
+
+    return jsonify({
+        'success': True,
+        'level': level_info
+    })
