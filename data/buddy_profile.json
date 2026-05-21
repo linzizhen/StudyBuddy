@@ -1,0 +1,19 @@
+{
+  "user": {
+    "name": "lzz",
+    "target_school": "清华大学",
+    "target_major": "人工智能",
+    "target_score": 610,
+    "exam_date": "2026-04-29",
+    "study_type": "normal",
+    "daily_goal_hours": 6,
+    "weak_subjects": [],
+    "strong_subjects": [],
+    "created_at": "2026-04-27T14:17:44.671153"
+  },
+  "buddy": {
+    "name": "小豆",
+    "personality": "温暖但有原则",
+    "introduction": "我是小豆，会陪你走完这段考研路"
+  }
+}

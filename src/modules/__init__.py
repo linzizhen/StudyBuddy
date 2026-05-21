@@ -4,7 +4,6 @@ StudyPal 功能模块
 """
 
 from .task_manager import TaskManager, Task
-from .study_calendar import StudyCalendar
 from .data_manager import (
     load_user_settings, save_user_settings,
     get_motto, set_motto,
@@ -16,7 +15,6 @@ from .achievements import AchievementManager, get_achievement_manager, get_achie
 
 __all__ = [
     'TaskManager', 'Task',
-    'StudyCalendar',
     'load_user_settings', 'save_user_settings',
     'get_motto', 'set_motto',
     'get_favorite_quote', 'set_favorite_quote',

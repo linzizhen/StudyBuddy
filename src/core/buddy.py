@@ -1,422 +1,701 @@
 """
-StudyPal 情绪管理类
-管理宠物的情绪状态和表情变化
+StudyPal 搭子系统
+整合搭子档案、记忆、关心引擎的完整搭子
 
-情绪状态列表：
-- idle(😴): 空闲/休息状态 - 默认状态
-- happy(😊): 开心/完成任务
-- sad(😢): 难过/太久没学习
-- study(📚): 学习中
-- thinking(🤔): 思考/AI 回答中
-- angry(😡): 生气/用户一直玩手机时
-- excited(🎉): 兴奋/完成学习目标时
-- sleepy(😪): 困倦/深夜学习时（23:00-6:00）
-- proud(😤): 自豪/用户坚持学习时（连续学习 3 次以上）
+这是整个产品的灵魂模块：
+1. 搭子记忆 — 记住关于用户的一切
+2. 搭子性格 — 有温度、有态度的搭子
+3. 搭子对话 — 场景化、个性化的对话生成
+4. 主动关心 — 不只是被动回答
 
 作者：StudyPal
-创建日期：2026-04-13
+日期：2026-04-27
+重构：2026-04-27 v2.0
 """
 
+import re
 from datetime import datetime
-from config import EMOJIS, DAILY_GOAL_MINUTES
-from src.modules.task_manager import TaskManager
-from src.modules.study_calendar import StudyCalendar
+from typing import Dict, Any, List, Optional, Tuple
+
+from src.buddy.buddy_profile import BuddyProfile, get_buddy_profile
+from src.buddy.buddy_memory import BuddyMemory, get_buddy_memory
+from src.buddy.caring_engine import CaringEngine, CaringEvent, get_caring_engine
+from src.study.study_tracker import StudyTracker, get_study_tracker
+from src.diary.diary import Diary, get_diary, EmotionTracker, get_emotion_tracker, DiaryEntry
+from src.ai.prompt_templates import get_prompt_templates
 
 
 class Buddy:
     """
-    StudyPal 宠物类
-    
-    功能：
-    - 管理情绪状态
-    - 表情变化
-    - 学习统计
-    - 任务完成回调
+    StudyPal 搭子类
+
+    三个核心能力：
+    1. 记忆能力 — 记住关于用户的一切
+    2. 性格能力 — 有温度、有态度的搭子
+    3. 关心能力 — 主动发起关心，不只是被动回答
     """
-    
+
+    # 情绪状态定义（保留旧版风格，增强版）
+    EMOTIONS = {
+        "idle": {"emoji": "😴", "desc": "休息中~", "priority": 0},
+        "happy": {"emoji": "😊", "desc": "开心！", "priority": 1},
+        "excited": {"emoji": "🎉", "desc": "太棒了！", "priority": 2},
+        "proud": {"emoji": "😤", "desc": "为你骄傲！", "priority": 2},
+        "thinking": {"emoji": "🤔", "desc": "在思考...", "priority": 1},
+        "study": {"emoji": "📚", "desc": "学习中！", "priority": 1},
+        "worried": {"emoji": "😟", "desc": "有点担心...", "priority": 1},
+        "sad": {"emoji": "😢", "desc": "难过...", "priority": 1},
+        "angry": {"emoji": "😡", "desc": "生气！", "priority": 2},
+        "sleepy": {"emoji": "😪", "desc": "好困啊...", "priority": 0},
+    }
+
     def __init__(self, supervisor=None):
-        """
-        初始化宠物，默认情绪为 idle（空闲）
-        
-        参数：
-            supervisor: StudySupervisor 实例，用于联动
-        """
-        self._current_emotion = "idle"  # 当前情绪名称
-        self._emotion_history = []      # 情绪变化历史记录
-        self._last_activity_time = datetime.now()  # 最后活动时间
-        self._study_duration = 0  # 累计学习时长（分钟）
-        self._consecutive_study_sessions = 0  # 连续学习次数
-        self._supervisor = supervisor  # 学习监督器引用
-        
-        # AI Monitor 专注度状态
-        self._last_focus_score = None  # 上次专注度评分
-        self._distracted_count = 0  # 分心次数统计
-        self._focused_streak = 0  # 连续专注时长
-        
-        # 任务管理
-        self.task_manager = TaskManager()
-        
-        # 学习日历
-        self.study_calendar = StudyCalendar()
-    
-    def set_emotion(self, emotion_name):
-        """
-        设置宠物的情绪状态
-        
-        参数：
-            emotion_name: 情绪名称 
-                (idle/happy/sad/study/thinking/angry/excited/sleepy/proud)
-        """
-        # 记录旧情绪到历史
-        if self._current_emotion != emotion_name:
-            self._emotion_history.append({
-                "from": self._current_emotion,
-                "to": emotion_name,
-                "time": datetime.now().isoformat()
-            })
-        
-        # 更新情绪
-        self._current_emotion = emotion_name
-    
-    def get_emotion(self):
-        """
-        获取当前情绪名称
-        
-        返回：
-            当前情绪名称字符串
-        """
+        # 核心模块
+        self.profile: BuddyProfile = get_buddy_profile()
+        self.memory: BuddyMemory = get_buddy_memory()
+        self.study: StudyTracker = get_study_tracker()
+        self.diary: Diary = get_diary()
+        self.emotion_tracker: EmotionTracker = get_emotion_tracker()
+        self.caring: CaringEngine = get_caring_engine()
+        self.prompts = get_prompt_templates()
+        self._supervisor = supervisor  # 兼容旧版 Session
+
+        # 当前情绪状态
+        self._current_emotion = "idle"
+        self._emotion_history: List[Dict] = []
+
+        # 初始化关心引擎的追踪器
+        self.caring.set_trackers(
+            study_tracker=self.study,
+            diary_tracker=self.emotion_tracker,
+            memory=self.memory
+        )
+
+        # 最后活跃时间
+        self._last_active = datetime.now()
+
+        # 初始化时检查时间相关情绪
+        self._check_time_emotion()
+
+    # ========== 情绪系统 ==========
+
+    def get_emotion(self) -> str:
+        """获取当前情绪名称"""
         return self._current_emotion
-    
-    def get_emoji(self):
-        """
-        获取当前情绪的 emoji 字符
-        
-        返回：
-            对应的 emoji 字符
-        """
-        return EMOJIS.get(self._current_emotion, "❓")
-    
-    def get_image_path(self):
-        """
-        获取当前情绪对应的图片路径（预留接口）
-        
-        返回：
-            图片文件路径字符串
-        """
-        return f"assets/{self._current_emotion}.png"
-    
-    def update_by_action(self, action):
-        """
-        根据用户动作自动更新情绪
-        
-        参数：
-            action: 动作名称
-                - "ask": 提问 -> 进入思考状态
-                - "answer_received": 收到回答 -> 开心
-                - "study_start": 开始学习 -> 学习状态
-                - "study_finish": 完成学习 -> 兴奋
-                - "idle_too_long": 太久没动作 -> 难过
-                - "phone_addiction": 一直玩手机 -> 生气
-                - "late_night": 深夜学习 -> 困倦
-                - "proud_moment": 坚持学习 -> 自豪
-        """
+
+    def get_emoji(self) -> str:
+        """获取当前情绪的 emoji"""
+        return self.EMOTIONS.get(self._current_emotion, {}).get("emoji", "😶")
+
+    def get_emotion_desc(self) -> str:
+        """获取当前情绪描述"""
+        return self.EMOTIONS.get(self._current_emotion, {}).get("desc", "")
+
+    def set_emotion(self, emotion: str):
+        """设置搭子情绪"""
+        if emotion in self.EMOTIONS:
+            if self._current_emotion != emotion:
+                self._emotion_history.append({
+                    "from": self._current_emotion,
+                    "to": emotion,
+                    "time": datetime.now().isoformat()
+                })
+            self._current_emotion = emotion
+
+    def update_emotion_by_action(self, action: str):
+        """根据动作更新情绪"""
         action_map = {
             "ask": "thinking",
             "answer_received": "happy",
             "study_start": "study",
-            "study_finish": "excited",  # 完成学习改为兴奋
-            "idle_too_long": "sad",
-            "phone_addiction": "angry",
+            "study_finish": "excited",
+            "achievement": "proud",
+            "long_idle": "sad",
+            "very_long_idle": "angry",
             "late_night": "sleepy",
-            "proud_moment": "proud"
+            "user_struggle": "worried",
+            "user_giving_up": "sad",
         }
-        
         if action in action_map:
             self.set_emotion(action_map[action])
-            self._last_activity_time = datetime.now()
-    
-    def check_time_based_emotion(self):
-        """
-        根据时间和活动情况自动更新情绪
-        
-        返回：
-            是否需要更新情绪
-        """
+        self._last_active = datetime.now()
+
+    # 兼容旧版接口
+    def update_by_action(self, action: str):
+        """根据动作更新情绪（兼容旧版）"""
+        self.update_emotion_by_action(action)
+
+    def _check_time_emotion(self):
+        """检查时间相关情绪"""
         now = datetime.now()
-        hours_since_activity = (now - self._last_activity_time).total_seconds() / 3600
-        
-        # 检查是否深夜学习 (23:00 - 6:00)
-        current_hour = now.hour
-        if current_hour >= 23 or current_hour <= 5:
-            if self._current_emotion == "study":
+        hour = now.hour
+
+        if 23 <= hour or hour <= 5:
+            if self._current_emotion in ["study", "thinking"]:
                 self.set_emotion("sleepy")
-                return True
-        
-        # 检查是否太久没活动 (超过 30 分钟)
-        if hours_since_activity > 0.5:
-            if self._current_emotion in ["idle", "happy"]:
-                self.set_emotion("sad")
-                return True
-        
-        # 检查是否一直玩手机 (太久没学习，超过 2 小时)
-        if hours_since_activity > 2:
-            if self._current_emotion == "idle":
-                self.set_emotion("angry")
-                return True
-        
-        # 与 StudySupervisor 联动
-        if self._supervisor:
-            idle_status = self._supervisor.check_idle_time()
-            if idle_status['status'] == 'alert':
-                self.set_emotion("angry")
-                return True
-            elif idle_status['status'] == 'warning':
-                self.set_emotion("sad")
-                return True
-        
-        return False
-    
-    def update_by_focus(self, focus_score, focus_state=None):
-        """
-        根据 AI Monitor 的专注度状态更新情绪
-        
-        参数：
-            focus_score: 专注度评分 (0-100)
-            focus_state: 专注状态字符串 (focused/normal/distracted/unknown)
-        
-        返回：
-            是否更新了情绪
-        """
-        if focus_score is None:
-            return False
-        
-        updated = False
-        old_score = self._last_focus_score
-        self._last_focus_score = focus_score
-        
-        # 根据专注度状态更新情绪
-        if focus_state == 'distracted' or focus_score < 40:
-            self._distracted_count += 1
-            if self._current_emotion == "study":
-                self.set_emotion("sad")
-                updated = True
-        elif focus_state == 'focused' or focus_score >= 65:
-            self._focused_streak += 1
-            # 连续专注时增加自豪感
-            if self._focused_streak >= 3 and self._current_emotion in ["study", "happy"]:
-                self.set_emotion("proud")
-                updated = True
-        else:
-            # 恢复正常状态时重置分心计数
-            if focus_score >= 40:
-                self._distracted_count = 0
-        
-        return updated
-    
-    def get_focus_stats(self):
-        """
-        获取专注度统计信息
-        
-        返回：
-            包含专注度统计的字典
-        """
-        return {
-            "last_focus_score": self._last_focus_score,
-            "distracted_count": self._distracted_count,
-            "focused_streak": self._focused_streak
-        }
-    
-    def reset_focus_stats(self):
-        """重置专注度统计数据"""
-        self._last_focus_score = None
-        self._distracted_count = 0
-        self._focused_streak = 0
-    
-    def update_by_supervisor(self, supervisor_status):
-        """
-        根据 StudySupervisor 的状态更新情绪
-        
-        参数：
-            supervisor_status: StudySupervisor.get_status() 返回的字典
-        
-        返回：
-            是否需要更新情绪
-        """
-        updated = False
-        
-        # 检查空闲状态
-        idle_status = supervisor_status.get('idle', {})
-        if idle_status.get('status') == 'alert':
-            self.set_emotion("angry")
-            updated = True
-        elif idle_status.get('status') == 'warning':
+
+        elapsed_hours = (now - self._last_active).total_seconds() / 3600
+        if elapsed_hours > 4 and self._current_emotion == "idle":
             self.set_emotion("sad")
-            updated = True
-        
-        # 检查是否需要休息
-        if supervisor_status.get('needs_break'):
-            if self._current_emotion == "study":
-                self.set_emotion("sleepy")  # 用困倦表示需要休息
-                updated = True
-        
-        # 检查是否达到目标
-        progress = supervisor_status.get('progress', {})
-        if progress.get('reached_goal') and self._current_emotion != "excited":
-            self.set_emotion("excited")
-            updated = True
-        
-        return updated
-    
-    def record_study_session(self, duration_minutes):
+        elif elapsed_hours > 8:
+            self.set_emotion("angry")
+
+    def get_emotion_history(self) -> List[Dict]:
+        """获取情绪历史"""
+        return self._emotion_history[-10:]
+
+    # ========== 对话系统 ==========
+
+    def chat(self, message: str, conversation_id: str = None) -> Dict[str, Any]:
         """
-        记录一次学习会话
-        
-        参数：
-            duration_minutes: 学习时长（分钟）
-        """
-        self._study_duration += duration_minutes
-        self._consecutive_study_sessions += 1
-        self._last_activity_time = datetime.now()
-        
-        # 如果连续学习 3 次以上，显示自豪情绪
-        if self._consecutive_study_sessions >= 3:
-            self.set_emotion("proud")
-        
-        # 通知 StudySupervisor
-        if self._supervisor:
-            self._supervisor.add_study_time(duration_minutes)
-    
-    def on_pomodoro_complete(self):
-        """
-        番茄钟完成时的回调
-        
+        搭子对话
+
+        这是搭子的核心方法，处理用户消息并返回搭子的回复
+
         返回：
-            是否更新了情绪
+        {
+            "reply": str,           # 搭子回复
+            "conversation_id": str, # 对话ID
+            "emotion": str,         # 当前情绪
+            "emoji": str,           # 情绪emoji
+            "memory_hints": []      # 相关记忆提示
+        }
         """
-        self.set_emotion("excited")
-        self._last_activity_time = datetime.now()
-        return True
-    
-    def on_goal_reached(self):
-        """
-        达到日目标时的回调
-        
-        返回：
-            是否更新了情绪
-        """
-        self.set_emotion("proud")
-        self._last_activity_time = datetime.now()
-        return True
-    
-    def get_study_stats(self):
-        """
-        获取学习统计数据
-        
-        返回：
-            包含学习统计的字典
-        """
+        # 更新活跃时间
+        self._last_active = datetime.now()
+        self.study.record_activity()
+
+        # 分析消息情绪
+        emotion_analysis = self._analyze_message_emotion(message)
+
+        # 根据情绪更新搭子表情
+        if emotion_analysis["is_negative"]:
+            self.update_emotion_by_action("user_struggle")
+        elif emotion_analysis["is_positive"]:
+            self.set_emotion("happy")
+        else:
+            self.set_emotion("thinking")
+
+        # 构建 AI 回复
+        reply = self._generate_reply(message, emotion_analysis, conversation_id)
+
+        # 如果检测到重要事件，记录到记忆
+        self._record_memory_from_message(message, reply, emotion_analysis)
+
+        # 重置情绪
+        self.set_emotion("idle")
+
         return {
-            "total_minutes": self._study_duration,
-            "consecutive_sessions": self._consecutive_study_sessions
+            "reply": reply,
+            "conversation_id": conversation_id,
+            "emotion": self.get_emotion(),
+            "emoji": self.get_emoji(),
+            "emotion_desc": self.get_emotion_desc(),
+            "suggestions": self._generate_suggestions(message, emotion_analysis)
         }
-    
-    def on_task_complete(self, task_title):
+
+    def _analyze_message_emotion(self, message: str) -> Dict[str, Any]:
         """
-        任务完成时的回调
-        
-        参数：
-            task_title: 完成的任务标题
-        
+        分析用户消息的情绪
+
         返回：
-            是否更新了情绪
+        {
+            "sentiment": str,        # positive/negative/neutral
+            "is_negative": bool,
+            "is_positive": bool,
+            "is_giving_up": bool,   # 想放弃
+            "is_anxious": bool,     # 焦虑
+            "keywords": [],          # 关键词
+            "intent": str,           # 意图
+        }
         """
-        self.set_emotion("happy")
-        self._last_activity_time = datetime.now()
-        
-        # 检查是否完成今日所有任务
-        stats = self.task_manager.get_stats()
-        if stats["pending"] == 0 and stats["completed"] > 0:
-            self.set_emotion("excited")
-        
+        message_lower = message.lower()
+
+        # 检测负面情绪
+        negative_keywords = ["考不上", "放弃", "不想学了", "好难", "崩溃", "绝望",
+                            "压力大", "焦虑", "迷茫", "累", "烦", "沮丧", "难熬"]
+        is_negative = any(kw in message_lower for kw in negative_keywords)
+
+        # 检测想放弃
+        give_up_keywords = ["不想考了", "不考了", "放弃了", "算了吧", "考不上的"]
+        is_giving_up = any(kw in message_lower for kw in give_up_keywords)
+
+        # 检测焦虑
+        anxious_keywords = ["焦虑", "紧张", "怕", "担心", "慌"]
+        is_anxious = any(kw in message_lower for kw in anxious_keywords)
+
+        # 检测正面情绪
+        positive_keywords = ["好开心", "太棒了", "完成了", "学会了", "谢谢", "加油",
+                           "有进步", "感觉好多了"]
+        is_positive = any(kw in message_lower for kw in positive_keywords)
+
+        # 检测意图
+        intent = "chat"
+        if any(kw in message_lower for kw in ["怎么", "如何", "什么"]):
+            intent = "question"
+        elif any(kw in message_lower for kw in ["计划", "安排", "复习"]):
+            intent = "plan"
+        elif any(kw in message_lower for kw in ["学不进去", "拖延"]):
+            intent = "struggle"
+
+        # 提取关键词
+        keywords = []
+        for kw in negative_keywords + positive_keywords + ["数学", "英语", "政治",
+                    "专业课", "高数", "线代", "概率", "单词", "政治", "真题"]:
+            if kw in message_lower:
+                keywords.append(kw)
+
+        return {
+            "sentiment": "negative" if is_negative else ("positive" if is_positive else "neutral"),
+            "is_negative": is_negative,
+            "is_positive": is_positive,
+            "is_giving_up": is_giving_up,
+            "is_anxious": is_anxious,
+            "keywords": keywords,
+            "intent": intent
+        }
+
+    def _generate_reply(
+        self,
+        message: str,
+        emotion_analysis: Dict,
+        conversation_id: str = None
+    ) -> str:
+        """
+        生成搭子回复
+
+        这里调用 AI 模型，结合记忆和上下文生成回复
+        """
+        # 从旧版 AI 模块获取对话能力
+        from src.ai.ai_helper import get_ai_instance
+        ai = get_ai_instance()
+
+        # 构建系统提示词
+        system_prompt = self._build_system_prompt()
+
+        # 构建用户消息
+        user_message = self._build_user_message(message, emotion_analysis)
+
+        try:
+            # 调用 AI
+            result = ai.ask(
+                question=user_message,
+                conversation_id=conversation_id,
+                system_prompt=system_prompt
+            )
+            return result.get("answer", "我在呢，有什么事？")
+        except Exception as e:
+            # 如果 AI 调用失败，使用模板回复
+            return self._fallback_reply(message, emotion_analysis)
+
+    def _build_system_prompt(self) -> str:
+        """构建系统提示词"""
+        profile = self.profile.get_user()
+        buddy_info = self.profile.get_buddy_info()
+        memory_context = self.memory.build_context_for_ai()
+        current_phase = self.profile.get_current_phase()
+        study_summary = self.profile.get_study_summary()
+
+        return self.prompts.get_system_prompt(
+            buddy_name=buddy_info.get("name", "小豆"),
+            user_name=profile.get("name", ""),
+            study_summary=study_summary,
+            memory_context=memory_context,
+            current_phase=current_phase
+        )
+
+    def _build_user_message(
+        self,
+        message: str,
+        emotion_analysis: Dict
+    ) -> str:
+        """构建用户消息"""
+        parts = [message]
+
+        # 添加情绪上下文
+        if emotion_analysis["is_giving_up"]:
+            parts.append("\n[注意：用户表达了想放弃的情绪，需要重点关心]")
+        elif emotion_analysis["is_anxious"]:
+            parts.append("\n[注意：用户有些焦虑，需要安慰和理解]")
+        elif emotion_analysis["is_negative"]:
+            parts.append("\n[注意：用户情绪不太好，需要关心]")
+
+        # 添加今日上下文
+        today_entry = self.diary.get_today()
+        if today_entry:
+            parts.append(f"\n[今日情绪：{today_entry.emotion_label}]")
+
+        # 添加学习上下文
+        stats = self.study.get_stats()
+        if stats.get("is_studying"):
+            minutes = self.study.get_continuous_study_minutes()
+            parts.append(f"\n[用户正在学习中，已学习 {int(minutes)} 分钟]")
+        elif stats.get("today_hours", 0) > 0:
+            parts.append(f"\n[今日已学习 {stats['today_hours']:.1f} 小时]")
+
+        return "\n".join(parts)
+
+    def _fallback_reply(
+        self,
+        message: str,
+        emotion_analysis: Dict
+    ) -> str:
+        """备用回复（AI 不可用时）"""
+        if emotion_analysis["is_giving_up"]:
+            return "我知道你现在很难，但是你不是一个人。不管怎样，我都在这里陪着你。"
+
+        if emotion_analysis["is_anxious"]:
+            return "焦虑是很正常的，说明你在乎这件事。深呼吸，我们一起慢慢来。"
+
+        if emotion_analysis["is_negative"]:
+            return "听起来你今天不太顺利，想聊聊吗？我一直在。"
+
+        if "怎么学" in message or "如何" in message:
+            return "这个问题很好！我们聊聊你的具体情况吧，你现在复习到哪一步了？"
+
+        return "嗯嗯，我听懂了。还有什么想说的吗？"
+
+    def _generate_suggestions(
+        self,
+        message: str,
+        emotion_analysis: Dict
+    ) -> List[str]:
+        """生成回复建议"""
+        suggestions = []
+
+        if emotion_analysis["is_giving_up"]:
+            suggestions = [
+                "聊聊为什么想放弃",
+                "我陪你休息一下",
+                "给自己放半天假"
+            ]
+        elif emotion_analysis["is_anxious"]:
+            suggestions = [
+                "我帮你分析一下",
+                "今天学了什么？",
+                "深呼吸，慢慢来"
+            ]
+        elif emotion_analysis["intent"] == "plan":
+            suggestions = [
+                "制定今日计划",
+                "调整复习安排",
+                "看看学习进度"
+            ]
+        else:
+            suggestions = [
+                "今天感觉怎么样？",
+                "最近学习顺利吗？",
+                "有什么想聊的吗？"
+            ]
+
+        return suggestions[:3]
+
+    def _record_memory_from_message(
+        self,
+        message: str,
+        reply: str,
+        emotion_analysis: Dict
+    ):
+        """从对话中提取并记录重要记忆"""
+        message_lower = message.lower()
+
+        # 检测是否提到具体科目或章节
+        subject_keywords = {
+            "高数": "高数", "数学": "高数", "线代": "线代", "概率": "概率论",
+            "英语": "英语", "单词": "英语", "政治": "政治",
+            "专业课": "专业课", "408": "专业课"
+        }
+
+        mentioned_subjects = [v for k, v in subject_keywords.items() if k in message_lower]
+        if mentioned_subjects:
+            self.memory.add_scene(
+                summary=f"聊到了{','.join(mentioned_subjects)}",
+                scene_type="conversation",
+                details=message[:100],
+                tags=mentioned_subjects
+            )
+
+        # 检测是否提到情绪
+        if emotion_analysis["is_negative"]:
+            self.memory.set_profile_note(
+                "recent_feeling",
+                emotion_analysis.get("sentiment", "negative")
+            )
+
+        # 检测重要意图
+        if "目标" in message or "想考" in message:
+            self.memory.add_scene(
+                summary=f"讨论了考研目标",
+                scene_type="conversation",
+                details=message[:100],
+                tags=["目标"]
+            )
+
+    # ========== 关心系统 ==========
+
+    def check_caring_events(self) -> List[CaringEvent]:
+        """检查并返回需要触发的关心事件"""
+        return self.caring.check_all()
+
+    def trigger_achievement(
+        self,
+        achievement_type: str,
+        sub_key: str = None,
+        context: Dict = None
+    ) -> Optional[CaringEvent]:
+        """触发成就庆祝关心"""
+        return self.caring.trigger_achievement(achievement_type, sub_key, context)
+
+    def trigger_emotion_support(
+        self,
+        emotion: str,
+        emotion_level: int
+    ) -> CaringEvent:
+        """触发情绪支持关心"""
+        return self.caring.trigger_emotion_support(emotion, emotion_level)
+
+    # ========== 档案与记忆 API ==========
+
+    def get_profile(self) -> Dict[str, Any]:
+        """获取用户档案"""
+        profile = self.profile.get_profile()
+        profile["days_remaining"] = self.profile.get_days_remaining()
+        profile["current_phase"] = self.profile.get_current_phase()
+        profile["emotion"] = self.get_emotion()
+        profile["emoji"] = self.get_emoji()
+        return profile
+
+    def update_profile(self, **kwargs) -> bool:
+        """更新用户档案"""
+        self.profile.update_user(**kwargs)
         return True
-    
-    def check_task_reminders(self):
-        """
-        检查任务提醒
-        
-        返回：
-            提醒信息字典
-        """
-        return self.task_manager.check_reminders()
-    
-    def get_calendar_stats(self):
-        """
-        获取学习日历统计
-        
-        返回：
-            统计信息字典
-        """
-        return self.study_calendar.get_stats()
-    
-    def log_study_session(self, duration_minutes):
-        """
-        记录学习会话到日历
-        
-        参数：
-            duration_minutes: 学习时长（分钟）
-        """
-        self.study_calendar.log_study(duration_minutes)
-        
-        # 检查是否达到每日目标
-        today_duration = self.study_calendar.get_today_duration()
-        if today_duration >= DAILY_GOAL_MINUTES:
-            self.set_emotion("excited")
-    
-    def get_emotion_description(self):
-        """
-        获取当前情绪的描述文字
-        
-        返回：
-            情绪描述字符串
-        """
-        descriptions = {
-            "idle": "休息一下~",
-            "happy": "好开心！",
-            "sad": "有点难过...",
-            "study": "学习中！",
-            "thinking": "思考中...",
-            "angry": "生气！别玩手机了！",
-            "excited": "太棒了！🎉",
-            "sleepy": "好困啊...",
-            "proud": "为你骄傲！😤"
+
+    def get_memory_context(self, topic: str = None) -> str:
+        """获取记忆上下文"""
+        return self.memory.build_context_for_ai(topic)
+
+    def search_memory(self, keyword: str) -> List[Dict]:
+        """搜索记忆"""
+        return self.memory.recall(keyword)
+
+    def add_memory_scene(
+        self,
+        summary: str,
+        scene_type: str,
+        details: str = "",
+        tags: List[str] = None
+    ) -> str:
+        """添加场景记忆"""
+        return self.memory.add_scene(
+            summary=summary,
+            scene_type=scene_type,
+            details=details,
+            tags=tags
+        )
+
+    # ========== 学习状态 ==========
+
+    def get_study_status(self) -> Dict[str, Any]:
+        """获取学习状态"""
+        return {
+            "is_studying": self.study.is_studying(),
+            "today_hours": self.study.get_today_hours(),
+            "streak_days": self.study.get_streak_days(),
+            "week_hours": self.study.get_week_hours(),
+            "continuous_minutes": self.study.get_continuous_study_minutes()
         }
-        return descriptions.get(self._current_emotion, "未知状态")
-    
-    def get_history(self):
-        """
-        获取情绪变化历史（可选功能）
-        
-        返回：
-            情绪变化历史记录列表
-        """
-        return self._emotion_history
-    
+
+    def start_study(self, subject: str = "学习") -> bool:
+        """开始学习"""
+        success = self.study.start_session(subject)
+        if success:
+            self.set_emotion("study")
+            self.update_emotion_by_action("study_start")
+        return success
+
+    def stop_study(self, subject: str = "学习") -> float:
+        """结束学习"""
+        duration = self.study.end_session(subject)
+        if duration >= 25:
+            self.set_emotion("excited")
+            # 触发成就关心
+            self.trigger_achievement("streak", f"task_done")
+        else:
+            self.set_emotion("happy")
+        return duration
+
+    # ========== 日记 API ==========
+
+    def get_today_diary(self) -> Optional[Dict]:
+        """获取今日日记"""
+        entry = self.diary.get_today()
+        return entry.to_dict() if entry else None
+
+    def add_diary_entry(
+        self,
+        emotion_level: int,
+        study_feeling: str = "",
+        biggest_event: str = "",
+        words_to_buddy: str = ""
+    ) -> Dict:
+        """添加日记"""
+        stats = self.study.get_stats()
+        entry = self.diary.add_entry(
+            emotion_level=emotion_level,
+            study_feeling=study_feeling,
+            study_hours=stats.get("today_hours", 0),
+            biggest_event=biggest_event,
+            words_to_buddy=words_to_buddy
+        )
+
+        # 如果情绪低，触发关心
+        if emotion_level <= 2:
+            caring_event = self.trigger_emotion_support(
+                DiaryEntry.EMOTION_LABELS.get(emotion_level, ""),
+                emotion_level
+            )
+            if caring_event:
+                return {
+                    "entry": entry.to_dict(),
+                    "buddy_caring": caring_event.message
+                }
+
+        return {"entry": entry.to_dict()}
+
+    def get_emotion_curve(self, days: int = 7) -> Dict:
+        """获取情绪曲线"""
+        return self.diary.get_emotion_curve(days)
+
+    # ========== 状态获取 ==========
+
+    def get_full_status(self) -> Dict[str, Any]:
+        """获取完整状态（用于首页展示）"""
+        self._check_time_emotion()
+
+        profile = self.get_profile()
+        study_status = self.get_study_status()
+        today_diary = self.get_today_diary()
+        emotion_curve = self.get_emotion_curve(7)
+
+        return {
+            "buddy": {
+                "name": self.profile.get_buddy_info().get("name", "小豆"),
+                "emotion": self.get_emotion(),
+                "emoji": self.get_emoji(),
+                "emotion_desc": self.get_emotion_desc(),
+            },
+            "profile": {
+                "target_school": profile.get("user", {}).get("target_school", ""),
+                "target_major": profile.get("user", {}).get("target_major", ""),
+                "days_remaining": profile.get("days_remaining", -1),
+                "current_phase": profile.get("current_phase", "未设置"),
+                "is_setup": self.profile.is_setup_complete(),
+            },
+            "study": {
+                **study_status,
+                "goal_progress": self.study.get_daily_goal_progress(
+                    (profile.get("user", {}).get("daily_goal_hours", 8) or 8) * 60
+                )
+            },
+            "diary": {
+                "has_today": today_diary is not None,
+                "today_emotion": today_diary.get("emotion_label", "") if today_diary else None,
+            },
+            "emotion_curve": emotion_curve,
+            "caring_events": [
+                {
+                    "type": e.type,
+                    "message": e.message,
+                    "priority": e.priority
+                }
+                for e in self.check_caring_events()[:2]
+            ],
+        }
+
     def reset(self):
-        """
-        重置所有状态到初始值
-        """
+        """重置搭子状态"""
         self._current_emotion = "idle"
         self._emotion_history = []
-        self._last_activity_time = datetime.now()
-        self._study_duration = 0
-        self._consecutive_study_sessions = 0
-        self.reset_focus_stats()
-    
-    def __str__(self):
-        """
-        字符串表示，显示当前状态
-        
-        返回：
-            字符串形式的状态描述
-        """
-        return f"Buddy[{self._current_emotion}]: {self.get_emoji()}"
+        self._last_active = datetime.now()
+        self.set_emotion("idle")
+
+
+    # ========== 兼容属性 ==========
+
+    @property
+    def task_manager(self):
+        """兼容旧版 task_manager 引用"""
+        return self.study
+
+    @property
+    def ai_memory(self):
+        """兼容旧版 ai_memory"""
+        from src.modules.ai_memory import get_ai_memory
+        return get_ai_memory()
+
+    # ========== 兼容方法 ==========
+
+    def get_study_stats(self) -> Dict[str, Any]:
+        """旧版统计接口"""
+        return self.study.get_stats()
+
+    def check_time_based_emotion(self):
+        """检查时间相关情绪（兼容旧版）"""
+        self._check_time_emotion()
+
+    def get_emotion_description(self) -> str:
+        """获取情绪描述（兼容旧版）"""
+        return self.get_emotion_desc()
+
+    def update_by_supervisor(self, status: Dict):
+        """根据监督器状态更新情绪（兼容旧版）"""
+        pass
+
+    def update_by_focus(self, score, state):
+        """根据专注度更新情绪（兼容旧版）"""
+        pass
+
+    def get_focus_stats(self) -> Dict[str, Any]:
+        """获取专注度统计（兼容旧版）"""
+        return {}
+
+    def log_study_session(self, duration: float):
+        """记录学习时段（兼容旧版）"""
+        pass
+
+    def get_calendar_stats(self) -> Dict[str, Any]:
+        """获取日历统计（兼容旧版）"""
+        return self.study.get_stats()
+
+    def on_pomodoro_complete(self):
+        """番茄钟完成回调"""
+        self.set_emotion("excited")
+
+    def on_task_complete(self, task_title: str = ""):
+        """任务完成回调"""
+        self.set_emotion("happy")
+
+    def on_goal_reached(self):
+        """目标达成回调"""
+        self.set_emotion("proud")
+
+
+# 全局单例
+_buddy_instance: Optional[Buddy] = None
+
+
+def get_buddy() -> Buddy:
+    """获取 Buddy 实例（单例模式）"""
+    global _buddy_instance
+    if _buddy_instance is None:
+        _buddy_instance = Buddy()
+    return _buddy_instance
+
+
+# 兼容旧接口
+class BuddyCompat(Buddy):
+    """兼容旧版 Buddy 接口（已废弃，请使用 Buddy 或 get_buddy）"""
+
+    def __init__(self, supervisor=None):
+        super().__init__()
+        self._supervisor = supervisor

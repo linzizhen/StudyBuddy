@@ -4,12 +4,32 @@ StudyPal 任务管理模块
 
 作者：StudyPal
 创建日期：2026-04-13
+重构日期：2026-04-30（UUID ID + 文件锁保护）
 """
 
 import json
 import os
+import uuid
 from datetime import datetime, timedelta
-from config import TASK_DATA_FILE, REMINDER_BEFORE_MINUTES
+from src.utils.file_lock import atomic_read_json, atomic_write_json
+
+# 使用 sys.path 确保导入正确的 config
+import sys
+_config_loaded = False
+for p in sys.path:
+    if os.path.exists(os.path.join(p, 'config.py')) and 'ai_supervisor' not in p:
+        sys.path.insert(0, p)
+        try:
+            from config import TASK_DATA_FILE, REMINDER_BEFORE_MINUTES
+            _config_loaded = True
+            break
+        except ImportError:
+            sys.path.remove(p)
+
+if not _config_loaded:
+    # 回退方案：使用默认值
+    TASK_DATA_FILE = "data/tasks.json"
+    REMINDER_BEFORE_MINUTES = 30
 
 
 class Task:
@@ -28,13 +48,13 @@ class Task:
     def __init__(self, title, description="", deadline=None):
         """
         初始化任务
-        
+
         参数:
             title: 任务标题
             description: 任务描述
             deadline: 截止时间 (datetime 对象或字符串格式 "YYYY-MM-DD HH:MM")
         """
-        self.id = id(self)  # 简单 ID 生成
+        self.id = str(uuid.uuid4())[:8]  # 使用短 UUID 作为 ID
         self.title = title
         self.description = description
         self.completed = False
@@ -74,7 +94,8 @@ class Task:
             description=data.get("description", ""),
             deadline=data.get("deadline")
         )
-        task.id = data.get("id", id(task))
+        # 确保 ID 始终为字符串
+        task.id = str(data.get("id", task.id))
         task.completed = data.get("completed", False)
         if "created_at" in data:
             task.created_at = datetime.strptime(data["created_at"], "%Y-%m-%d %H:%M")
@@ -166,35 +187,16 @@ class TaskManager:
     
     def _load_tasks(self):
         """从文件加载任务"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    # 检查是否是新的一天
-                    last_date = data.get("last_date", "")
-                    today = datetime.now().strftime("%Y-%m-%d")
-                    
-                    if last_date != today:
-                        # 新的一天，清空未完成的任务（或保留）
-                        # 这里选择保留所有任务，但更新日期
-                        pass
-                    
-                    self.tasks = [Task.from_dict(t) for t in data.get("tasks", [])]
-            except (json.JSONDecodeError, KeyError):
-                self.tasks = []
-    
+        data = atomic_read_json(self.data_file, {"tasks": []})
+        self.tasks = [Task.from_dict(t) for t in data.get("tasks", [])]
+
     def _save_tasks(self):
         """保存任务到文件"""
         data = {
             "last_date": datetime.now().strftime("%Y-%m-%d"),
             "tasks": [t.to_dict() for t in self.tasks]
         }
-        # 确保目录存在
-        dir_path = os.path.dirname(self.data_file)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        atomic_write_json(self.data_file, data)
     
     def add_task(self, title, description="", deadline=None):
         """

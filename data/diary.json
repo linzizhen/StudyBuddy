@@ -1,0 +1,74 @@
+{
+  "entries": [
+    {
+      "id": "20260427163434",
+      "date": "2026-04-27",
+      "emotion_level": 4,
+      "emotion_label": "还好",
+      "study_feeling": "焦虑",
+      "study_hours": 0,
+      "biggest_event": "",
+      "words_to_buddy": "",
+      "buddy_response": "",
+      "weather": "",
+      "tasks_completed": [],
+      "created_at": "2026-04-27T16:34:34.395916"
+    },
+    {
+      "id": "20260427163432",
+      "date": "2026-04-27",
+      "emotion_level": 3,
+      "emotion_label": "一般",
+      "study_feeling": "焦虑",
+      "study_hours": 0,
+      "biggest_event": "",
+      "words_to_buddy": "",
+      "buddy_response": "",
+      "weather": "",
+      "tasks_completed": [],
+      "created_at": "2026-04-27T16:34:32.909641"
+    },
+    {
+      "id": "20260427163425",
+      "date": "2026-04-27",
+      "emotion_level": 3,
+      "emotion_label": "一般",
+      "study_feeling": "",
+      "study_hours": 0,
+      "biggest_event": "",
+      "words_to_buddy": "",
+      "buddy_response": "",
+      "weather": "",
+      "tasks_completed": [],
+      "created_at": "2026-04-27T16:34:25.180042"
+    },
+    {
+      "id": "20260427154124",
+      "date": "2026-04-27",
+      "emotion_level": 3,
+      "emotion_label": "一般",
+      "study_feeling": "充实+疲惫",
+      "study_hours": 0,
+      "biggest_event": "",
+      "words_to_buddy": "",
+      "buddy_response": "",
+      "weather": "",
+      "tasks_completed": [],
+      "created_at": "2026-04-27T15:41:24.798806"
+    },
+    {
+      "id": "20260427142226",
+      "date": "2026-04-27",
+      "emotion_level": 4,
+      "emotion_label": "还好",
+      "study_feeling": "充实",
+      "study_hours": 0,
+      "biggest_event": "完成了数学第三章复习",
+      "words_to_buddy": "今天学习状态不错！",
+      "buddy_response": "",
+      "weather": "",
+      "tasks_completed": [],
+      "created_at": "2026-04-27T14:22:26.520112"
+    }
+  ]
+}
