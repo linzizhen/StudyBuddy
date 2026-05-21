@@ -4,6 +4,7 @@ StudyPal 成就徽章系统
 
 作者：StudyPal
 创建日期：2026-04-13
+重构日期：2026-04-30（文件锁保护）
 """
 
 import json
@@ -11,6 +12,7 @@ import os
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from config import ACHIEVEMENTS_FILE
+from src.utils.file_lock import atomic_read_json, atomic_write_json
 
 
 class Achievement:
@@ -229,6 +231,54 @@ ALL_ACHIEVEMENTS = [
     # 效率大师成就（单日完成5个任务且学习2小时）
     Achievement("efficiency_master", "效率大师", "单日完成5个任务且学习超过2小时",
                 "⚡", "efficiency_day", 1, 80),
+
+    # ========== 考研专属成就 ==========
+
+    # 备考开始
+    Achievement("kaoyan_start", "启程", "开始了考研备考之旅",
+                "🚀", "milestone_start", 1, 50),
+
+    # 目标确定
+    Achievement("target_set", "目标明确", "确定了自己的目标院校和专业",
+                "🎯", "milestone_target", 1, 80),
+
+    # 报名成功
+    Achievement("registration_done", "报名成功", "完成考研正式报名",
+                "📮", "milestone_registration", 1, 100),
+
+    # 考研倒计时里程碑
+    Achievement("countdown_100", "倒计时100天", "距离考试还有100天",
+                "📆", "countdown_100", 1, 60),
+    Achievement("countdown_30", "倒计时30天", "距离考试还有30天，冲刺阶段",
+                "⏰", "countdown_30", 1, 100),
+    Achievement("countdown_7", "最后一周", "距离考试只有一周了",
+                "🔥", "countdown_7", 1, 150),
+
+    # 情绪勇士（连续记录日记）
+    Achievement("emotion_warrior_7", "情绪记录者", "连续记录7天情绪日记",
+                "💪", "diary_streak", 7, 40),
+    Achievement("emotion_warrior_30", "情绪勇士", "连续记录30天情绪日记",
+                "🏅", "diary_streak", 30, 100),
+
+    # 模拟考试
+    Achievement("first_mock", "初试锋芒", "完成第一次模拟考试",
+                "📝", "mock_exam", 1, 60),
+    Achievement("five_mocks", "身经百战", "完成5次模拟考试",
+                "📚", "mock_exam", 5, 120),
+
+    # 学习阶段里程碑
+    Achievement("phase_basics_done", "基础完成", "完成基础知识一轮复习",
+                "🌱", "phase_basics", 1, 80),
+    Achievement("phase_strengthen_done", "强化阶段", "进入强化阶段学习",
+                "💪", "phase_strengthen", 1, 100),
+    Achievement("phase冲刺_done", "冲刺阶段", "进入最后的冲刺阶段",
+                "🚀", "phase冲刺", 1, 120),
+
+    # 最终成就
+    Achievement("exam_done", "勇者无惧", "完成研究生考试",
+                "🎓", "milestone_exam", 1, 200),
+    Achievement("shang_an", "上岸啦", "查到成绩，成功上岸！这是属于你的胜利！",
+                "🏆", "milestone_success", 1, 500),
 ]
 
 
@@ -257,18 +307,12 @@ class AchievementManager:
 
     def _load_data(self):
         """从文件加载数据"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.unlocked_ids = data.get("unlocked_ids", [])
-                    self.total_points = data.get("total_points", 0)
-            except (json.JSONDecodeError, IOError):
-                self.unlocked_ids = []
-                self.total_points = 0
-        else:
-            self.unlocked_ids = []
-            self.total_points = 0
+        data = atomic_read_json(self.data_file, {
+            "unlocked_ids": [],
+            "total_points": 0
+        })
+        self.unlocked_ids = data.get("unlocked_ids", [])
+        self.total_points = data.get("total_points", 0)
 
     def _save_data(self):
         """保存数据到文件"""
@@ -277,11 +321,7 @@ class AchievementManager:
             "total_points": self.total_points,
             "last_updated": datetime.now().isoformat()
         }
-        dir_path = os.path.dirname(self.data_file)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        atomic_write_json(self.data_file, data)
 
     def is_unlocked(self, achievement_id: str) -> bool:
         """

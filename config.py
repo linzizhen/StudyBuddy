@@ -2,11 +2,60 @@
 StudyBuddy 配置文件
 包含所有可配置的参数，方便用户自定义设置
 
+支持环境变量覆盖，详情见 .env.example
+
 作者：StudyBuddy
 创建日期：2026-04-13
+重构日期：2026-04-30（dataclass 重构 + 环境变量中心化）
 """
 
+import os
+from dataclasses import dataclass, field
+from typing import Dict, Any, Optional
+
+
+# ==================== 应用配置 ====================
+
+@dataclass
+class AppConfig:
+    """应用基础配置"""
+    debug: bool = field(default_factory=lambda: os.getenv('FLASK_DEBUG', 'False').lower() == 'true')
+    secret_key: Optional[str] = field(default_factory=lambda: os.getenv('SECRET_KEY'))
+    host: str = field(default_factory=lambda: os.getenv('HOST', '0.0.0.0'))
+    port: int = field(default_factory=lambda: int(os.getenv('PORT', '5000')))
+    cors_origins: str = field(default_factory=lambda: os.getenv('CORS_ORIGINS', '*'))
+    log_level: str = field(default_factory=lambda: os.getenv('LOG_LEVEL', 'INFO'))
+
+
 # ==================== AI 配置 ====================
+
+@dataclass
+class AIConfig:
+    """AI 模型配置"""
+    base_url: str = field(default_factory=lambda: os.getenv('OLLAMA_BASE_URL', 'https://api.groq.com/openai/v1'))
+    default_model: str = field(default_factory=lambda: os.getenv('DEFAULT_MODEL', 'llama-3.3-70b-versatile'))
+    timeout: int = field(default_factory=lambda: int(os.getenv('AI_TIMEOUT', '60')))
+    max_retries: int = field(default_factory=lambda: int(os.getenv('AI_MAX_RETRIES', '3')))
+    api_key: str = field(default_factory=lambda: os.getenv('AI_API_KEY', ''))
+    model_key: str = field(default_factory=lambda: os.getenv('DEFAULT_MODEL_KEY', 'groq_llama'))
+
+
+# 单例配置实例
+app_config = AppConfig()
+ai_config = AIConfig()
+
+
+# ==================== 兼容旧版本（保持向后兼容） ====================
+
+# AI 配置（向后兼容）
+OLLAMA_BASE_URL = ai_config.base_url
+DEFAULT_MODEL = ai_config.default_model
+AI_TIMEOUT = ai_config.timeout
+AI_MAX_RETRIES = ai_config.max_retries
+API_BASE = ai_config.base_url
+MODEL_NAME = ai_config.default_model
+API_KEY = ai_config.api_key
+DEFAULT_MODEL_KEY = ai_config.model_key
 
 # 多模型配置字典
 # 每个模型配置包含：
@@ -14,39 +63,79 @@ StudyBuddy 配置文件
 #   - model: 模型标识符（API 调用时使用）
 #   - provider: 提供者类型 ('ollama' 或 'openai')
 #   - base_url: API 基础 URL
-#   - api_key: API 密钥（Ollama 不需要，留空即可）
+#   - api_key: API 密钥
 MODELS_CONFIG = {
-    # Ollama 本地模型
+    # ===== 云端免费模型（推荐）=====
+    # Groq - 免费额度，速度极快（300+ tokens/s）
+    "groq_llama": {
+        "name": "Llama 3.3 70B (Groq)",
+        "model": "llama-3.3-70b-versatile",
+        "provider": "openai",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key": ""  # 需要从 https://console.groq.com 获取
+    },
+    "groq_mixtral": {
+        "name": "Mixtral 8x7B (Groq)",
+        "model": "mixtral-8x7b-32768",
+        "provider": "openai",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key": ""  # 需要从 https://console.groq.com 获取
+    },
+    # DeepSeek - 新用户有大量免费额度
+    "deepseek_chat": {
+        "name": "DeepSeek Chat (DeepSeek)",
+        "model": "deepseek-chat",
+        "provider": "openai",
+        "base_url": "https://api.deepseek.com/v1",
+        "api_key": ""  # 需要从 https://platform.deepseek.com 获取
+    },
+    "deepseek_r1": {
+        "name": "DeepSeek R1 (DeepSeek)",
+        "model": "deepseek-reasoner",
+        "provider": "openai",
+        "base_url": "https://api.deepseek.com/v1",
+        "api_key": ""  # 需要从 https://platform.deepseek.com 获取
+    },
+    # OpenRouter - 聚合多个免费模型
+    "openrouter_deepseek": {
+        "name": "DeepSeek R1 (OpenRouter)",
+        "model": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+        "provider": "openai",
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key": ""  # 需要从 https://openrouter.ai/keys 获取
+    },
+
+    # ===== Ollama 本地模型 =====
     "qwen3.5_9b": {
         "name": "Qwen3.5 9B (本地)",
         "model": "qwen3.5:9b",
         "provider": "ollama",
-        "base_url": "http://localhost:11434",
+        "base_url": OLLAMA_BASE_URL,
         "api_key": ""
     },
     "qwen2.5_7b": {
         "name": "Qwen2.5 7B (本地)",
         "model": "qwen2.5:7b",
         "provider": "ollama",
-        "base_url": "http://localhost:11434",
+        "base_url": OLLAMA_BASE_URL,
         "api_key": ""
     },
     "llama3_8b": {
         "name": "Llama3 8B (本地)",
         "model": "llama3:8b",
         "provider": "ollama",
-        "base_url": "http://localhost:11434",
+        "base_url": OLLAMA_BASE_URL,
         "api_key": ""
     },
     "mistral_7b": {
         "name": "Mistral 7B (本地)",
         "model": "mistral:7b",
         "provider": "ollama",
-        "base_url": "http://localhost:11434",
+        "base_url": OLLAMA_BASE_URL,
         "api_key": ""
     },
-    
-    # OpenAI 兼容 API 示例（需要替换为实际的 API 地址和密钥）
+
+    # ===== OpenAI 兼容 API（需付费）=====
     # "openai_gpt4o": {
     #     "name": "GPT-4o (OpenAI)",
     #     "model": "gpt-4o",
@@ -54,22 +143,10 @@ MODELS_CONFIG = {
     #     "base_url": "https://api.openai.com/v1",
     #     "api_key": "your-api-key-here"
     # },
-    # "deepseek": {
-    #     "name": "DeepSeek (API)",
-    #     "model": "deepseek-chat",
-    #     "provider": "openai",
-    #     "base_url": "https://api.deepseek.com/v1",
-    #     "api_key": "your-api-key-here"
-    # },
 }
 
-# 默认使用的模型配置 key
-DEFAULT_MODEL_KEY = "qwen3.5_9b"
-
-# 兼容旧版本的单模型配置（如果 MODELS_CONFIG 为空则使用）
-API_BASE = "http://localhost:11434"
-MODEL_NAME = "qwen3.5:9b"
-API_KEY = ""
+# 默认使用的模型配置 key（推荐使用云端免费模型）
+DEFAULT_MODEL_KEY = os.getenv('DEFAULT_MODEL_KEY', 'groq_llama')
 
 # ==================== 情绪配置 ====================
 
@@ -123,24 +200,10 @@ TASK_DATA_FILE = "data/tasks.json"
 # 距离截止时间多少分钟前发出提醒
 REMINDER_BEFORE_MINUTES = 30
 
-# ==================== 学习日程配置 ====================
-
-# 学习日志数据文件路径
-STUDY_LOG_DATA_FILE = "data/study_log.json"
-
-# 日历数据文件路径
-CALENDAR_DATA_FILE = "data/calendar.json"
-
-# 每日学习目标（分钟）
-DAILY_GOAL_MINUTES = 120
-
 # ==================== 用户数据配置 ====================
 
 # 用户数据文件路径
 USER_DATA_FILE = "data/user_settings.json"
-
-# 默认每日学习目标（分钟）
-DEFAULT_DAILY_GOAL = 120
 
 # ==================== AI 历史记录配置 ====================
 

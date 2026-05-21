@@ -4,13 +4,16 @@ StudyPal AI 学习计划生成模块
 
 作者：StudyPal
 创建日期：2026-04-13
+重构日期：2026-04-30（UUID ID + 文件锁保护）
 """
 
 import json
 import os
+import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import logging
+from src.utils.file_lock import atomic_read_json, atomic_write_json
 
 # 配置日志
 logging.basicConfig(
@@ -45,6 +48,7 @@ class StudyPlan:
         self.subject = subject
         self.exam_date = datetime.strptime(exam_date, "%Y-%m-%d") if isinstance(exam_date, str) else exam_date
         self.daily_hours = daily_hours
+        self.id = str(uuid.uuid4())[:8]  # 使用短 UUID
         self.created_at = datetime.now()
         self.tasks = []  # 生成的子任务列表
         self.total_hours = 0  # 总学习时长
@@ -53,7 +57,7 @@ class StudyPlan:
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
-            "id": id(self),
+            "id": str(self.id),
             "subject": self.subject,
             "exam_date": self.exam_date.strftime("%Y-%m-%d") if self.exam_date else None,
             "daily_hours": self.daily_hours,
@@ -62,7 +66,7 @@ class StudyPlan:
             "completed": self.completed,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M")
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'StudyPlan':
         """从字典创建"""
@@ -71,7 +75,7 @@ class StudyPlan:
             exam_date=data["exam_date"],
             daily_hours=data.get("daily_hours", 2.0)
         )
-        plan.id = data.get("id", id(plan))
+        plan.id = data.get("id", str(uuid.uuid4())[:8])
         plan.tasks = data.get("tasks", [])
         plan.total_hours = data.get("total_hours", 0)
         plan.completed = data.get("completed", False)
@@ -126,24 +130,15 @@ class PlanGenerator:
     
     def _load_plans(self):
         """从文件加载计划"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.plans = [StudyPlan.from_dict(p) for p in data.get("plans", [])]
-            except (json.JSONDecodeError, KeyError):
-                self.plans = []
-    
+        data = atomic_read_json(self.data_file, {"plans": []})
+        self.plans = [StudyPlan.from_dict(p) for p in data.get("plans", [])]
+
     def _save_plans(self):
         """保存计划到文件"""
         data = {
             "plans": [p.to_dict() for p in self.plans]
         }
-        dir_path = os.path.dirname(self.data_file)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        atomic_write_json(self.data_file, data)
     
     def generate_plan_ai(self, subject: str, exam_date: str, 
                          daily_hours: float = 2.0, 
@@ -350,17 +345,19 @@ class PlanGenerator:
         logger.info(f"✅ 生成学习计划：{subject} ({days_remaining}天)")
         return plan
     
-    def get_plan(self, plan_id: int) -> Optional[StudyPlan]:
+    def get_plan(self, plan_id) -> Optional[StudyPlan]:
         """根据 ID 获取计划"""
+        plan_id = str(plan_id)
         for plan in self.plans:
-            if id(plan) == plan_id:
+            if str(plan.id) == plan_id:
                 return plan
         return None
-    
-    def delete_plan(self, plan_id: int) -> bool:
+
+    def delete_plan(self, plan_id) -> bool:
         """删除计划"""
+        plan_id = str(plan_id)
         for i, plan in enumerate(self.plans):
-            if id(plan) == plan_id:
+            if str(plan.id) == plan_id:
                 self.plans.pop(i)
                 self._save_plans()
                 return True

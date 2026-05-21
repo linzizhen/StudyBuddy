@@ -1,0 +1,1620 @@
+/**
+ * StudyPal 动画系统 v3.0 - Aurora Edition
+ * 包含开屏动画、页面过渡、交互反馈
+ */
+
+/* ================================
+   1. 开屏动画 (Splash Screen)
+   ================================ */
+
+@keyframes splashBgPulse {
+    0%, 100% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes splashOrb1 {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.6;
+    }
+    33% {
+        transform: translate(30px, -40px) scale(1.2);
+        opacity: 0.8;
+    }
+    66% {
+        transform: translate(-20px, 30px) scale(0.9);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.6;
+    }
+}
+
+@keyframes splashOrb2 {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.5;
+    }
+    33% {
+        transform: translate(-40px, 20px) scale(1.1);
+        opacity: 0.7;
+    }
+    66% {
+        transform: translate(30px, 40px) scale(1.3);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.5;
+    }
+}
+
+@keyframes splashOrb3 {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.4;
+    }
+    50% {
+        transform: translate(50px, 30px) scale(1.4);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0.4;
+    }
+}
+
+@keyframes splashLogoEntrance {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) translateY(40px);
+        filter: blur(20px);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1.1) translateY(-5px);
+        filter: blur(0);
+    }
+    60% {
+        transform: scale(0.95) translateY(2px);
+    }
+    80% {
+        transform: scale(1.02) translateY(-1px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes splashLogoGlow {
+    0%, 100% {
+        box-shadow: 0 0 40px rgba(102, 126, 234, 0.3),
+                    0 0 80px rgba(102, 126, 234, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 60px rgba(102, 126, 234, 0.5),
+                    0 0 120px rgba(102, 126, 234, 0.3);
+    }
+}
+
+@keyframes splashTextEntrance {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+        letter-spacing: 0.5em;
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        letter-spacing: 0.15em;
+    }
+}
+
+@keyframes splashStar {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.5) rotate(180deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+@keyframes splashRing {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(3);
+        opacity: 0;
+    }
+}
+
+@keyframes splashParticleFloat {
+    0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* ================================
+   2. 页面过渡动画
+   ================================ */
+
+@keyframes pageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+        filter: blur(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes pageSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+}
+
+@keyframes pageFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.page-transition-enter {
+    animation: pageSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.page-transition-exit {
+    animation: pageFadeIn 0.3s ease reverse forwards;
+}
+
+/* ================================
+   3. 搭子动画
+   ================================ */
+
+@keyframes buddyFloat {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-8px) rotate(2deg);
+    }
+    75% {
+        transform: translateY(-4px) rotate(-2deg);
+    }
+}
+
+@keyframes buddyBreathe {
+    0%, 100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    50% {
+        transform: scale(1.08);
+        filter: brightness(1.1);
+    }
+}
+
+@keyframes buddyThink {
+    0%, 100% {
+        transform: rotate(-3deg);
+    }
+    50% {
+        transform: rotate(3deg);
+    }
+}
+
+@keyframes buddyHappy {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    25% {
+        transform: scale(1.1) rotate(-5deg);
+    }
+    75% {
+        transform: scale(1.1) rotate(5deg);
+    }
+}
+
+@keyframes buddySleepy {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(3px);
+    }
+}
+
+.buddy-float {
+    animation: buddyFloat 3s ease-in-out infinite;
+}
+
+.buddy-breathe {
+    animation: buddyBreathe 4s ease-in-out infinite;
+}
+
+.buddy-think {
+    animation: buddyThink 2s ease-in-out infinite;
+}
+
+.buddy-happy {
+    animation: buddyHappy 0.6s ease-in-out infinite;
+}
+
+.buddy-sleepy {
+    animation: buddySleepy 3s ease-in-out infinite;
+}
+
+/* ================================
+   4. 消息气泡动画
+   ================================ */
+
+@keyframes messageBubbleIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(16px);
+    }
+    60% {
+        transform: scale(1.03) translateY(-3px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes messageBubbleOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes typingDot {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-6px);
+        opacity: 1;
+    }
+}
+
+.message-enter {
+    animation: messageBubbleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.message-exit {
+    animation: messageBubbleOut 0.2s ease forwards;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: var(--primary);
+    border-radius: 50%;
+    animation: typingDot 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+/* ================================
+   5. 成就解锁动画
+   ================================ */
+
+@keyframes achievementUnlock {
+    0% {
+        transform: scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.3) rotate(10deg);
+    }
+    70% {
+        transform: scale(0.9) rotate(-5deg);
+    }
+    85% {
+        transform: scale(1.1) rotate(3deg);
+    }
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes achievementGlow {
+    0%, 100% {
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4),
+                    0 0 60px rgba(255, 215, 0, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 50px rgba(255, 215, 0, 0.6),
+                    0 0 100px rgba(255, 215, 0, 0.4);
+    }
+}
+
+@keyframes achievementShine {
+    0% {
+        transform: translateX(-100%) rotate(45deg);
+    }
+    100% {
+        transform: translateX(200%) rotate(45deg);
+    }
+}
+
+@keyframes achievementBurst {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.achievement-unlock {
+    animation: achievementUnlock 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.achievement-glow {
+    animation: achievementGlow 2s ease-in-out infinite;
+}
+
+.achievement-shine {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+    animation: achievementShine 1s ease-out forwards;
+}
+
+.achievement-burst {
+    position: absolute;
+    border-radius: 50%;
+    border: 3px solid var(--gold);
+    animation: achievementBurst 0.6s ease-out forwards;
+}
+
+/* ================================
+   6. 进度条与加载动画
+   ================================ */
+
+@keyframes progressFill {
+    from {
+        width: 0;
+    }
+}
+
+@keyframes progressPulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+@keyframes progressGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px var(--primary-glow);
+    }
+    50% {
+        box-shadow: 0 0 20px var(--primary-glow), 0 0 30px var(--primary-glow);
+    }
+}
+
+@keyframes ringProgress {
+    0% {
+        stroke-dashoffset: 283;
+    }
+    100% {
+        stroke-dashoffset: var(--progress-offset, 0);
+    }
+}
+
+@keyframes ringRotate {
+    from {
+        transform: rotate(-90deg);
+    }
+}
+
+.progress-fill-animate {
+    animation: progressFill 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.progress-pulse {
+    animation: progressPulse 2s ease-in-out infinite;
+}
+
+.progress-glow {
+    animation: progressGlow 2s ease-in-out infinite;
+}
+
+.ring-progress-animate {
+    transform-origin: center;
+    animation: ringRotate 1s ease-out forwards, ringProgress 1.5s ease-out forwards;
+}
+
+/* ================================
+   7. 卡片交互动画
+   ================================ */
+
+@keyframes cardHover {
+    0% {
+        transform: translateY(0);
+        box-shadow: var(--shadow-card);
+    }
+    100% {
+        transform: translateY(-8px);
+        box-shadow: var(--shadow-card-hover);
+    }
+}
+
+@keyframes cardClick {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.97);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes cardShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.card-hover-animate:hover {
+    animation: cardHover 0.3s ease forwards;
+}
+
+.card-click:active {
+    animation: cardClick 0.2s ease;
+}
+
+.skeleton-shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary-current) 25%,
+        var(--bg-hover-current) 50%,
+        var(--bg-secondary-current) 75%
+    );
+    background-size: 200% 100%;
+    animation: cardShimmer 1.5s infinite;
+}
+
+/* ================================
+   8. 按钮交互动画
+   ================================ */
+
+@keyframes btnRipple {
+    0% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+@keyframes btnPress {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.95);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes btnGlow {
+    0%, 100% {
+        box-shadow: 0 0 20px var(--primary-glow);
+    }
+    50% {
+        box-shadow: 0 0 40px var(--primary-glow), 0 0 60px var(--primary-glow);
+    }
+}
+
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 50%;
+    left: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+}
+
+.btn-ripple:active::after {
+    animation: btnRipple 0.6s ease-out;
+}
+
+.btn-press:active {
+    animation: btnPress 0.15s ease;
+}
+
+.btn-glow-animate {
+    animation: btnGlow 2s ease-in-out infinite;
+}
+
+/* ================================
+   9. 渐变流动动画
+   ================================ */
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes gradientRotate {
+    0% {
+        filter: hue-rotate(0deg);
+    }
+    100% {
+        filter: hue-rotate(360deg);
+    }
+}
+
+.gradient-animate {
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+}
+
+.gradient-hue-animate {
+    animation: gradientRotate 10s linear infinite;
+}
+
+/* ================================
+   10. 浮动元素动画
+   ================================ */
+
+@keyframes floatUp {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+@keyframes floatDown {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(15px);
+    }
+}
+
+@keyframes floatLeft {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(-10px);
+    }
+}
+
+@keyframes floatRight {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(10px);
+    }
+}
+
+@keyframes floatRotate {
+    0% {
+        transform: translateY(0) rotate(0deg);
+    }
+    25% {
+        transform: translateY(-10px) rotate(90deg);
+    }
+    50% {
+        transform: translateY(0) rotate(180deg);
+    }
+    75% {
+        transform: translateY(10px) rotate(270deg);
+    }
+    100% {
+        transform: translateY(0) rotate(360deg);
+    }
+}
+
+.float-up {
+    animation: floatUp 4s ease-in-out infinite;
+}
+
+.float-down {
+    animation: floatDown 4s ease-in-out infinite;
+}
+
+.float-left {
+    animation: floatLeft 4s ease-in-out infinite;
+}
+
+.float-right {
+    animation: floatRight 4s ease-in-out infinite;
+}
+
+.float-rotate {
+    animation: floatRotate 8s ease-in-out infinite;
+}
+
+/* ================================
+   11. 旋转与缩放动画
+   ================================ */
+
+@keyframes spinRotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spinRotateReverse {
+    from {
+        transform: rotate(360deg);
+    }
+    to {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes pulseScale {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+@keyframes pulseOpacity {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes bounceScale {
+    0%, 100% {
+        transform: scale(1) translateY(0);
+    }
+    25% {
+        transform: scale(1.1) translateY(-10px);
+    }
+    50% {
+        transform: scale(0.95) translateY(0);
+    }
+    75% {
+        transform: scale(1.05) translateY(-5px);
+    }
+}
+
+@keyframes elasticScale {
+    0% {
+        transform: scale(0);
+    }
+    55% {
+        transform: scale(1.15);
+    }
+    70% {
+        transform: scale(0.95);
+    }
+    85% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.spin-animate {
+    animation: spinRotate 1s linear infinite;
+}
+
+.spin-reverse {
+    animation: spinRotateReverse 1s linear infinite;
+}
+
+.pulse-scale {
+    animation: pulseScale 2s ease-in-out infinite;
+}
+
+.pulse-opacity {
+    animation: pulseOpacity 2s ease-in-out infinite;
+}
+
+.bounce-scale {
+    animation: bounceScale 1s ease-in-out infinite;
+}
+
+.elastic-scale {
+    animation: elasticScale 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* ================================
+   12. 滑入滑出动画
+   ================================ */
+
+@keyframes slideInFromLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInFromTop {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInFromBottom {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutToLeft {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}
+
+@keyframes slideOutToRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.slide-from-left {
+    animation: slideInFromLeft 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slide-from-right {
+    animation: slideInFromRight 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slide-from-top {
+    animation: slideInFromTop 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slide-from-bottom {
+    animation: slideInFromBottom 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ================================
+   13. 淡入淡出动画
+   ================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease-in;
+}
+
+.fade-in-up {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+.fade-in-down {
+    animation: fadeInDown 0.4s ease-out;
+}
+
+/* ================================
+   14. 闪烁与高亮动画
+   ================================ */
+
+@keyframes blink {
+    0%, 50%, 100% {
+        opacity: 1;
+    }
+    25%, 75% {
+        opacity: 0.3;
+    }
+}
+
+@keyframes glow {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.3);
+    }
+}
+
+@keyframes highlight {
+    0%, 100% {
+        background-color: transparent;
+    }
+    50% {
+        background-color: var(--primary-subtle);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.blink-animate {
+    animation: blink 2s ease-in-out infinite;
+}
+
+.glow-animate {
+    animation: glow 2s ease-in-out infinite;
+}
+
+.highlight-pulse {
+    animation: highlight 1.5s ease-in-out 3;
+}
+
+.shimmer-animate {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* ================================
+   15. 摇晃与震动动画
+   ================================ */
+
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-6px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(6px);
+    }
+}
+
+@keyframes vibrate {
+    0%, 100% {
+        transform: translate(0, 0);
+    }
+    10% {
+        transform: translate(-2px, -2px);
+    }
+    20% {
+        transform: translate(2px, -2px);
+    }
+    30% {
+        transform: translate(-2px, 2px);
+    }
+    40% {
+        transform: translate(2px, 2px);
+    }
+    50% {
+        transform: translate(-2px, -2px);
+    }
+    60% {
+        transform: translate(2px, -2px);
+    }
+    70% {
+        transform: translate(-2px, 2px);
+    }
+    80% {
+        transform: translate(2px, 2px);
+    }
+    90% {
+        transform: translate(-2px, -2px);
+    }
+}
+
+@keyframes wiggle {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    25% {
+        transform: rotate(-3deg);
+    }
+    75% {
+        transform: rotate(3deg);
+    }
+}
+
+.shake-animate {
+    animation: shake 0.5s ease;
+}
+
+.vibrate-animate {
+    animation: vibrate 0.3s ease;
+}
+
+.wiggle-animate {
+    animation: wiggle 0.3s ease infinite;
+}
+
+/* ================================
+   16. 成功与错误动画
+   ================================ */
+
+@keyframes successPop {
+    0% {
+        transform: scale(0);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes checkmarkDraw {
+    0% {
+        stroke-dashoffset: 50;
+    }
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+
+@keyframes errorShake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-4px);
+        border-color: var(--danger);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(4px);
+        border-color: var(--danger);
+    }
+}
+
+.success-pop {
+    animation: successPop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.checkmark-draw {
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+    animation: checkmarkDraw 0.4s ease-out forwards;
+}
+
+.error-shake {
+    animation: errorShake 0.5s ease;
+}
+
+/* ================================
+   17. 背景特效动画
+   ================================ */
+
+@keyframes starTwinkle {
+    0%, 100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.5);
+    }
+}
+
+@keyframes nebulaPulse {
+    0%, 100% {
+        opacity: 0.3;
+        filter: blur(60px);
+    }
+    50% {
+        opacity: 0.6;
+        filter: blur(80px);
+    }
+}
+
+@keyframes orbitMove {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.star-twinkle {
+    animation: starTwinkle 3s ease-in-out infinite;
+}
+
+.nebula-pulse {
+    animation: nebulaPulse 8s ease-in-out infinite;
+}
+
+.orbit-move {
+    animation: orbitMove 20s linear infinite;
+}
+
+/* ================================
+   18. 数字滚动动画
+   ================================ */
+
+@keyframes countUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.count-up {
+    animation: countUp 0.5s ease-out forwards;
+}
+
+/* ================================
+   19. 工具类动画
+   ================================ */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--bg-secondary-current) 25%,
+        var(--bg-hover-current) 50%,
+        var(--bg-secondary-current) 75%
+    );
+    background-size: 200% 100%;
+    animation: cardShimmer 1.5s infinite;
+    border-radius: var(--border-radius-sm);
+}
+
+.skeleton-text {
+    height: 14px;
+    margin-bottom: var(--space-2);
+}
+
+.skeleton-text:last-child {
+    width: 70%;
+}
+
+.skeleton-title {
+    height: 24px;
+    width: 60%;
+    margin-bottom: var(--space-3);
+}
+
+.skeleton-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+}
+
+/* ================================
+   20. 交错动画
+   ================================ */
+
+.stagger-enter > * {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-enter > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-enter > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-enter > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-enter > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-enter > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-enter > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-enter > *:nth-child(8) { animation-delay: 420ms; }
+.stagger-enter > *:nth-child(9) { animation-delay: 480ms; }
+.stagger-enter > *:nth-child(10) { animation-delay: 540ms; }
+
+/* ================================
+   21. 弹窗动画
+   ================================ */
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes modalFadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+}
+
+.modal-slide-up {
+    animation: modalSlideUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ================================
+   22. 情绪气泡样式
+   ================================ */
+
+/* 消息基础样式 */
+.message {
+    display: flex;
+    gap: var(--space-3);
+    max-width: 85%;
+    margin-bottom: var(--space-3);
+    animation: messageBubbleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.message.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message.buddy {
+    align-self: flex-start;
+}
+
+.msg-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 14px;
+    background: var(--gradient-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+}
+
+.msg-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.msg-bubble {
+    padding: var(--space-4);
+    border-radius: 20px;
+    font-size: var(--text-base);
+    line-height: 1.6;
+    word-break: break-word;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.message.user .msg-bubble {
+    background: var(--gradient-primary);
+    color: white;
+    border-bottom-right-radius: 6px;
+}
+
+.message.buddy .msg-bubble {
+    background: var(--bg-card-current);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 6px;
+    color: var(--text-primary);
+}
+
+.msg-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 0 var(--space-2);
+}
+
+.message.user .msg-time {
+    text-align: right;
+}
+
+/* 情绪气泡颜色 */
+.emotion-bubble.emotion-happy {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.emotion-bubble.emotion-excited {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.emotion-bubble.emotion-proud {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.emotion-bubble.emotion-thinking {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.emotion-bubble.emotion-study {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.emotion-bubble.emotion-worried {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.05));
+    border-color: rgba(249, 115, 22, 0.3);
+}
+
+.emotion-bubble.emotion-sad {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05));
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.emotion-bubble.emotion-angry {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.emotion-bubble.emotion-sleepy {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.05));
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.emotion-bubble.emotion-idle {
+    background: var(--bg-card-current);
+    border-color: var(--border);
+}
+
+/* 情绪头像样式 */
+.msg-avatar.emotion-happy {
+    background: linear-gradient(135deg, #10B981, #059669);
+    animation: buddyHappy 0.6s ease-in-out infinite;
+}
+
+.msg-avatar.emotion-excited {
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+    animation: buddyExcited 0.4s ease-in-out infinite;
+}
+
+.msg-avatar.emotion-proud {
+    background: linear-gradient(135deg, #EF4444, #DC2626);
+    animation: pulseScale 1s ease-in-out infinite;
+}
+
+.msg-avatar.emotion-thinking {
+    background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+    animation: buddyThink 2s ease-in-out infinite;
+}
+
+.msg-avatar.emotion-study {
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+}
+
+.msg-avatar.emotion-worried {
+    background: linear-gradient(135deg, #F97316, #EA580C);
+}
+
+.msg-avatar.emotion-sad {
+    background: linear-gradient(135deg, #6366F1, #4F46E5);
+}
+
+.msg-avatar.emotion-angry {
+    background: linear-gradient(135deg, #EF4444, #B91C1C);
+    animation: shake 0.3s ease infinite;
+}
+
+.msg-avatar.emotion-sleepy {
+    background: linear-gradient(135deg, #A855F7, #9333EA);
+    animation: buddySleepy 3s ease-in-out infinite;
+}
+
+.msg-avatar.emotion-idle {
+    background: var(--gradient-primary);
+}
+
+/* 情绪打字指示器 */
+.message.typing.emotion-thinking .typing-indicator span {
+    background: #8B5CF6;
+}
+
+.message.typing.emotion-happy .typing-indicator span {
+    background: #10B981;
+}
+
+.message.typing.emotion-worried .typing-indicator span {
+    background: #F97316;
+}
+
+.message.typing.emotion-sad .typing-indicator span {
+    background: #6366F1;
+}
+
+@keyframes buddyExcited {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    25% { transform: scale(1.15) rotate(-8deg); }
+    75% { transform: scale(1.15) rotate(8deg); }
+}
+
+/* 回复建议 */
+.msg-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+.msg-suggestions button {
+    padding: var(--space-2) var(--space-3);
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: var(--border-radius-full);
+    font-size: var(--text-xs);
+    color: var(--primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.msg-suggestions button:hover {
+    background: rgba(102, 126, 234, 0.2);
+    transform: scale(1.05);
+}
+
+/* 搭子卡片头像情绪样式 */
+.buddy-card-avatar.emotion-happy {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(16, 185, 129, 0.2));
+    border-color: rgba(16, 185, 129, 0.5);
+    animation: buddyFloat 2s ease-in-out infinite;
+}
+
+.buddy-card-avatar.emotion-excited {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(245, 158, 11, 0.2));
+    border-color: rgba(245, 158, 11, 0.5);
+    animation: buddyExcited 0.5s ease-in-out infinite;
+}
+
+.buddy-card-avatar.emotion-proud {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.2));
+    border-color: rgba(239, 68, 68, 0.5);
+    animation: pulseScale 1.5s ease-in-out infinite;
+}
+
+.buddy-card-avatar.emotion-thinking {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.2));
+    border-color: rgba(139, 92, 246, 0.5);
+    animation: buddyFloat 3s ease-in-out infinite;
+}
+
+.buddy-card-avatar.emotion-study {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(59, 130, 246, 0.2));
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.buddy-card-avatar.emotion-worried {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.3), rgba(249, 115, 22, 0.2));
+    border-color: rgba(249, 115, 22, 0.5);
+}
+
+.buddy-card-avatar.emotion-sad {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(99, 102, 241, 0.2));
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.buddy-card-avatar.emotion-angry {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(239, 68, 68, 0.2));
+    border-color: rgba(239, 68, 68, 0.5);
+    animation: shake 0.5s ease infinite;
+}
+
+.buddy-card-avatar.emotion-sleepy {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(168, 85, 247, 0.2));
+    border-color: rgba(168, 85, 247, 0.5);
+    animation: buddySleepy 4s ease-in-out infinite;
+}
+
+/* 聊天头部头像 */
+.chat-header-avatar.emotion-happy {
+    background: linear-gradient(135deg, #10B981, #059669);
+}
+
+.chat-header-avatar.emotion-excited {
+    background: linear-gradient(135deg, #F59E0B, #D97706);
+}
+
+.chat-header-avatar.emotion-proud {
+    background: linear-gradient(135deg, #EF4444, #DC2626);
+}
+
+.chat-header-avatar.emotion-thinking {
+    background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+}
+
+.chat-header-avatar.emotion-study {
+    background: linear-gradient(135deg, #3B82F6, #2563EB);
+}
+
+.chat-header-avatar.emotion-worried {
+    background: linear-gradient(135deg, #F97316, #EA580C);
+}
+
+.chat-header-avatar.emotion-sad {
+    background: linear-gradient(135deg, #6366F1, #4F46E5);
+}
+
+.chat-header-avatar.emotion-angry {
+    background: linear-gradient(135deg, #EF4444, #B91C1C);
+}
+
+.chat-header-avatar.emotion-sleepy {
+    background: linear-gradient(135deg, #A855F7, #9333EA);
+}

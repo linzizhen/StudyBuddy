@@ -4,12 +4,16 @@ StudyPal 数据管理模块
 
 作者：StudyPal
 创建日期：2026-04-13
+重构日期：2026-04-30（文件锁保护）
 """
 
 import json
 import os
 from datetime import datetime
-from config import USER_DATA_FILE, DEFAULT_DAILY_GOAL
+from config import USER_DATA_FILE
+from src.utils.file_lock import atomic_read_json, atomic_write_json
+
+DEFAULT_DAILY_GOAL = 120  # 默认每日学习目标（分钟）
 
 
 class DataManager:
@@ -35,14 +39,9 @@ class DataManager:
     
     def _load_data(self):
         """从文件加载数据"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError):
-                return self._get_default_data()
-        return self._get_default_data()
-    
+        default = self._get_default_data()
+        return atomic_read_json(self.data_file, default)
+
     def _get_default_data(self):
         """获取默认数据"""
         return {
@@ -52,18 +51,11 @@ class DataManager:
             "created_at": datetime.now().isoformat(),
             "last_updated": datetime.now().isoformat()
         }
-    
+
     def _save_data(self):
         """保存数据到文件"""
         self.data["last_updated"] = datetime.now().isoformat()
-        
-        # 确保目录存在
-        dir_path = os.path.dirname(self.data_file)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
+        atomic_write_json(self.data_file, self.data)
     
     def get_motto(self):
         """获取座右铭"""

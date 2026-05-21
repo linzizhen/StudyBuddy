@@ -4,6 +4,7 @@ StudyPal AI 记忆与对话历史模块
 
 作者：StudyPal
 创建日期：2026-04-13
+重构日期：2026-04-30（文件锁保护）
 """
 
 import json
@@ -11,6 +12,7 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from config import AI_HISTORY_FILE
+from src.utils.file_lock import atomic_read_json, atomic_write_json
 
 
 class AIMemory:
@@ -38,15 +40,8 @@ class AIMemory:
 
     def _load_history(self):
         """从文件加载历史记录"""
-        if os.path.exists(self.data_file):
-            try:
-                with open(self.data_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.conversations = data.get("conversations", [])
-            except (json.JSONDecodeError, IOError):
-                self.conversations = []
-        else:
-            self.conversations = []
+        data = atomic_read_json(self.data_file, {"conversations": []})
+        self.conversations = data.get("conversations", [])
 
     def _save_history(self):
         """保存历史记录到文件"""
@@ -54,11 +49,7 @@ class AIMemory:
             "conversations": self.conversations,
             "last_updated": datetime.now().isoformat()
         }
-        dir_path = os.path.dirname(self.data_file)
-        if dir_path and not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        atomic_write_json(self.data_file, data)
 
     def create_conversation(self, title: str = None) -> str:
         """
