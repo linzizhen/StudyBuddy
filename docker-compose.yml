@@ -1,0 +1,85 @@
+# StudyPal 生产环境部署配置
+# 使用 Docker 和 Docker Compose
+
+version: '3.8'
+
+services:
+  # Web 应用
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: studypal-web
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - REDIS_URL=redis://cache:6379/0
+      - AI_API_KEY=${AI_API_KEY}
+      - AI_MODEL=${AI_MODEL:-gpt-3.5-turbo}
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+    volumes:
+      - ./data:/app/data
+    networks:
+      - studypal-network
+
+  # PostgreSQL 数据库
+  db:
+    image: postgres:15-alpine
+    container_name: studypal-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - studypal-network
+
+  # Redis 缓存
+  cache:
+    image: redis:7-alpine
+    container_name: studypal-cache
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - studypal-network
+
+  # Nginx 反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: studypal-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    networks:
+      - studypal-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  studypal-network:
+    driver: bridge

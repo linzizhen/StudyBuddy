@@ -1,33 +1,55 @@
 """
 StudyPal 搭子路由
 处理搭子对话、档案、记忆相关 API
+
+作者：StudyPal
+日期：2026-04-27
+更新：2026-05-21 支持多用户认证
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from typing import Dict, Any, Optional
+
+from src.auth.auth import auth_required, auth_optional, get_current_user, ai_limit_required
 
 buddy_bp = Blueprint('buddy', __name__, url_prefix='/api/buddy')
 
 
-def get_buddy():
-    """获取 Buddy 实例"""
+def get_user_buddy():
+    """获取当前用户的 Buddy 实例（基于用户数据）"""
     from src.core.buddy import get_buddy
     return get_buddy()
 
 
+@auth_optional
 @buddy_bp.route('/status', methods=['GET'])
 def get_buddy_status():
     """获取搭子完整状态"""
-    buddy = get_buddy()
+    user = get_current_user()
+    if not user:
+        return jsonify({
+            'success': True,
+            'status': {
+                'buddy': {'name': '小豆', 'emoji': '🌸'},
+                'profile': {'is_setup': False},
+                'message': '请先登录'
+            }
+        })
+
+    buddy = get_user_buddy()
     return jsonify({
         'success': True,
         'status': buddy.get_full_status()
     })
 
 
+@auth_required
+@ai_limit_required
 @buddy_bp.route('/chat', methods=['POST'])
 def buddy_chat():
     """搭子对话"""
+    user = get_current_user()
+
     data = request.json or {}
     message = data.get('message', '').strip()
     conversation_id = data.get('conversation_id')
@@ -35,8 +57,11 @@ def buddy_chat():
     if not message:
         return jsonify({'success': False, 'error': '消息不能为空'}), 400
 
-    buddy = get_buddy()
+    buddy = get_user_buddy()
     result = buddy.chat(message, conversation_id)
+
+    # 增加AI调用计数
+    user.increment_ai_calls()
 
     return jsonify({
         'success': True,
@@ -49,6 +74,7 @@ def buddy_chat():
     })
 
 
+@auth_required
 @buddy_bp.route('/profile', methods=['GET'])
 def get_buddy_profile():
     """获取用户档案"""
@@ -64,6 +90,7 @@ def get_buddy_profile():
     })
 
 
+@auth_required
 @buddy_bp.route('/profile', methods=['PUT', 'POST'])
 def update_buddy_profile():
     """更新用户档案"""
@@ -79,6 +106,7 @@ def update_buddy_profile():
     })
 
 
+@auth_required
 @buddy_bp.route('/memory', methods=['GET'])
 def get_buddy_memory():
     """获取搭子记忆"""
@@ -105,6 +133,7 @@ def get_buddy_memory():
     })
 
 
+@auth_required
 @buddy_bp.route('/memory', methods=['POST'])
 def add_buddy_memory():
     """添加场景记忆"""
