@@ -1,210 +1,319 @@
 """
-StudyPal 搭子洞察路由
-处理搭子周记、情绪分析等洞察相关 API
+StudyPal 数据洞察 API
+提供学习数据统计和可视化接口
+
+作者：StudyPal
+日期：2026-05-25
 """
 
-from flask import Blueprint, jsonify
-from src.ai.prompt_templates import generate_weekly_insight
+from flask import Blueprint, jsonify, request
+from datetime import datetime, date, timedelta
+from collections import defaultdict
+import json
+import os
 
 insights_bp = Blueprint('insights', __name__, url_prefix='/api/insights')
 
 
-@insights_bp.route('/weekly-insight', methods=['GET'])
-def get_weekly_insight():
-    """生成搭子周记"""
-    from src.core.buddy import get_buddy
+def get_data_dir():
+    """获取数据目录"""
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data')
 
-    buddy = get_buddy()
 
-    # 获取本周学习数据
-    study_stats = buddy.study.get_stats()
+def load_json(filename, default=None):
+    """加载 JSON 文件"""
+    filepath = os.path.join(get_data_dir(), filename)
+    if not os.path.exists(filepath):
+        return default or {}
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return default or {}
 
-    # 获取本周日记情绪
-    diary = buddy.diary
-    emotion_data = diary.get_emotion_curve(7)
 
-    # 获取本周记忆
-    memory = buddy.memory
-    memories = memory.get_recent_scenes(7)
+def save_json(filename, data):
+    """保存 JSON 文件"""
+    filepath = os.path.join(get_data_dir(), filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2, default=str)
 
-    # 生成周记
-    insight = generate_weekly_insight(study_stats, emotion_data, memories)
+
+@insights_bp.route('/overview', methods=['GET'])
+def get_overview():
+    """获取数据概览"""
+    days = request.args.get('days', 30, type=int)
+
+    study_data = load_json('study_tracker.json', {'sessions': []})
+    diary_data = load_json('diary.json', {'entries': []})
+    task_data = load_json('tasks.json', {'tasks': []})
+
+    sessions = study_data.get('sessions', [])
+    entries = diary_data.get('entries', [])
+    tasks = task_data.get('tasks', [])
+
+    # 计算日期范围
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+
+    # 过滤日期范围内的数据
+    recent_sessions = [
+        s for s in sessions
+        if s.get('date') and start_date <= date.fromisoformat(s['date']) <= end_date
+    ]
+    recent_entries = [
+        e for e in entries
+        if e.get('date') and start_date <= date.fromisoformat(e['date']) <= end_date
+    ]
+
+    # 计算统计数据
+    total_minutes = sum(s.get('duration', 0) for s in recent_sessions)
+    total_hours = round(total_minutes / 60, 1)
+
+    # 科目分布
+    subject_dist = defaultdict(int)
+    for s in recent_sessions:
+        subject_dist[s.get('subject', '其他')] += s.get('duration', 0)
+
+    # 日均学习
+    diary_dates = set(e['date'] for e in recent_entries)
+    active_days = len(diary_dates) or 1
+    daily_avg = round(total_minutes / active_days / 60, 1) if active_days > 0 else 0
+
+    # 情绪统计
+    emotion_counts = defaultdict(int)
+    for e in recent_entries:
+        emotion_counts[e.get('emotion_label', '一般')] += 1
+
+    # 任务统计
+    pending = sum(1 for t in tasks if t.get('status') == 'pending')
+    completed = sum(1 for t in tasks if t.get('status') == 'completed')
 
     return jsonify({
         'success': True,
-        'data': {
-            'insight': insight,
-            'study_stats': {
-                'week_hours': study_stats.get('week_hours', 0),
-                'streak_days': study_stats.get('streak_days', 0),
-                'today_hours': study_stats.get('today_hours', 0),
-            },
-            'emotion_trend': emotion_data.get('labels', []),
-            'memory_count': len(memories),
+        'overview': {
+            'total_hours': total_hours,
+            'total_sessions': len(recent_sessions),
+            'total_entries': len(recent_entries),
+            'daily_average': daily_avg,
+            'subject_distribution': dict(subject_dist),
+            'emotion_distribution': dict(emotion_counts),
+            'pending_tasks': pending,
+            'completed_tasks': completed,
+            'period_days': days
         }
     })
 
 
-@insights_bp.route('/monthly-report', methods=['GET'])
-def get_monthly_report():
-    """生成月度报告"""
-    from src.core.buddy import get_buddy
-    from datetime import datetime
+@insights_bp.route('/study-chart', methods=['GET'])
+def get_study_chart():
+    """获取学习曲线数据（用于图表）"""
+    days = request.args.get('days', 30, type=int)
 
-    buddy = get_buddy()
+    study_data = load_json('study_tracker.json', {'sessions': []})
+    sessions = study_data.get('sessions', [])
 
-    # 获取本月学习数据
-    study_stats = buddy.study.get_stats()
+    # 生成日期序列
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days - 1)
 
-    # 获取本月日记
-    diary = buddy.diary
-    entries = diary.get_entries(30)
+    # 按日期聚合学习时长
+    daily_hours = defaultdict(float)
+    daily_sessions = defaultdict(int)
 
-    # 情绪统计
-    emotion_counts = {}
-    for entry in entries:
-        label = entry.emotion_label
-        emotion_counts[label] = emotion_counts.get(label, 0) + 1
+    for s in sessions:
+        try:
+            session_date = date.fromisoformat(s['date'])
+            if start_date <= session_date <= end_date:
+                daily_hours[session_date.isoformat()] += s.get('duration', 0) / 60
+                daily_sessions[session_date.isoformat()] += 1
+        except:
+            continue
 
-    # 获取本月记忆
-    memory = buddy.memory
-    memories = memory.get_recent_scenes(30)
-
-    # 生成分析
-    total_hours = study_stats.get('total_hours', 0)
-    avg_daily = total_hours / 30 if total_hours > 0 else 0
-
-    # 情绪分析
-    top_emotion = max(emotion_counts.items(), key=lambda x: x[1])[0] if emotion_counts else '一般'
-
-    report = {
-        'period': datetime.now().strftime('%Y年%m月'),
-        'total_hours': round(total_hours, 1),
-        'avg_daily': round(avg_daily, 1),
-        'top_emotion': top_emotion,
-        'emotion_counts': emotion_counts,
-        'diary_count': len(entries),
-        'memory_count': len(memories),
-        'streak_days': study_stats.get('streak_days', 0),
-        'suggestions': _generate_monthly_suggestions(total_hours, top_emotion, len(memories)),
-    }
+    # 填充缺失日期
+    chart_data = []
+    current = start_date
+    while current <= end_date:
+        date_str = current.isoformat()
+        chart_data.append({
+            'date': date_str,
+            'hours': round(daily_hours.get(date_str, 0), 2),
+            'sessions': daily_sessions.get(date_str, 0)
+        })
+        current += timedelta(days=1)
 
     return jsonify({
         'success': True,
-        'data': report
+        'chart_data': chart_data,
+        'period_days': days
     })
 
 
-def _generate_monthly_suggestions(total_hours, top_emotion, memory_count):
-    """生成月度建议"""
-    suggestions = []
+@insights_bp.route('/emotion-chart', methods=['GET'])
+def get_emotion_chart():
+    """获取情绪曲线数据"""
+    days = request.args.get('days', 30, type=int)
 
-    if total_hours < 50:
-        suggestions.append("本月学习时长偏少，可以适当增加每日学习时间")
-    elif total_hours > 200:
-        suggestions.append("学习强度很大，注意休息和身体状态")
+    diary_data = load_json('diary.json', {'entries': []})
+    entries = diary_data.get('entries', [])
 
-    if top_emotion in ['很难受', '有点丧']:
-        suggestions.append("最近情绪有些低落，建议适当放松，调节心态")
+    # 生成日期序列
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days - 1)
 
-    if memory_count < 3:
-        suggestions.append("多和小豆聊聊，可以帮助记录更多学习记忆")
+    # 按日期映射情绪
+    emotion_map = {}
+    for e in entries:
+        try:
+            entry_date = date.fromisoformat(e['date'])
+            if start_date <= entry_date <= end_date:
+                emotion_map[entry_date.isoformat()] = {
+                    'level': e.get('emotion_level', 3),
+                    'label': e.get('emotion_label', '一般')
+                }
+        except:
+            continue
 
-    if not suggestions:
-        suggestions.append("继续保持目前的状态，你做得很好！")
-
-    return suggestions
-
-
-@insights_bp.route('/insight-summary', methods=['GET'])
-def get_insight_summary():
-    """获取洞察摘要（用于首页展示）"""
-    from src.core.buddy import get_buddy
-
-    buddy = get_buddy()
-
-    # 获取关键指标
-    study = buddy.study
-    stats = study.get_stats()
-    diary = buddy.diary
-
-    # 计算本周 vs 上周
-    recent_sessions = study.get_recent_sessions(14)
-    this_week = [s for s in recent_sessions if _is_this_week(s.get('date', ''))]
-    last_week = [s for s in recent_sessions if _is_last_week(s.get('date', ''))]
-
-    this_week_hours = sum(s.get('duration', 0) / 60 for s in this_week)
-    last_week_hours = sum(s.get('duration', 0) / 60 for s in last_week)
-
-    # 趋势判断
-    trend = 'stable'
-    trend_text = '和上周持平'
-    if this_week_hours > last_week_hours * 1.1:
-        trend = 'up'
-        trend_text = f'比上周多了 {this_week_hours - last_week_hours:.1f} 小时'
-    elif last_week_hours > 0 and this_week_hours < last_week_hours * 0.9:
-        trend = 'down'
-        trend_text = f'比上周少了 {last_week_hours - this_week_hours:.1f} 小时'
-
-    # 获取本周情绪
-    emotion_data = diary.get_emotion_curve(7)
-    valid_levels = [l for l in emotion_data.get('levels', []) if l is not None]
-    avg_emotion = sum(valid_levels) / len(valid_levels) if valid_levels else 3
-
-    summary = {
-        'week_hours': round(this_week_hours, 1),
-        'trend': trend,
-        'trend_text': trend_text,
-        'emotion_avg': round(avg_emotion, 1),
-        'emotion_label': ['很难受', '有点丧', '一般', '还好', '很开心'][int(avg_emotion) - 1] if valid_levels else '一般',
-        'streak_days': stats.get('streak_days', 0),
-        'study_summary': _get_study_summary(stats),
-    }
+    # 填充数据
+    chart_data = []
+    current = start_date
+    while current <= end_date:
+        date_str = current.isoformat()
+        if date_str in emotion_map:
+            chart_data.append({
+                'date': date_str,
+                'level': emotion_map[date_str]['level'],
+                'label': emotion_map[date_str]['label']
+            })
+        else:
+            chart_data.append({
+                'date': date_str,
+                'level': None,
+                'label': None
+            })
+        current += timedelta(days=1)
 
     return jsonify({
         'success': True,
-        'data': summary
+        'chart_data': chart_data,
+        'period_days': days
     })
 
 
-def _is_this_week(date_str):
-    """判断日期是否在本周"""
-    from datetime import datetime, timedelta
-    if not date_str:
-        return False
-    try:
-        date = datetime.strptime(date_str, '%Y-%m-%d')
-        today = datetime.now()
-        week_start = today - timedelta(days=today.weekday())
-        return date >= week_start
-    except (ValueError, TypeError):
-        return False
+@insights_bp.route('/subject-analysis', methods=['GET'])
+def get_subject_analysis():
+    """获取科目分析"""
+    days = request.args.get('days', 30, type=int)
+
+    study_data = load_json('study_tracker.json', {'sessions': []})
+    sessions = study_data.get('sessions', [])
+
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+
+    # 按科目聚合
+    subject_stats = defaultdict(lambda: {'total_minutes': 0, 'sessions': 0, 'dates': set()})
+
+    for s in sessions:
+        try:
+            session_date = date.fromisoformat(s['date'])
+            if start_date <= session_date <= end_date:
+                subject = s.get('subject', '其他')
+                subject_stats[subject]['total_minutes'] += s.get('duration', 0)
+                subject_stats[subject]['sessions'] += 1
+                subject_stats[subject]['dates'].add(s['date'])
+        except:
+            continue
+
+    # 计算统计数据
+    total_minutes = sum(v['total_minutes'] for v in subject_stats.values())
+    result = []
+
+    for subject, stats in sorted(subject_stats.items(), key=lambda x: x[1]['total_minutes'], reverse=True):
+        minutes = stats['total_minutes']
+        result.append({
+            'subject': subject,
+            'total_hours': round(minutes / 60, 1),
+            'sessions': stats['sessions'],
+            'active_days': len(stats['dates']),
+            'percentage': round(minutes / total_minutes * 100, 1) if total_minutes > 0 else 0
+        })
+
+    return jsonify({
+        'success': True,
+        'subjects': result,
+        'total_hours': round(total_minutes / 60, 1)
+    })
 
 
-def _is_last_week(date_str):
-    """判断日期是否在上周"""
-    from datetime import datetime, timedelta
-    if not date_str:
-        return False
-    try:
-        date = datetime.strptime(date_str, '%Y-%m-%d')
-        today = datetime.now()
-        week_start = today - timedelta(days=today.weekday())
-        last_week_start = week_start - timedelta(days=7)
-        return last_week_start <= date < week_start
-    except (ValueError, TypeError):
-        return False
+@insights_bp.route('/weekly-summary', methods=['GET'])
+def get_weekly_summary():
+    """获取周报摘要"""
+    # 本周数据
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
 
+    study_data = load_json('study_tracker.json', {'sessions': []})
+    diary_data = load_json('diary.json', {'entries': []})
 
-def _get_study_summary(stats):
-    """生成学习摘要文本"""
-    hours = stats.get('week_hours', 0)
+    # 本周学习
+    week_sessions = [
+        s for s in study_data.get('sessions', [])
+        if s.get('date') and week_start <= date.fromisoformat(s['date']) <= week_end
+    ]
+    week_minutes = sum(s.get('duration', 0) for s in week_sessions)
 
-    if hours >= 40:
-        return "本周学习强度很高，继续保持！"
-    elif hours >= 20:
-        return "学习状态不错，注意节奏"
-    elif hours >= 5:
-        return "本周学习时间较少，下周加油"
-    else:
-        return "还没有开始学习，今天就开始吧！"
+    # 本周日记
+    week_entries = [
+        e for e in diary_data.get('entries', [])
+        if e.get('date') and week_start <= date.fromisoformat(e['date']) <= week_end
+    ]
+
+    # 情绪分布
+    emotion_counts = defaultdict(int)
+    for e in week_entries:
+        emotion_counts[e.get('emotion_label', '一般')] += 1
+
+    # 计算上周对比
+    prev_week_start = week_start - timedelta(days=7)
+    prev_week_end = week_start - timedelta(days=1)
+
+    prev_sessions = [
+        s for s in study_data.get('sessions', [])
+        if s.get('date') and prev_week_start <= date.fromisoformat(s['date']) <= prev_week_end
+    ]
+    prev_minutes = sum(s.get('duration', 0) for s in prev_sessions)
+
+    # 计算变化
+    change = 0
+    if prev_minutes > 0:
+        change = round((week_minutes - prev_minutes) / prev_minutes * 100, 1)
+
+    # 本周各天分布
+    daily_breakdown = []
+    for i in range(7):
+        day = week_start + timedelta(days=i)
+        day_sessions = [s for s in week_sessions if s.get('date') == day.isoformat()]
+        day_minutes = sum(s.get('duration', 0) for s in day_sessions)
+        daily_breakdown.append({
+            'day': day.isoformat(),
+            'weekday': ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][i],
+            'hours': round(day_minutes / 60, 1),
+            'sessions': len(day_sessions)
+        })
+
+    return jsonify({
+        'success': True,
+        'summary': {
+            'week_start': week_start.isoformat(),
+            'week_end': week_end.isoformat(),
+            'total_hours': round(week_minutes / 60, 1),
+            'total_sessions': len(week_sessions),
+            'total_entries': len(week_entries),
+            'change_percent': change,
+            'emotion_distribution': dict(emotion_counts),
+            'daily_breakdown': daily_breakdown
+        }
+    })

@@ -1,149 +1,121 @@
 /**
- * StudyPal CSS 变量系统 v3.0 - Aurora Edition
- * 极光渐变 + 玻璃拟态 + 动态光效
+ * StudyPal CSS 变量系统 - 清风版
+ * 清新淡雅，自然舒适
+ * 2026-05-21
  */
 
 :root {
-    /* ===== 极光主色调 ===== */
-    --aurora-1: #667EEA;      /* 蓝紫 */
-    --aurora-2: #764BA2;      /* 紫红 */
-    --aurora-3: #F093FB;      /* 粉紫 */
-    --aurora-4: #00D9FF;      /* 青色 */
-    --aurora-5: #00F5A0;      /* 青绿 */
+    /* ===== 清新主色调 ===== */
+    /* 薄荷绿 - 主色 */
+    --mint: #5BBFAA;
+    --mint-light: #7DD4C2;
+    --mint-dark: #4AA894;
+    --mint-ghost: rgba(91, 191, 170, 0.15);
+    --mint-subtle: rgba(91, 191, 170, 0.07);
 
-    /* ===== 主色（极光渐变）===== */
-    --primary: var(--aurora-1);
-    --primary-dark: #5B6EE1;
-    --primary-light: #9FB4FF;
-    --primary-glow: rgba(102, 126, 234, 0.4);
-    --primary-subtle: rgba(102, 126, 234, 0.08);
+    /* 珊瑚橙 - 强调色 */
+    --coral: #FF8C69;
+    --coral-light: #FFAB91;
+    --coral-dark: #E87A5A;
+    --coral-ghost: rgba(255, 140, 105, 0.12);
 
-    /* ===== 主渐变 ===== */
-    --gradient-primary: linear-gradient(135deg, var(--aurora-1) 0%, var(--aurora-2) 50%, var(--aurora-3) 100%);
-    --gradient-aurora: linear-gradient(135deg, var(--aurora-1) 0%, var(--aurora-4) 50%, var(--aurora-5) 100%);
-    --gradient-sunset: linear-gradient(135deg, #FF6B6B 0%, #FEC89A 50%, #FFD93D 100%);
-    --gradient-ocean: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
-    --gradient-fire: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
+    /* 天空蓝 - 信息色 */
+    --sky: #6BAED6;
+    --sky-light: #9DC7E0;
+    --sky-dark: #5499BE;
 
-    /* ===== 辅助色 ===== */
-    --secondary: #F093FB;
-    --secondary-glow: rgba(240, 147, 251, 0.3);
-    --success: #00F5A0;
-    --success-glow: rgba(0, 245, 160, 0.25);
-    --warning: #FFD93D;
-    --warning-glow: rgba(255, 217, 61, 0.25);
-    --danger: #FF6B6B;
-    --danger-glow: rgba(255, 107, 107, 0.25);
-    --info: #00D9FF;
-    --info-glow: rgba(0, 217, 255, 0.25);
+    /* 暖阳黄 - 警示色 */
+    --sunny: #FFD166;
+    --sunny-dark: #F0BC4C;
 
-    /* ===== 情绪配色（更具活力）===== */
-    --emotion-happy: #00F5A0;
-    --emotion-happy-bg: rgba(0, 245, 160, 0.15);
-    --emotion-neutral: #FFD93D;
-    --emotion-neutral-bg: rgba(255, 217, 61, 0.15);
-    --emotion-sad: #9B59B6;
-    --emotion-sad-bg: rgba(155, 89, 182, 0.15);
-    --emotion-anxious: #F093FB;
-    --emotion-anxious-bg: rgba(240, 147, 251, 0.15);
-    --emotion-terrible: #FF6B6B;
-    --emotion-terrible-bg: rgba(255, 107, 107, 0.15);
+    /* 晚霞紫 - 成就色 */
+    --dusk: #B39BC8;
+    --dusk-light: #CDBFE0;
+    --dusk-dark: #9E80B5;
 
-    /* ===== 背景层次（亮色模式 - 柔和灰紫）===== */
-    --bg-deep: #F0F1FA;
-    --bg-primary: #FAFBFF;
-    --bg-secondary: #EEF0FA;
-    --bg-card: rgba(255, 255, 255, 0.85);
-    --bg-elevated: rgba(255, 255, 255, 0.95);
-    --bg-hover: rgba(102, 126, 234, 0.05);
+    /* ===== 背景色系 ===== */
+    /* 晴空 - 主背景 */
+    --bg-sky: #F4F8FA;
+    --bg-paper: #FFFFFF;
+    --bg-cloud: #FAFCFD;
+    --bg-mist: #EEF4F6;
+    --bg-soft: #E8F0F2;
 
-    /* ===== 背景层次（暗色模式 - 深邃星夜）===== */
-    --bg-deep-dark: #06071A;
-    --bg-primary-dark: #0A0B1E;
-    --bg-secondary-dark: #12142A;
-    --bg-card-dark: rgba(20, 22, 45, 0.9);
-    --bg-elevated-dark: rgba(30, 32, 60, 0.95);
-    --bg-hover-dark: rgba(102, 126, 234, 0.1);
+    /* 暗色模式背景 */
+    --bg-night: #1A1D23;
+    --bg-night-card: #22262E;
+    --bg-night-soft: #2A2F39;
+    --bg-night-mist: #343A45;
 
-    /* 当前模式 */
-    --bg-current: var(--bg-primary);
-    --bg-secondary-current: var(--bg-secondary);
-    --bg-card-current: var(--bg-card);
-    --bg-elevated-current: var(--bg-elevated);
-    --bg-hover-current: var(--bg-hover);
-
-    /* ===== 文字层次 ===== */
-    --text-primary: #1A1D35;
-    --text-secondary: #4A4E7C;
-    --text-muted: #7B82A8;
-    --text-disabled: #A8ABCC;
-    --text-inverse: #FFFFFF;
+    /* ===== 文字色系 ===== */
+    --ink: #1E2A33;
+    --ink-light: #3D4F5C;
+    --ink-muted: #6B7E8D;
+    --ink-faint: #9AACBA;
+    --ink-inverse: #FFFFFF;
 
     /* 暗色模式文字 */
-    --text-primary-dark: #F0F2FF;
-    --text-secondary-dark: #B8BBE0;
-    --text-muted-dark: #7B82A8;
-    --text-disabled-dark: #4A4E7C;
-    --text-inverse-dark: #0A0B1E;
+    --ink-night: #E8EDF1;
+    --ink-night-light: #C4CED6;
+    --ink-night-muted: #8898A6;
+    --ink-night-faint: #5C6A76;
 
-    /* 当前文字 */
-    --text-current: var(--text-primary);
-    --text-secondary-current: var(--text-secondary);
+    /* ===== 当下模式（默认亮色）===== */
+    --bg: var(--bg-sky);
+    --bg-card: var(--bg-paper);
+    --bg-soft: var(--bg-soft);
+    --bg-mist: var(--bg-mist);
+    --text: var(--ink);
+    --text-secondary: var(--ink-light);
+    --text-muted: var(--ink-muted);
+    --text-faint: var(--ink-faint);
+
+    /* ===== 情绪配色 ===== */
+    --emotion-happy: #5BBFAA;
+    --emotion-happy-bg: rgba(91, 191, 170, 0.12);
+    --emotion-calm: #6BAED6;
+    --emotion-calm-bg: rgba(107, 174, 214, 0.12);
+    --emotion-tired: #B39BC8;
+    --emotion-tired-bg: rgba(179, 155, 200, 0.12);
+    --emotion-anxious: #FF8C69;
+    --emotion-anxious-bg: rgba(255, 140, 105, 0.12);
+    --emotion-sad: #7A8FA6;
+    --emotion-sad-bg: rgba(122, 143, 166, 0.12);
 
     /* ===== 边框 ===== */
-    --border: rgba(102, 126, 234, 0.12);
-    --border-strong: rgba(102, 126, 234, 0.2);
-    --border-focus: var(--primary);
+    --border: rgba(91, 191, 170, 0.1);
+    --border-light: rgba(91, 191, 170, 0.06);
+    --border-mid: rgba(91, 191, 170, 0.15);
+    --border-radius-xs: 8px;
     --border-radius-sm: 12px;
-    --border-radius-md: 20px;
-    --border-radius-lg: 28px;
-    --border-radius-xl: 36px;
-    --border-radius-full: 9999px;
+    --border-radius-md: 16px;
+    --border-radius-lg: 20px;
+    --border-radius-xl: 28px;
+    --border-radius-2xl: 36px;
+    --border-radius-pill: 999px;
 
-    /* ===== 玻璃拟态 ===== */
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-bg-dark: rgba(20, 22, 45, 0.8);
-    --glass-border: rgba(255, 255, 255, 0.3);
-    --glass-blur: 20px;
-
-    /* ===== 特殊色 ===== */
-    --gold: #FFD700;
-    --gold-light: #FFEC8B;
-    --gold-glow: rgba(255, 215, 0, 0.4);
-    --silver: #C0C0C0;
-    --bronze: #CD7F32;
-
-    /* ===== 阴影（更具层次感）===== */
-    --shadow-xs: 0 1px 2px rgba(102, 126, 234, 0.05);
-    --shadow-sm: 0 2px 8px rgba(102, 126, 234, 0.08);
-    --shadow-md: 0 4px 16px rgba(102, 126, 234, 0.1);
-    --shadow-lg: 0 8px 32px rgba(102, 126, 234, 0.15);
-    --shadow-xl: 0 16px 48px rgba(102, 126, 234, 0.2);
-    --shadow-2xl: 0 24px 64px rgba(102, 126, 234, 0.25);
-    --shadow-glow: 0 0 60px var(--primary-glow);
-    --shadow-glow-sm: 0 0 30px var(--primary-glow);
-    --shadow-card: 0 8px 32px rgba(102, 126, 234, 0.12);
-    --shadow-card-hover: 0 16px 48px rgba(102, 126, 234, 0.2);
-
-    /* 暗色模式阴影 */
-    --shadow-card-dark: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --shadow-card-hover-dark: 0 16px 48px rgba(0, 0, 0, 0.5);
+    /* ===== 阴影 ===== */
+    --shadow-nest: 0 1px 3px rgba(30, 42, 51, 0.04), 0 4px 12px rgba(30, 42, 51, 0.06);
+    --shadow-card: 0 2px 8px rgba(30, 42, 51, 0.06), 0 8px 24px rgba(30, 42, 51, 0.08);
+    --shadow-float: 0 4px 16px rgba(30, 42, 51, 0.1), 0 16px 40px rgba(30, 42, 51, 0.1);
+    --shadow-layer: 0 8px 32px rgba(30, 42, 51, 0.14);
+    --shadow-sky: 0 2px 20px rgba(91, 191, 170, 0.12);
+    --shadow-coral: 0 4px 16px rgba(255, 140, 105, 0.2);
 
     /* ===== 字体 ===== */
-    --font-primary: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-display: 'Poppins', 'Noto Sans SC', sans-serif;
+    --font-main: 'Nunito', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-heading: 'Nunito', 'Noto Sans SC', sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-    /* 字号阶梯 */
+    /* 字号 */
     --text-xs: 11px;
     --text-sm: 13px;
-    --text-base: 15px;
+    --text-md: 15px;
     --text-lg: 17px;
     --text-xl: 20px;
     --text-2xl: 24px;
     --text-3xl: 30px;
     --text-4xl: 38px;
-    --text-5xl: 48px;
 
     /* 字重 */
     --font-normal: 400;
@@ -152,76 +124,68 @@
     --font-bold: 700;
 
     /* 行高 */
-    --leading-none: 1;
-    --leading-tight: 1.2;
-    --leading-snug: 1.35;
-    --leading-normal: 1.5;
-    --leading-relaxed: 1.65;
-    --leading-loose: 2;
+    --leading-tight: 1.25;
+    --leading-snug: 1.4;
+    --leading-normal: 1.6;
+    --leading-relaxed: 1.75;
 
     /* ===== 间距 ===== */
-    --space-0: 0;
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 20px;
-    --space-6: 24px;
-    --space-8: 32px;
-    --space-10: 40px;
-    --space-12: 48px;
-    --space-16: 64px;
-    --space-20: 80px;
+    --gap-1: 4px;
+    --gap-2: 8px;
+    --gap-3: 12px;
+    --gap-4: 16px;
+    --gap-5: 20px;
+    --gap-6: 24px;
+    --gap-8: 32px;
+    --gap-10: 40px;
+    --gap-12: 48px;
+    --gap-16: 64px;
 
     /* ===== 布局 ===== */
-    --nav-height: 60px;
-    --bottom-nav-height: 68px;
-    --page-max-width: 500px;
-    --content-padding: var(--space-4);
+    --top-bar-height: 56px;
+    --bottom-nav-height: 64px;
+    --page-max-width: 480px;
+    --page-padding: var(--gap-4);
 
-    /* ===== 过渡动画 ===== */
-    --transition-instant: 50ms ease;
-    --transition-fast: 150ms ease;
-    --transition-normal: 280ms ease;
-    --transition-slow: 400ms ease;
-    --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-bounce: 600ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    /* ===== 过渡 ===== */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-bounce: cubic-bezier(0.68, -0.3, 0.32, 1.3);
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
 
     /* ===== 安全区域 ===== */
-    --safe-area-top: env(safe-area-inset-top, 0px);
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --safe-area-left: env(safe-area-inset-left, 0px);
-    --safe-area-right: env(safe-area-inset-right, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
 
-    /* ===== Z-Index 层级 ===== */
+    /* ===== Z-Index ===== */
     --z-base: 0;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-fixed: 300;
-    --z-modal-backdrop: 400;
-    --z-modal: 500;
-    --z-popover: 600;
-    --z-tooltip: 700;
-    --z-toast: 800;
-    --z-splash: 9999;
+    --z-raised: 10;
+    --z-float: 100;
+    --z-overlay: 200;
+    --z-modal: 300;
+    --z-toast: 400;
+    --z-splash: 999;
 }
 
 /* ===== 暗色模式 ===== */
 [data-theme="dark"] {
-    --bg-current: var(--bg-primary-dark);
-    --bg-secondary-current: var(--bg-secondary-dark);
-    --bg-card-current: var(--bg-card-dark);
-    --bg-elevated-current: var(--bg-elevated-dark);
-    --bg-hover-current: var(--bg-hover-dark);
-
-    --text-current: var(--text-primary-dark);
-    --text-secondary-current: var(--text-secondary-dark);
-
-    --border: rgba(102, 126, 234, 0.15);
-    --border-strong: rgba(102, 126, 234, 0.25);
-
-    --shadow-card: var(--shadow-card-dark);
-    --shadow-card-hover: var(--shadow-card-hover-dark);
-
-    --glass-bg: var(--glass-bg-dark);
+    --bg: var(--bg-night);
+    --bg-card: var(--bg-night-card);
+    --bg-soft: var(--bg-night-soft);
+    --bg-mist: var(--bg-night-mist);
+    --text: var(--ink-night);
+    --text-secondary: var(--ink-night-light);
+    --text-muted: var(--ink-night-muted);
+    --text-faint: var(--ink-night-faint);
+    --border: rgba(255, 255, 255, 0.06);
+    --border-light: rgba(255, 255, 255, 0.04);
+    --border-mid: rgba(255, 255, 255, 0.1);
+    --shadow-nest: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.15);
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.2);
+    --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.25);
+    --shadow-sky: 0 2px 20px rgba(91, 191, 170, 0.08);
 }

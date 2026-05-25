@@ -1,235 +1,136 @@
 /**
- * StudyPal 应用主入口 v2.1
- * 有情绪的考研搭子
+ * StudyPal 应用主入口 - 清风版
+ * 2026-05-21
  */
 
-// 获取全局组件
-const HomePage = window.HomePage;
-const ChatPage = window.ChatPage;
-const DiaryPage = window.DiaryPage;
-const MemoryPage = window.MemoryPage;
-const TasksPage = window.TasksPage;
-const PlansPage = window.PlansPage;
-const AchievementsPage = window.AchievementsPage;
-const SettingsPage = window.SettingsPage;
-const NAV_ITEMS = window.NAV_ITEMS;
-
-// 搭子情绪颜色映射
-const EMOTION_COLORS = {
-    idle: '#667EEA',
-    happy: '#10B981',
-    excited: '#F59E0B',
-    proud: '#EF4444',
-    thinking: '#8B5CF6',
-    study: '#3B82F6',
-    worried: '#F97316',
-    sad: '#6366F1',
-    angry: '#EF4444',
-    sleepy: '#A855F7'
-};
-
-// 搭子情绪emoji映射
-const EMOTION_EMOJIS = {
-    idle: '😊',
-    happy: '😄',
-    excited: '🎉',
-    proud: '😤',
-    thinking: '🤔',
-    study: '📚',
-    worried: '😟',
-    sad: '😢',
-    angry: '😡',
-    sleepy: '😪'
-};
-
 const App = {
-    currentSubject: '数学',
+    currentPage: 'home',
     isStudying: false,
     studyTimer: null,
     studyStartTime: null,
-    selectedEmotionLevel: 3,
-    selectedFeeling: '',
-    selectedGoalHours: 8,
-    chatConversationId: null,
+    currentSubject: '数学',
+    timerSeconds: 25 * 60,
+    timerDuration: 25 * 60,
     chatHistory: [],
+    selectedEmotionLevel: 3,
+    user: null,
+    token: null,
+    roles: [],
+    currentRole: null,
+    dailyGoalHours: 8,
+    data: {},
+    presetModels: [],
+    currentModel: null,
+    currentModelMode: 'preset',
+    selectedPresetKey: null,
 
-    /**
-     * 应用初始化
-     */
+    /* ========== 初始化 ========== */
     async init() {
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        this.setTheme(savedTheme);
+        this.token = localStorage.getItem('token');
+        this.user = JSON.parse(localStorage.getItem('user') || 'null');
 
-        this._initNavigation();
-        await this.loadGlobalData();
+        this.applyTheme(localStorage.getItem('theme') || 'light');
+
+        if (!this.token) {
+            window.location.href = '/login';
+            return;
+        }
+
         this.updateGreeting();
-        this._initChat();
+        await this.loadData();
+        this.initNav();
+        this.initChat();
+        this.initTimer();
+        this.initDiary();
+        this.initTasks();
+        this.initSettings();
 
-        setInterval(() => {
-            if (router.getCurrentPage() === 'home') {
-                this.updateGreeting();
+        setInterval(() => this.updateGreeting(), 60000);
+    },
+
+    /* ========== 数据加载 ========== */
+    async loadData() {
+        try {
+            const res = await fetch('/api/buddy/status', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (!res.ok) throw new Error('加载失败');
+            const data = await res.json();
+
+            if (data.success) {
+                this.data = data.status || {};
             }
-        }, 60000);
+        } catch (e) {
+            console.warn('数据加载失败，使用默认数据', e);
+        }
 
-        State.subscribe('ui.currentPage', (page) => {
-            this._updateNavHighlight(page);
+        try {
+            const res2 = await fetch('/api/home', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (res2.ok) {
+                const data2 = await res2.json();
+                if (data2.success) {
+                    this.data = { ...this.data, ...data2.data };
+                }
+            }
+        } catch (e) {}
+
+        try {
+            const res3 = await fetch('/api/auth/me', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            if (res3.ok) {
+                const data3 = await res3.json();
+                if (data3.success) {
+                    this.user = data3.user;
+                    localStorage.setItem('user', JSON.stringify(this.user));
+                }
+            }
+        } catch (e) {}
+
+        this.renderAll();
+    },
+
+    renderAll() {
+        this.renderBuddy();
+        this.renderStats();
+        this.renderProfile();
+        this.renderGoal();
+        this.renderAchievements();
+    },
+
+    /* ========== 导航 ========== */
+    initNav() {
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                this.navigate(page);
+            });
         });
     },
 
-    _initNavigation() {
-        const nav = document.querySelector('.bottom-nav');
-        if (!nav) return;
+    navigate(page) {
+        this.currentPage = page;
 
-        nav.innerHTML = NAV_ITEMS.map(item => `
-            <div class="nav-item" data-page="${item.page}" onclick="router.navigate('${item.page}')">
-                <div class="nav-icon">${item.icon}</div>
-                <div class="nav-label">${item.label}</div>
-            </div>
-        `).join('');
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+        });
+        const target = document.getElementById(`page-${page}`);
+        if (target) {
+            target.classList.add('active');
+            target.style.opacity = '0';
+            requestAnimationFrame(() => {
+                target.style.opacity = '1';
+            });
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.page === page);
+        });
     },
 
-    async loadGlobalData() {
-        try {
-            const res = await API.getHomeData();
-            if (res.success) {
-                const data = res.data;
-                State.update({
-                    'buddy.name': data.buddy?.name,
-                    'buddy.emoji': data.buddy?.emoji,
-                    'buddy.emotion': data.buddy?.emotion || 'idle',
-                    'buddy.emotionDesc': data.buddy?.emotion_desc,
-                    'buddy.message': this._generateBuddyMessage(data),
-                    'study.isStudying': data.study?.is_studying,
-                    'study.todayHours': data.study?.today_hours,
-                    'study.streakDays': data.study?.streak_days,
-                    'profile.isSetup': data.profile?.is_setup,
-                    'profile.name': data.profile?.user?.name,
-                    'profile.school': data.profile?.user?.target_school,
-                    'profile.daysRemaining': data.profile?.days_remaining,
-                });
-
-                this.isStudying = data.study?.is_studying || false;
-                this._updateBuddyCard(data);
-                this._updateStats(data);
-
-                if (!data.profile?.is_setup) {
-                    router.navigate('settings');
-                    this.showToast('先设置一下目标吧，让小豆更了解你~');
-                }
-            }
-        } catch (e) {
-            console.error('加载全局数据失败', e);
-        }
-    },
-
-    _generateBuddyMessage(data) {
-        const emotion = data.buddy?.emotion || 'idle';
-        const hour = new Date().getHours();
-        const todayHours = data.study?.today_hours || 0;
-        const streak = data.study?.streak_days || 0;
-        const hasDiary = data.diary?.has_today;
-
-        if (hour >= 22 || hour < 6) {
-            return '夜深了，早点休息哦~';
-        }
-        if (emotion === 'happy' || emotion === 'excited') {
-            return '感觉今天状态不错！';
-        }
-        if (emotion === 'sad' || emotion === 'worried') {
-            return '今天心情不太好？要不要聊聊？';
-        }
-        if (emotion === 'study') {
-            return '学习中...加油！';
-        }
-        if (todayHours > 0) {
-            return `今天学了 ${todayHours.toFixed(1)} 小时，继续保持！`;
-        }
-        if (streak > 3) {
-            return `连续学习 ${streak} 天了，你真的很棒！`;
-        }
-        if (!hasDiary) {
-            return '今天还没记录心情呢~';
-        }
-        if (hour >= 20) {
-            return '晚上好！今天过得怎么样？';
-        }
-        if (hour >= 12) {
-            return '下午好！今天学了什么？';
-        }
-        if (hour >= 6) {
-            return '早上好！准备开始学习了吗？';
-        }
-        return '你好！今天感觉怎么样？';
-    },
-
-    _updateBuddyCard(data) {
-        const name = data.buddy?.name || '小豆';
-        const emotion = data.buddy?.emotion || 'idle';
-        const emotionDesc = data.buddy?.emotion_desc || '';
-        const message = State.get('buddy.message') || '';
-
-        const nameEl = document.getElementById('buddy-name');
-        if (nameEl) nameEl.textContent = name;
-
-        const emojiEl = document.getElementById('buddy-emotion-emoji');
-        if (emojiEl) emojiEl.textContent = EMOTION_EMOJIS[emotion] || '😊';
-
-        const descEl = document.getElementById('buddy-emotion-desc');
-        if (descEl) descEl.textContent = emotionDesc;
-
-        const msgEl = document.getElementById('buddy-message');
-        if (msgEl) msgEl.textContent = message;
-
-        const avatarEl = document.getElementById('buddy-avatar');
-        if (avatarEl) {
-            avatarEl.textContent = EMOTION_EMOJIS[emotion] || '😊';
-            avatarEl.className = `buddy-card-avatar emotion-${emotion}`;
-        }
-    },
-
-    _updateStats(data) {
-        const todayHours = data.study?.today_hours || 0;
-        const streak = data.study?.streak_days || 0;
-        const weekHours = data.study?.week_hours || 0;
-        const goalHours = data.profile?.user?.daily_goal_hours || 8;
-
-        const todayEl = document.getElementById('stat-today-hours');
-        if (todayEl) todayEl.textContent = `${todayHours.toFixed(1)}h`;
-
-        const streakEl = document.getElementById('stat-streak');
-        if (streakEl) {
-            streakEl.textContent = streak;
-            const trendEl = streakEl.closest('.stat-card')?.querySelector('.stat-trend');
-            if (trendEl) {
-                if (streak >= 7) trendEl.textContent = '太厉害了';
-                else if (streak >= 3) trendEl.textContent = '坚持中';
-                else trendEl.textContent = streak > 0 ? '刚开始' : '加油';
-            }
-        }
-
-        const weekEl = document.getElementById('stat-week-hours');
-        if (weekEl) weekEl.textContent = `${weekHours.toFixed(1)}h`;
-
-        const progressEl = document.getElementById('progress-value');
-        if (progressEl) {
-            const pct = Math.min(100, Math.round((todayHours / goalHours) * 100));
-            progressEl.textContent = `${pct}%`;
-        }
-
-        const countdownEl = document.getElementById('countdown');
-        const daysRemaining = data.profile?.days_remaining;
-        if (countdownEl && daysRemaining > 0) {
-            countdownEl.textContent = `距离考研还有 ${daysRemaining} 天`;
-        } else if (countdownEl) {
-            countdownEl.textContent = '设置考研目标';
-        }
-
-        const ringHoursEl = document.getElementById('ring-hours');
-        if (ringHoursEl) ringHoursEl.textContent = goalHours;
-        const ringAchievedEl = document.getElementById('ring-achieved');
-        if (ringAchievedEl) ringAchievedEl.textContent = todayHours.toFixed(1);
-    },
-
+    /* ========== 问候语 ========== */
     updateGreeting() {
         const hour = new Date().getHours();
         let greeting = '晚上好';
@@ -239,622 +140,1170 @@ const App = {
         else if (hour < 14) greeting = '中午好';
         else if (hour < 18) greeting = '下午好';
 
-        const name = State.get('profile.name');
-        const el = document.getElementById('greeting');
-        if (el) {
-            el.textContent = name ? `${greeting}，${name}` : greeting;
+        const el = document.getElementById('greeting-text');
+        if (el) el.textContent = greeting;
+
+        const nameEl = document.getElementById('user-name');
+        if (nameEl) nameEl.textContent = this.user?.nickname || '考研战士';
+    },
+
+    /* ========== 搭子 ========== */
+    renderBuddy() {
+        const buddy = this.data.buddy || {};
+        const name = buddy.name || '小豆';
+        const emoji = buddy.emoji || '&#128150;';
+        const emotion = buddy.emotion || 'happy';
+        const emotionText = buddy.emotion_desc || '心情不错~';
+        const message = buddy.message || this._getDefaultMessage();
+
+        const nameEl = document.getElementById('buddy-name');
+        if (nameEl) nameEl.textContent = name;
+
+        const avatarEl = document.getElementById('buddy-avatar');
+        if (avatarEl) avatarEl.innerHTML = emoji;
+
+        const emotionTextEl = document.getElementById('buddy-emotion-text');
+        if (emotionTextEl) emotionTextEl.textContent = emotionText;
+
+        const msgEl = document.getElementById('buddy-msg');
+        if (msgEl) msgEl.textContent = message;
+
+        const emotionDotEl = document.getElementById('buddy-emotion-dot');
+        if (emotionDotEl) {
+            emotionDotEl.style.background = this._getEmotionColor(emotion);
+        }
+
+        const chatAvatarEl = document.getElementById('chat-buddy-avatar');
+        if (chatAvatarEl) chatAvatarEl.innerHTML = emoji;
+
+        const chatNameEl = document.getElementById('chat-buddy-name');
+        if (chatNameEl) chatNameEl.textContent = `和${name}聊天`;
+    },
+
+    _getDefaultMessage() {
+        const hour = new Date().getHours();
+        if (hour >= 22 || hour < 6) return '夜深了，早点休息哦~';
+        const todayHours = this.data.study?.today_hours || 0;
+        if (todayHours > 0) return `今天学了 ${todayHours.toFixed(1)} 小时，继续加油！`;
+        return '今天想学点什么？';
+    },
+
+    _getEmotionColor(emotion) {
+        const colors = {
+            happy: 'var(--emotion-happy)',
+            excited: 'var(--sunny)',
+            calm: 'var(--emotion-calm)',
+            worried: 'var(--emotion-anxious)',
+            sad: 'var(--emotion-sad)',
+            study: 'var(--sky)',
+            idle: 'var(--mint)',
+        };
+        return colors[emotion] || 'var(--mint)';
+    },
+
+    startChat() {
+        this.navigate('chat');
+    },
+
+    /* ========== 统计 ========== */
+    renderStats() {
+        const study = this.data.study || {};
+        const hours = study.today_hours || 0;
+        const sessions = study.today_sessions || 0;
+        const streak = study.streak_days || this.user?.current_streak || 0;
+        const goal = this.user?.daily_goal_hours || this.dailyGoalHours || 8;
+        const progress = Math.min(100, Math.round((hours / goal) * 100));
+
+        const hoursEl = document.getElementById('today-hours');
+        if (hoursEl) hoursEl.textContent = hours.toFixed(1);
+
+        const sessionsEl = document.getElementById('today-sessions');
+        if (sessionsEl) sessionsEl.textContent = sessions;
+
+        const goalEl = document.getElementById('today-goal');
+        if (goalEl) goalEl.textContent = progress + '%';
+
+        const progressBarEl = document.getElementById('today-progress-bar');
+        if (progressBarEl) progressBarEl.style.width = progress + '%';
+
+        const streakEl = document.getElementById('streak-num');
+        if (streakEl) streakEl.textContent = streak;
+    },
+
+    /* ========== 目标 ========== */
+    renderProfile() {
+        const nameEl = document.getElementById('settings-name');
+        if (nameEl) nameEl.textContent = this.user?.nickname || '考研战士';
+
+        const emailEl = document.getElementById('settings-email');
+        if (emailEl) emailEl.textContent = this.user?.email || '';
+
+        const avatarEl = document.getElementById('settings-avatar');
+        if (avatarEl) avatarEl.textContent = this.user?.avatar || '&#128100;';
+
+        const totalHoursEl = document.getElementById('stat-total-hours');
+        if (totalHoursEl) totalHoursEl.textContent = (this.user?.total_study_hours || 0).toFixed(1) + ' 小时';
+
+        const streakEl = document.getElementById('stat-streak');
+        if (streakEl) streakEl.textContent = (this.user?.current_streak || 0) + ' 天';
+
+        const longestEl = document.getElementById('stat-longest');
+        if (longestEl) longestEl.textContent = (this.user?.longest_streak || 0) + ' 天';
+
+        const schoolEl = document.getElementById('setting-school');
+        if (schoolEl) schoolEl.value = this.user?.target_school || '';
+
+        const majorEl = document.getElementById('setting-major');
+        if (majorEl) majorEl.value = this.user?.target_major || '';
+
+        const scoreEl = document.getElementById('setting-score');
+        if (scoreEl) scoreEl.value = this.user?.target_score || '';
+
+        const goalHoursEl = document.getElementById('setting-goal-hours');
+        if (goalHoursEl) {
+            goalHoursEl.value = this.user?.daily_goal_hours || 8;
+            document.getElementById('goal-hours-val').textContent = goalHoursEl.value;
+        }
+
+        const darkToggleEl = document.getElementById('dark-toggle');
+        if (darkToggleEl) {
+            darkToggleEl.classList.toggle('active', this._currentTheme === 'dark');
+        }
+
+        const currentRoleEl = document.getElementById('current-role-name');
+        if (currentRoleEl) currentRoleEl.textContent = this.currentRole?.name || '小豆';
+    },
+
+    renderGoal() {
+        const schoolEl = document.getElementById('goal-school');
+        if (schoolEl) schoolEl.textContent = this.user?.target_school || '未设置';
+        const majorEl = document.getElementById('goal-major');
+        if (majorEl) majorEl.textContent = this.user?.target_major || '未设置';
+        const scoreEl = document.getElementById('goal-score');
+        if (scoreEl) scoreEl.textContent = this.user?.target_score || '--';
+        const daysEl = document.getElementById('goal-days');
+        if (daysEl) {
+            const days = this._calcDaysRemaining();
+            daysEl.textContent = days > 0 ? days : '--';
         }
     },
 
-    _initChat() {
-        const chatInput = document.getElementById('chat-input');
-        if (chatInput) {
-            chatInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    this.sendMessage();
-                }
+    _calcDaysRemaining() {
+        if (!this.user?.exam_date) return 0;
+        const exam = new Date(this.user.exam_date);
+        const now = new Date();
+        return Math.max(0, Math.ceil((exam - now) / (1000 * 60 * 60 * 24)));
+    },
+
+    /* ========== 学习计时 ========== */
+    initTimer() {
+        document.querySelectorAll('.subject-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('.subject-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                this.currentSubject = chip.dataset.subject;
+                const subjectEl = document.getElementById('timer-subject');
+                if (subjectEl) subjectEl.textContent = this._getSubjectEmoji(this.currentSubject) + ' ' + this.currentSubject;
             });
-        }
-    },
-
-    // ==================== 页面切换 ====================
-
-    switchPage(page) {
-        router.navigate(page);
-    },
-
-    // ==================== 聊天核心 ====================
-
-    async openChatWith(message) {
-        router.navigate('chat');
-        const input = document.getElementById('chat-input');
-        if (input) {
-            input.value = message;
-            await this.sendMessage();
-        }
-    },
-
-    async sendMessage() {
-        const input = document.getElementById('chat-input');
-        const message = input?.value.trim();
-        if (!message) return;
-
-        const container = document.getElementById('chat-messages');
-        const sendBtn = document.getElementById('chat-send');
-
-        // 用户消息 - 立即显示
-        const userMsg = document.createElement('div');
-        userMsg.className = 'message user';
-        userMsg.innerHTML = `
-            <div class="msg-avatar">我</div>
-            <div class="msg-content">
-                <div class="msg-bubble">${this.escapeHtml(message)}</div>
-                <div class="msg-time">${this.formatTime(new Date())}</div>
-            </div>
-        `;
-        container?.appendChild(userMsg);
-        container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        if (input) input.value = '';
-        if (sendBtn) sendBtn.disabled = true;
-
-        // 保存到本地历史
-        this.chatHistory.push({ role: 'user', content: message, time: this.formatTime(new Date()) });
-        chatPage.history = this.chatHistory;
-
-        // 显示搭子正在输入
-        chatPage.showTyping('thinking');
-
-        try {
-            const res = await API.buddyChat(message, this.chatConversationId);
-            chatPage.hideTyping();
-
-            if (res.success) {
-                this.chatConversationId = res.conversation_id;
-                const emotion = res.emotion || 'idle';
-
-                // 更新搭子头像和状态
-                document.getElementById('chat-buddy-avatar').textContent = res.emoji;
-
-                // 显示搭子回复，带情绪气泡
-                chatPage.addMessage('buddy', res.reply, emotion);
-
-                // 更新本地历史
-                this.chatHistory.push({ role: 'buddy', content: res.reply, emotion, time: this.formatTime(new Date()) });
-
-                // 显示回复建议
-                if (res.suggestions && res.suggestions.length > 0) {
-                    chatPage.showSuggestions(res.suggestions);
-                }
-            }
-        } catch (e) {
-            chatPage.hideTyping();
-            const errorMsg = document.createElement('div');
-            errorMsg.className = 'message buddy emotion-sad';
-            errorMsg.innerHTML = `
-                <div class="msg-avatar">${EMOTION_EMOJIS.sad}</div>
-                <div class="msg-content">
-                    <div class="msg-bubble emotion-bubble emotion-sad">连接失败了...可能是 AI 配置问题，请检查 .env 文件中的 API Key 设置。</div>
-                    <div class="msg-time">${this.formatTime(new Date())}</div>
-                </div>
-            `;
-            container?.appendChild(errorMsg);
-            container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        }
-
-        if (sendBtn) sendBtn.disabled = false;
-    },
-
-    async sendSuggestion(text) {
-        const input = document.getElementById('chat-input');
-        if (input) input.value = text;
-        await this.sendMessage();
-    },
-
-    handleChatKeydown(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            this.sendMessage();
-        }
-    },
-
-    autoResize(el) {
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-    },
-
-    // ==================== 工具方法 ====================
-
-    formatTime(date) {
-        const h = String(date.getHours()).padStart(2, '0');
-        const m = String(date.getMinutes()).padStart(2, '0');
-        return `${h}:${m}`;
-    },
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    },
-
-    toggleTheme() {
-        const current = document.documentElement.getAttribute('data-theme') || 'light';
-        const next = current === 'light' ? 'dark' : 'light';
-        this.setTheme(next);
-        localStorage.setItem('theme', next);
-    },
-
-    setTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        const toggle = document.getElementById('theme-toggle');
-        if (toggle) toggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-    },
-
-    dismissCaring() {
-        const section = document.getElementById('caring-section');
-        if (section) section.style.display = 'none';
-    },
-
-    showEmotionChart() {
-        const section = document.getElementById('emotion-chart-section');
-        section?.scrollIntoView({ behavior: 'smooth' });
-    },
-
-    async exportData() {
-        this.showToast('正在导出数据...');
-        try {
-            await API.exportData();
-            this.showToast('数据导出成功！');
-        } catch (e) {
-            this.showToast('导出失败，请重试');
-        }
-    },
-
-    showToast(msg, type = '') {
-        const toast = document.getElementById('toast');
-        if (toast) {
-            toast.textContent = msg;
-            toast.className = `toast show ${type}`;
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
-        }
-    },
-
-    // ==================== 学习计时 ====================
-
-    selectSubject(el) {
-        if (this.isStudying) return;
-        document.querySelectorAll('.subject-btn').forEach(b => b.classList.remove('selected'));
-        el.classList.add('selected');
-        this.currentSubject = el.dataset.subject;
-    },
-
-    async toggleStudy() {
-        const btn = document.getElementById('study-btn');
-
-        if (!this.isStudying) {
-            const res = await API.startStudy(this.currentSubject);
-            if (res.success) {
-                this.isStudying = true;
-                this.studyStartTime = Date.now();
-                this.updateStudyUI();
-                this.startStudyTimer();
-                this.showToast(`开始学习 ${this.currentSubject}，加油！`);
-
-                const avatar = document.getElementById('buddy-avatar');
-                if (avatar) {
-                    avatar.textContent = '📚';
-                    avatar.className = 'buddy-card-avatar emotion-study';
-                }
-            }
-        } else {
-            const res = await API.stopStudy(this.currentSubject);
-            if (res.success) {
-                this.isStudying = false;
-                clearInterval(this.studyTimer);
-                this.studyTimer = null;
-                this.updateStudyUI();
-                await this.loadGlobalData();
-                this.showToast(`学习了 ${Math.round(res.duration)} 分钟，休息一下吧~`);
-            }
-        }
-    },
-
-    updateStudyUI() {
-        const btn = document.getElementById('study-btn');
-        const timer = document.getElementById('study-timer');
-        const subjects = document.getElementById('study-subjects');
-        const avatar = document.getElementById('buddy-avatar');
-
-        if (this.isStudying) {
-            if (btn) {
-                btn.innerHTML = '<span class="btn-glow-effect"></span><span class="btn-text">⏹️ 结束学习</span>';
-                btn.className = 'study-btn stop';
-            }
-            if (timer) timer.style.display = 'block';
-            if (subjects) subjects.style.display = 'none';
-            const label = document.getElementById('timer-label');
-            if (label) label.textContent = `学习中：${this.currentSubject}`;
-            if (avatar) {
-                avatar.textContent = '📚';
-                avatar.className = 'buddy-card-avatar emotion-study';
-            }
-        } else {
-            if (btn) {
-                btn.innerHTML = '<span class="btn-glow-effect"></span><span class="btn-icon-animate">🚀</span><span class="btn-text">开始学习</span>';
-                btn.className = 'study-btn start';
-            }
-            if (timer) timer.style.display = 'none';
-            if (subjects) subjects.style.display = 'grid';
-            const display = document.getElementById('timer-display');
-            if (display) display.textContent = '25:00';
-            const emotion = State.get('buddy.emotion') || 'idle';
-            if (avatar) {
-                avatar.textContent = EMOTION_EMOJIS[emotion] || '😊';
-                avatar.className = `buddy-card-avatar emotion-${emotion}`;
-            }
-        }
-    },
-
-    startStudyTimer() {
-        this.studyTimer = setInterval(() => {
-            if (!this.studyStartTime) return;
-            const elapsed = Math.floor((Date.now() - this.studyStartTime) / 1000);
-            const remaining = Math.max(0, 25 * 60 - elapsed);
-            const m = String(Math.floor(remaining / 60)).padStart(2, '0');
-            const s = String(remaining % 60).padStart(2, '0');
-            const display = document.getElementById('timer-display');
-            if (display) display.textContent = `${m}:${s}`;
-
-            if (remaining === 0) {
-                clearInterval(this.studyTimer);
-                this.toggleStudy();
-                this.showToast('番茄钟完成！休息一下吧~');
-            }
-        }, 1000);
-    },
-
-    // ==================== 日记 ====================
-
-    selectEmotion(level) {
-        this.selectedEmotionLevel = level;
-        document.querySelectorAll('.emotion-option').forEach(el => {
-            el.classList.toggle('selected', parseInt(el.dataset.level) === level);
         });
     },
 
-    selectFeeling(el) {
-        document.querySelectorAll('.feeling-tag').forEach(t => t.classList.remove('selected'));
-        el.classList.add('selected');
-        this.selectedFeeling = el.textContent;
+    _getSubjectEmoji(subject) {
+        const map = { '数学': '&#128220;', '英语': '&#128214;', '政治': '&#127963;', '专业课': '&#128218;' };
+        return map[subject] || '&#128218;';
+    },
+
+    toggleStudy() {
+        const card = document.getElementById('study-timer-card');
+        if (!card) return;
+
+        if (card.style.display === 'none' || !card.style.display) {
+            card.style.display = 'block';
+            document.getElementById('btn-start-study').querySelector('.quick-action-label').textContent = '收起计时器';
+        } else {
+            card.style.display = 'none';
+            document.getElementById('btn-start-study').querySelector('.quick-action-label').textContent = '开始学习';
+        }
+    },
+
+    toggleTimer() {
+        if (this.studyTimer) {
+            this.stopTimer();
+        } else {
+            this.startTimer();
+        }
+    },
+
+    startTimer() {
+        if (!this.studyStartTime) {
+            this.studyStartTime = Date.now();
+        }
+
+        this.studyTimer = setInterval(() => {
+            this.timerSeconds--;
+            if (this.timerSeconds <= 0) {
+                this.timerComplete();
+            }
+            this.updateTimerDisplay();
+        }, 1000);
+
+        const btn = document.getElementById('btn-timer-start');
+        if (btn) {
+            btn.innerHTML = '&#9646;&#9646; 暂停';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-coral');
+        }
+    },
+
+    stopTimer() {
+        clearInterval(this.studyTimer);
+        this.studyTimer = null;
+        const btn = document.getElementById('btn-timer-start');
+        if (btn) {
+            btn.innerHTML = '&#9654; 继续';
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-coral');
+        }
+    },
+
+    timerComplete() {
+        clearInterval(this.studyTimer);
+        this.studyTimer = null;
+        this.timerSeconds = this.timerDuration;
+
+        this.showToast('&#127881; 番茄完成！休息一下吧~');
+
+        const duration = this.timerDuration / 60;
+        this._recordSession(duration);
+
+        this.updateTimerDisplay();
+        const btn = document.getElementById('btn-timer-start');
+        if (btn) btn.innerHTML = '&#9654; 再来一个';
+    },
+
+    async _recordSession(duration) {
+        const studyData = this.data.study || {};
+        studyData.today_hours = (studyData.today_hours || 0) + duration / 60;
+        studyData.today_sessions = (studyData.today_sessions || 0) + 1;
+        this.data.study = studyData;
+        this.renderStats();
+
+        try {
+            await fetch('/api/study/session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({
+                    subject: this.currentSubject,
+                    duration_minutes: Math.round(duration),
+                    date: new Date().toISOString().split('T')[0]
+                })
+            });
+        } catch (e) {
+            console.warn('记录学习时段失败', e);
+        }
+    },
+
+    updateTimerDisplay() {
+        const minutes = Math.floor(this.timerSeconds / 60);
+        const seconds = this.timerSeconds % 60;
+        const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+        const displayEl = document.getElementById('timer-display');
+        if (displayEl) displayEl.textContent = timeStr;
+
+        const ringEl = document.getElementById('timer-ring');
+        if (ringEl) {
+            const circumference = 364.4;
+            const progress = 1 - (this.timerSeconds / this.timerDuration);
+            ringEl.style.strokeDashoffset = circumference * (1 - progress);
+        }
+    },
+
+    /* ========== 聊天 ========== */
+    initChat() {
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.sendChat();
+            });
+        }
+    },
+
+    async sendChat() {
+        const input = document.getElementById('chat-input');
+        if (!input) return;
+        const message = input.value.trim();
+        if (!message) return;
+
+        input.value = '';
+        this.addChatBubble(message, 'user');
+        this.scrollChat();
+
+        try {
+            const res = await fetch('/api/buddy/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ message })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                this.addChatBubble(data.reply, 'buddy');
+                const buddy = this.data.buddy || {};
+                if (data.emotion) {
+                    buddy.emotion = data.emotion;
+                    buddy.emoji = data.emoji || buddy.emoji;
+                    this.data.buddy = buddy;
+                    this.renderBuddy();
+                }
+            } else {
+                this.addChatBubble('抱歉，' + (data.error || '出了点小问题'), 'buddy');
+            }
+        } catch (e) {
+            this.addChatBubble('网络连接不稳定，稍后再试试吧~', 'buddy');
+        }
+
+        this.scrollChat();
+    },
+
+    addChatBubble(content, role) {
+        const container = document.getElementById('chat-messages');
+        if (!container) return;
+
+        const emptyState = container.querySelector('.empty-state');
+        if (emptyState) emptyState.remove();
+
+        const buddy = this.data.buddy || {};
+        const avatar = role === 'buddy' ? (buddy.emoji || '&#128150;') : '&#128100;';
+
+        const wrap = document.createElement('div');
+        wrap.className = `chat-bubble-wrap ${role}`;
+        wrap.innerHTML = `
+            <div class="chat-bubble-avatar">${avatar}</div>
+            <div class="chat-bubble">${this._escapeHtml(content)}</div>
+        `;
+        container.appendChild(wrap);
+    },
+
+    scrollChat() {
+        const container = document.getElementById('chat-messages');
+        if (container) {
+            setTimeout(() => container.scrollTop = container.scrollHeight, 50);
+        }
+    },
+
+    async switchRole() {
+        try {
+            const res = await fetch('/api/buddy/roles', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+
+            if (!data.success) return;
+
+            const roles = data.roles || [];
+            const listEl = document.getElementById('role-list');
+            if (!listEl) return;
+
+            listEl.innerHTML = roles.map(role => `
+                <div class="role-item ${role.id === this.currentRole?.id ? 'active' : ''}"
+                     onclick="App.selectRole('${role.id}')" style="
+                    display:flex;align-items:center;gap:12px;
+                    padding:14px;background:var(--bg-soft);
+                    border-radius:var(--border-radius-md);
+                    cursor:pointer;
+                    border:2px solid ${role.id === this.currentRole?.id ? 'var(--mint)' : 'transparent'};
+                    transition:all 150ms ease;
+                    margin-bottom:8px;">
+                    <div style="font-size:32px;">${role.emoji}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:15px;color:var(--text);">${role.name}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${role.tagline}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            this.openModal('role-modal');
+        } catch (e) {
+            this.showToast('加载角色列表失败');
+        }
+    },
+
+    async selectRole(roleId) {
+        try {
+            const res = await fetch('/api/buddy/role/switch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ role_id: roleId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.currentRole = data.role;
+                this.data.buddy = {
+                    name: data.role.name,
+                    emoji: data.role.emoji,
+                    emotion: 'happy',
+                    emotion_desc: '正在认识新搭子'
+                };
+                this.renderBuddy();
+                this.closeRoleModal();
+                this.showToast(`已切换到 ${data.role.name}！`);
+            }
+        } catch (e) {
+            this.showToast('切换失败，请重试');
+        }
+    },
+
+    /* ========== 日记 ========== */
+    initDiary() {
+        const today = new Date();
+        const dateEl = document.getElementById('diary-date');
+        if (dateEl) {
+            dateEl.textContent = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+        }
+
+        document.querySelectorAll('.emotion-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.selectedEmotionLevel = parseInt(btn.dataset.level);
+            });
+        });
+
+        this.loadDiaries();
     },
 
     async saveDiary() {
-        const event = document.getElementById('diary-event')?.value.trim();
-        const words = document.getElementById('diary-words')?.value.trim();
+        const content = document.getElementById('diary-content')?.value.trim();
+        if (!content) {
+            this.showToast('写点什么吧~');
+            return;
+        }
 
         try {
-            const res = await API.saveDiary({
-                emotion_level: this.selectedEmotionLevel,
-                study_feeling: this.selectedFeeling,
-                biggest_event: event,
-                words_to_buddy: words,
+            const res = await fetch('/api/diary', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({
+                    content,
+                    emotion_level: this.selectedEmotionLevel,
+                    emotion_label: ['很难受', '有点丧', '一般', '还好', '很开心'][this.selectedEmotionLevel - 1],
+                    date: new Date().toISOString().split('T')[0]
+                })
             });
-
-            if (res.success) {
+            const data = await res.json();
+            if (data.success) {
                 this.showToast('日记已保存~');
-                if (document.getElementById('diary-event')) document.getElementById('diary-event').value = '';
-                if (document.getElementById('diary-words')) document.getElementById('diary-words').value = '';
-                await this.loadGlobalData();
+                document.getElementById('diary-content').value = '';
+                this.loadDiaries();
             }
         } catch (e) {
             this.showToast('保存失败，请重试');
         }
     },
 
-    // ==================== 设置 ====================
+    async loadDiaries() {
+        try {
+            const res = await fetch('/api/diary', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.renderDiaryList(data.diaries || []);
+            }
+        } catch (e) {}
+    },
 
-    selectGoal(el) {
-        document.querySelectorAll('.goal-option').forEach(o => o.classList.remove('selected'));
-        el.classList.add('selected');
-        this.selectedGoalHours = parseInt(el.dataset.hours);
+    renderDiaryList(diaries) {
+        const container = document.getElementById('diary-list');
+        if (!container) return;
+
+        if (!diaries.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#128214;</div>
+                    <div class="empty-state-title">还没有日记</div>
+                    <div class="empty-state-desc">记录每天的心情，搭子会帮你分析</div>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = diaries.slice(0, 10).map(d => `
+            <div class="diary-list-item">
+                <div class="diary-list-date">
+                    <span>${this._formatDate(d.date)}</span>
+                    <span style="font-size:18px;">${this._getEmotionEmoji(d.emotion_level)}</span>
+                </div>
+                <div class="diary-list-content">${this._escapeHtml(d.content || '')}</div>
+            </div>
+        `).join('');
+    },
+
+    _getEmotionEmoji(level) {
+        const map = { 1: '&#128546;', 2: '&#128557;', 3: '&#128528;', 4: '&#128578;', 5: '&#128513;' };
+        return map[level] || '&#128528;';
+    },
+
+    _formatDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getMonth() + 1}月${d.getDate()}日`;
+    },
+
+    /* ========== 任务 ========== */
+    initTasks() {
+        document.querySelectorAll('.task-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.task-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                this.filterTasks(tab.dataset.filter);
+            });
+        });
+        this.loadTasks();
+    },
+
+    async loadTasks() {
+        try {
+            const res = await fetch('/api/tasks', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.tasks = data.tasks || [];
+                this.renderTaskList('all');
+            }
+        } catch (e) {
+            this.tasks = [];
+        }
+    },
+
+    renderTaskList(filter) {
+        const container = document.getElementById('task-list');
+        if (!container) return;
+
+        let tasks = this.tasks || [];
+        if (filter === 'pending') tasks = tasks.filter(t => t.status !== 'completed');
+        if (filter === 'completed') tasks = tasks.filter(t => t.status === 'completed');
+
+        if (!tasks.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#9745;</div>
+                    <div class="empty-state-title">${filter === 'completed' ? '还没有完成的任务' : filter === 'pending' ? '待办已清空' : '任务空空'}</div>
+                    <div class="empty-state-desc">点击上方按钮添加任务</div>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = tasks.map(t => `
+            <div class="task-item ${t.status === 'completed' ? 'completed' : ''}" onclick="App.toggleTask(${t.id})">
+                <div class="task-check">${t.status === 'completed' ? '&#10003;' : ''}</div>
+                <div class="task-item-content">
+                    <div class="task-item-title">${this._escapeHtml(t.title)}</div>
+                    ${t.subject ? `<div class="task-item-meta">${t.subject}</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+    },
+
+    filterTasks(filter) {
+        this.renderTaskList(filter);
+    },
+
+    async toggleTask(taskId) {
+        const task = (this.tasks || []).find(t => t.id === taskId);
+        if (!task) return;
+
+        const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+        try {
+            await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ status: newStatus })
+            });
+            task.status = newStatus;
+            this.renderTaskList(document.querySelector('.task-tab.active')?.dataset.filter || 'all');
+        } catch (e) {}
+    },
+
+    showAddTask() {
+        const title = prompt('输入任务名称:');
+        if (!title?.trim()) return;
+
+        fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.token}`
+            },
+            body: JSON.stringify({ title: title.trim() })
+        }).then(res => res.json()).then(data => {
+            if (data.success) {
+                this.tasks = [data.task, ...(this.tasks || [])];
+                this.renderTaskList('all');
+                this.showToast('任务已添加');
+            }
+        });
+    },
+
+    /* ========== 成就 ========== */
+    async renderAchievements() {
+        try {
+            const res = await fetch('/api/achievements', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                const all = data.achievements || [];
+                const unlocked = all.filter(a => a.unlocked_at);
+
+                const unlockedEl = document.getElementById('ach-unlocked');
+                if (unlockedEl) unlockedEl.textContent = unlocked.length;
+
+                const totalEl = document.getElementById('ach-total');
+                if (totalEl) totalEl.textContent = all.length;
+
+                const pointsEl = document.getElementById('ach-points');
+                if (pointsEl) pointsEl.textContent = unlocked.reduce((sum, a) => sum + (a.points || 0), 0);
+
+                const listEl = document.getElementById('ach-list');
+                if (listEl) {
+                    listEl.innerHTML = all.map(a => `
+                        <div class="ach-item ${a.unlocked_at ? '' : 'locked'}">
+                            <div class="ach-icon">${a.icon || '&#127942;'}</div>
+                            <div class="ach-content">
+                                <div class="ach-name">${a.name}</div>
+                                <div class="ach-desc">${a.description || ''}</div>
+                            </div>
+                            <div class="ach-points">+${a.points || 0}</div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (e) {}
+    },
+
+    /* ========== 设置 ========== */
+    initSettings() {
+        // 设置页面中的保存按钮
     },
 
     async saveProfile() {
-        const name = document.getElementById('setup-name')?.value.trim();
-        const school = document.getElementById('setup-school')?.value.trim();
-        const major = document.getElementById('setup-major')?.value.trim();
-        const score = document.getElementById('setup-score')?.value.trim();
-        const examDate = document.getElementById('setup-exam-date')?.value;
-
-        if (!school || !major) {
-            this.showToast('请填写目标院校和专业~');
-            return;
-        }
+        const school = document.getElementById('setting-school')?.value;
+        const major = document.getElementById('setting-major')?.value;
+        const score = document.getElementById('setting-score')?.value;
+        const examDate = document.getElementById('setting-exam-date')?.value;
+        const goalHours = document.getElementById('setting-goal-hours')?.value;
 
         try {
-            const res = await API.updateBuddyProfile({
-                name,
-                target_school: school,
-                target_major: major,
-                target_score: parseInt(score) || 0,
-                exam_date: examDate,
-                daily_goal_hours: this.selectedGoalHours,
+            const res = await fetch('/api/auth/me', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({
+                    target_school: school,
+                    target_major: major,
+                    target_score: parseInt(score) || 0,
+                    exam_date: examDate || null,
+                    daily_goal_hours: parseFloat(goalHours) || 8
+                })
             });
-
-            if (res.success) {
-                this.showToast('设置已保存！');
-                State.update({
-                    'profile.name': name,
-                    'profile.targetSchool': school,
-                    'profile.targetMajor': major,
-                });
-                this.updateGreeting();
-                await this.loadGlobalData();
-                router.navigate('home');
+            const data = await res.json();
+            if (data.success) {
+                this.user = data.user;
+                localStorage.setItem('user', JSON.stringify(this.user));
+                this.renderGoal();
+                this.renderProfile();
+                this.showToast('目标已保存！');
             }
         } catch (e) {
-            this.showToast('保存失败');
+            this.showToast('保存失败，请重试');
         }
     },
 
-    // ==================== 任务 ====================
+    /* ========== 主题 ========== */
+    _currentTheme: 'light',
 
-    taskPriority: 'medium',
+    applyTheme(theme) {
+        this._currentTheme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        const iconEl = document.getElementById('theme-icon');
+        if (iconEl) iconEl.innerHTML = theme === 'dark' ? '&#9728;' : '&#127769;';
+    },
 
-    showAddTask() {
-        document.getElementById('task-overlay')?.classList.add('visible');
-        const titleInput = document.getElementById('task-title');
-        if (titleInput) {
-            titleInput.value = '';
-            titleInput.focus();
+    toggleTheme() {
+        const newTheme = this._currentTheme === 'light' ? 'dark' : 'light';
+        this.applyTheme(newTheme);
+        const darkToggle = document.getElementById('dark-toggle');
+        if (darkToggle) darkToggle.classList.toggle('active', newTheme === 'dark');
+    },
+
+    /* ========== Toast ========== */
+    showToast(message) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = message;
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => toast.classList.add('show'));
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 2500);
+    },
+
+    /* ========== 模态框 ========== */
+    openModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
         }
     },
 
-    hideAddTask() {
-        document.getElementById('task-overlay')?.classList.remove('visible');
-    },
-
-    selectTaskPriority(el) {
-        document.querySelectorAll('#task-overlay .feeling-tag').forEach(btn => btn.classList.remove('selected'));
-        el.classList.add('selected');
-        this.taskPriority = el.dataset.priority;
-    },
-
-    async addTask() {
-        const title = document.getElementById('task-title')?.value.trim();
-        const subject = document.getElementById('task-subject')?.value;
-
-        if (!title) {
-            this.showToast('请输入任务名称');
-            return;
-        }
-
-        try {
-            await API.addTask({ title, subject, priority: this.taskPriority });
-            this.hideAddTask();
-            this.showToast('任务添加成功');
-            if (window.tasksPageInstance) {
-                window.tasksPageInstance.refresh();
-            }
-        } catch (e) {
-            this.showToast('添加失败，请重试');
+    closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
         }
     },
 
-    async toggleTask(taskId, completed) {
-        try {
-            await API.completeTask(taskId);
-            if (window.tasksPageInstance) {
-                window.tasksPageInstance.refresh();
-            }
-        } catch (e) {
-            this.showToast('操作失败');
-        }
-    },
-
-    async deleteTask(taskId) {
-        if (!confirm('确定要删除这个任务吗？')) return;
-        try {
-            await API.deleteTask(taskId);
-            this.showToast('任务已删除');
-            if (window.tasksPageInstance) {
-                window.tasksPageInstance.refresh();
-            }
-        } catch (e) {
-            this.showToast('删除失败');
-        }
-    },
-
-    // ==================== 计划 ====================
-
-    showCreatePlan() {
-        document.getElementById('plan-overlay')?.classList.add('visible');
-        const titleInput = document.getElementById('plan-title');
-        if (titleInput) {
-            titleInput.value = '';
-            titleInput.focus();
-        }
-    },
-
-    hideCreatePlan() {
-        document.getElementById('plan-overlay')?.classList.remove('visible');
-    },
-
-    async createPlan() {
-        const subject = document.getElementById('plan-title')?.value.trim();
-        const duration = parseInt(document.getElementById('plan-duration')?.value) || 30;
-
-        if (!subject) {
-            this.showToast('请输入计划名称');
-            return;
-        }
-
-        try {
-            const examDate = new Date();
-            examDate.setDate(examDate.getDate() + duration);
-            const examDateStr = examDate.toISOString().split('T')[0];
-
-            await API.createStudyPlan({
-                subject: subject,
-                exam_date: examDateStr,
-                daily_hours: parseInt(document.getElementById('plan-hours')?.value) || 8,
-                use_ai: false
-            });
-            this.hideCreatePlan();
-            this.showToast('计划创建成功');
-            if (window.plansPageInstance) {
-                window.plansPageInstance.refresh();
-            }
-        } catch (e) {
-            this.showToast('创建失败，请重试');
-        }
-    },
-
-    // ==================== 成就 ====================
-
-    showAchievements() {
-        router.navigate('achievements');
-    },
-
-    showAchievement(data) {
-        document.getElementById('achievement-icon').textContent = data.icon || '🏆';
-        document.getElementById('achievement-name').textContent = data.name || '成就';
-        document.getElementById('achievement-desc').textContent = data.description || '';
-        document.getElementById('achievement-reward').textContent = `+${data.reward || 0} 积分`;
-        document.getElementById('achievement-overlay').classList.add('visible');
+    closeRoleModal() {
+        this.closeModal('role-modal');
     },
 
     closeAchievement() {
-        document.getElementById('achievement-overlay').classList.remove('visible');
+        this.closeModal('achievement-modal');
     },
 
-    // ==================== 角色选择 ====================
+    /* ========== AI 模型配置 ========== */
+    async showModelConfig() {
+        this.openModal('model-modal');
+        await this.loadPresetModels();
+        await this.loadCurrentModel();
+        this.renderPresetModelList();
+    },
 
-    currentRoleId: null,
+    closeModelModal() {
+        this.closeModal('model-modal');
+    },
 
-    async openRoleSelect() {
+    async loadPresetModels() {
         try {
-            const res = await fetch('/api/buddy/roles').then(r => r.json());
-            if (!res.success) return;
-
-            const roles = res.roles;
-            const currentId = res.current_role_id;
-            this.currentRoleId = currentId;
-
-            const grid = document.getElementById('role-grid');
-            if (!grid) return;
-
-            grid.innerHTML = roles.map(role => `
-                <div class="role-card ${role.id === currentId ? 'selected' : ''}"
-                     data-role-id="${role.id}"
-                     style="--role-color: ${role.color}; --role-color-rgb: ${this.hexToRgb(role.color)};"
-                     onclick="App.selectRole('${role.id}')">
-                    <div class="role-selected-badge">✓</div>
-                    <div class="role-emoji">${role.emoji}</div>
-                    <div class="role-name">${role.name}</div>
-                    <div class="role-type">${role.personality}</div>
-                    <div class="role-desc">${role.description}</div>
-                    <div class="role-tags">
-                        <span class="role-tag">适合：${this.getSuitableLabel(role.suitable_for)}</span>
-                    </div>
-                </div>
-            `).join('');
-
-            document.getElementById('role-select-overlay').classList.add('visible');
-
+            const res = await fetch('/api/ai-model/presets');
+            const data = await res.json();
+            if (data.success) {
+                this.presetModels = data.presets || [];
+            }
         } catch (e) {
-            console.error('加载角色列表失败', e);
-            this.showToast('加载角色失败');
+            this.presetModels = [];
         }
     },
 
-    closeRoleSelect() {
-        document.getElementById('role-select-overlay')?.classList.remove('visible');
+    async loadCurrentModel() {
+        try {
+            const res = await fetch('/api/ai-model/current', {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.currentModel = data.model;
+                this.currentModelMode = data.mode;
+                this.selectedPresetKey = data.model_key;
+
+                const nameEl = document.getElementById('current-model-name');
+                if (nameEl) {
+                    nameEl.textContent = data.model.name;
+                }
+            }
+        } catch (e) {}
     },
 
-    async selectRole(roleId) {
-        if (roleId === this.currentRoleId) {
-            this.closeRoleSelect();
+    renderPresetModelList() {
+        const container = document.getElementById('preset-model-list');
+        if (!container) return;
+
+        const providerMap = {
+            'openai': '&#127760; 云端',
+            'ollama': '&#128187; 本地'
+        };
+
+        container.innerHTML = this.presetModels.map(m => {
+            const isSelected = this.currentModelMode === 'preset' && this.selectedPresetKey === m.key;
+            return `
+                <div class="role-item ${isSelected ? 'active' : ''}"
+                     onclick="App.selectPresetModel('${m.key}')" style="
+                    display:flex;align-items:center;gap:12px;
+                    padding:14px;background:var(--bg-soft);
+                    border-radius:var(--border-radius-md);
+                    cursor:pointer;
+                    border:2px solid ${isSelected ? 'var(--mint)' : 'transparent'};
+                    transition:all 150ms ease;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:15px;color:var(--text);">${this._escapeHtml(m.name)}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${m.model} · ${providerMap[m.provider] || m.provider}</div>
+                    </div>
+                    ${isSelected ? '<span style="color:var(--mint);font-size:18px;">&#10003;</span>' : ''}
+                </div>
+            `;
+        }).join('');
+    },
+
+    switchModelTab(tab) {
+        document.querySelectorAll('#model-modal .task-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.filter === tab);
+        });
+
+        const presetList = document.getElementById('preset-model-list');
+        const customForm = document.getElementById('custom-model-form');
+        if (presetList && customForm) {
+            presetList.style.display = tab === 'preset' ? 'flex' : 'none';
+            customForm.style.display = tab === 'custom' ? 'block' : 'none';
+        }
+        this.currentModelMode = tab;
+
+        if (tab === 'custom' && this.currentModelMode === 'custom') {
+            const config = this.currentModel;
+            if (config) {
+                document.getElementById('custom-model-name').value = config.name || '';
+                document.getElementById('custom-model-url').value = config.base_url || '';
+                document.getElementById('custom-model-model').value = config.model || '';
+            }
+        }
+    },
+
+    selectPresetModel(key) {
+        this.selectedPresetKey = key;
+        this.currentModelMode = 'preset';
+        this.renderPresetModelList();
+    },
+
+    async testCustomModel() {
+        const baseUrl = document.getElementById('custom-model-url')?.value.trim();
+        const apiKey = document.getElementById('custom-model-key')?.value.trim();
+        const model = document.getElementById('custom-model-model')?.value.trim();
+        const resultEl = document.getElementById('test-result');
+        const btn = document.getElementById('btn-test-model');
+
+        if (!baseUrl || !apiKey || !model) {
+            if (resultEl) {
+                resultEl.innerHTML = '<span style="color:var(--coral);">请填写完整的模型配置</span>';
+            }
             return;
         }
 
+        if (resultEl) resultEl.innerHTML = '<span style="color:var(--text-muted);">测试连接中...</span>';
+        if (btn) btn.disabled = true;
+
         try {
-            const res = await fetch('/api/buddy/role/switch', {
+            const res = await fetch('/api/ai-model/test', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role_id: roleId })
-            }).then(r => r.json());
-
-            if (res.success) {
-                this.showToast(`已切换到 ${res.role.name}！`);
-                this.closeRoleSelect();
-                this.currentRoleId = roleId;
-
-                // 更新当前选中的卡片
-                document.querySelectorAll('.role-card').forEach(card => {
-                    card.classList.toggle('selected', card.dataset.roleId === roleId);
-                });
-
-                // 播放切换动画并刷新数据
-                const avatar = document.getElementById('buddy-avatar');
-                const chatAvatar = document.getElementById('chat-buddy-avatar');
-                if (avatar) {
-                    avatar.classList.add('role-switch-animation');
-                    avatar.textContent = res.role.emoji;
-                }
-                if (chatAvatar) {
-                    chatAvatar.classList.add('role-switch-animation');
-                    chatAvatar.textContent = res.role.emoji;
-                }
-
-                // 刷新全局数据
-                await this.loadGlobalData();
-
-                // 显示角色问候
-                setTimeout(() => {
-                    this.openChatWith(res.greeting);
-                }, 500);
-
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: model })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (resultEl) resultEl.innerHTML = `<span style="color:var(--mint);">&#10003; 连接成功！</span>`;
             } else {
-                this.showToast(res.error || '切换失败');
+                if (resultEl) resultEl.innerHTML = `<span style="color:var(--coral);">&#10007; ${this._escapeHtml(data.error || '连接失败')}</span>`;
             }
         } catch (e) {
-            console.error('切换角色失败', e);
-            this.showToast('切换失败，请重试');
+            if (resultEl) resultEl.innerHTML = `<span style="color:var(--coral);">&#10007; 网络错误</span>`;
+        }
+
+        if (btn) btn.disabled = false;
+    },
+
+    async saveModelConfig() {
+        if (this.currentModelMode === 'preset') {
+            if (!this.selectedPresetKey) {
+                this.showToast('请选择一个模型');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/ai-model/preset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: JSON.stringify({ model_key: this.selectedPresetKey })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const model = this.presetModels.find(m => m.key === this.selectedPresetKey);
+                    const nameEl = document.getElementById('current-model-name');
+                    if (nameEl && model) nameEl.textContent = model.name;
+                    this.closeModelModal();
+                    this.showToast('模型已切换');
+                }
+            } catch (e) {
+                this.showToast('保存失败');
+            }
+        } else {
+            const name = document.getElementById('custom-model-name')?.value.trim() || '自定义模型';
+            const baseUrl = document.getElementById('custom-model-url')?.value.trim();
+            const apiKey = document.getElementById('custom-model-key')?.value.trim();
+            const model = document.getElementById('custom-model-model')?.value.trim();
+
+            if (!baseUrl || !apiKey || !model) {
+                this.showToast('请填写完整的自定义配置');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/ai-model/custom', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: JSON.stringify({ name, base_url: baseUrl, api_key: apiKey, model })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const nameEl = document.getElementById('current-model-name');
+                    if (nameEl) nameEl.textContent = name;
+                    this.closeModelModal();
+                    this.showToast('自定义模型已保存');
+                } else {
+                    this.showToast(data.error || '保存失败');
+                }
+            } catch (e) {
+                this.showToast('保存失败');
+            }
         }
     },
 
-    getSuitableLabel(text) {
-        if (!text) return '所有人';
-        if (text.includes('内向')) return '内向';
-        if (text.includes('自律')) return '自律性差';
-        if (text.includes('理工')) return '理工科';
-        if (text.includes('夜猫子')) return '夜猫子';
-        if (text.includes('压力')) return '压力大';
-        if (text.includes('高效')) return '追求效率';
-        return '所有人';
+    /* ========== 用户 ========== */
+    openProfile() {
+        this.navigate('settings');
     },
 
-    hexToRgb(hex) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        if (result) {
-            return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`;
+    logout() {
+        if (!confirm('确定要退出登录吗？')) return;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+    },
+
+    /* ========== 工具 ========== */
+    _escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+
+    /* ========== 数据洞察 ========== */
+    async loadInsights(days = 30) {
+        try {
+            const [overviewRes, studyChartRes, subjectRes, emotionRes] = await Promise.all([
+                fetch(`/api/insights/overview?days=${days}`),
+                fetch(`/api/insights/study-chart?days=${days}`),
+                fetch(`/api/insights/subject-analysis?days=${days}`),
+                fetch(`/api/insights/emotion-chart?days=${days}`),
+            ]);
+
+            const overview = await overviewRes.json();
+            const studyChart = await studyChartRes.json();
+            const subjects = await subjectRes.json();
+            const emotions = await emotionRes.json();
+
+            if (overview.success) {
+                const o = overview.overview;
+                document.getElementById('insight-total-hours').textContent = o.total_hours;
+                document.getElementById('insight-daily-avg').textContent = o.daily_average;
+                document.getElementById('insight-total-sessions').textContent = o.total_sessions;
+                document.getElementById('insight-diary-count').textContent = o.total_entries;
+            }
+
+            if (studyChart.success) {
+                this.renderStudyChart(studyChart.chart_data);
+            }
+
+            if (subjects.success) {
+                this.renderSubjectAnalysis(subjects.subjects);
+            }
+
+            if (emotions.success) {
+                this.renderEmotionChart(emotions.chart_data);
+            }
+        } catch (e) {
+            console.error('加载洞察数据失败:', e);
         }
-        return '102, 126, 234';
     },
 
-    _updateNavHighlight(page) {
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.page === page);
+    switchInsightPeriod(days) {
+        document.querySelectorAll('.insight-tab').forEach(t => {
+            t.classList.toggle('active', parseInt(t.dataset.days) === days);
         });
+        this.loadInsights(days);
+    },
+
+    renderStudyChart(data) {
+        const canvas = document.getElementById('study-canvas');
+        const placeholder = document.getElementById('study-chart-placeholder');
+        if (!canvas || !placeholder) return;
+
+        // 检查是否有数据
+        const hasData = data.some(d => d.hours > 0);
+        if (!hasData) {
+            canvas.style.display = 'none';
+            placeholder.style.display = 'flex';
+            return;
+        }
+
+        canvas.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        // 简单的柱状图渲染
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width = canvas.offsetWidth * 2;
+        const height = canvas.height = 160 * 2;
+        ctx.scale(2, 2);
+
+        const w = width / 2;
+        const h = height / 2;
+        const barWidth = Math.min(20, (w - 40) / data.length);
+        const gap = Math.max(2, (w - 40 - barWidth * data.length) / (data.length + 1));
+        const maxHours = Math.max(...data.map(d => d.hours), 1);
+
+        ctx.clearRect(0, 0, w, h);
+
+        // 绘制柱状图
+        data.forEach((d, i) => {
+            const x = 20 + gap * (i + 1) + barWidth * i;
+            const barHeight = (d.hours / maxHours) * (h - 40);
+            const y = h - 20 - barHeight;
+
+            // 渐变填充
+            const gradient = ctx.createLinearGradient(0, y, 0, y + barHeight);
+            gradient.addColorStop(0, '#5BBFAA');
+            gradient.addColorStop(1, '#3D9B8D');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.roundRect(x, y, barWidth, barHeight, 4);
+            ctx.fill();
+
+            // 数值标签（只显示非零值）
+            if (d.hours > 0 && barWidth >= 12) {
+                ctx.fillStyle = '#666';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(d.hours.toFixed(1), x + barWidth / 2, y - 4);
+            }
+
+            // 日期标签（只显示部分）
+            if (data.length <= 7 || i % Math.ceil(data.length / 7) === 0) {
+                ctx.fillStyle = '#999';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'center';
+                const dateStr = d.date.slice(5); // MM-DD
+                ctx.fillText(dateStr, x + barWidth / 2, h - 5);
+            }
+        });
+
+        // Y 轴网格线
+        ctx.strokeStyle = '#eee';
+        ctx.setLineDash([2, 2]);
+        for (let i = 0; i <= 4; i++) {
+            const y = h - 20 - (h - 40) * i / 4;
+            ctx.beginPath();
+            ctx.moveTo(15, y);
+            ctx.lineTo(w - 5, y);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+    },
+
+    renderSubjectAnalysis(subjects) {
+        const container = document.getElementById('subject-list');
+        if (!container) return;
+
+        if (!subjects || subjects.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state empty-state-sm">
+                    <div class="empty-state-title">暂无科目数据</div>
+                </div>`;
+            return;
+        }
+
+        const colors = ['#5BBFAA', '#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3'];
+        container.innerHTML = subjects.map((s, i) => `
+            <div class="subject-item">
+                <div class="subject-color" style="background: ${colors[i % colors.length]}"></div>
+                <div class="subject-name">${this._escapeHtml(s.subject)}</div>
+                <div class="subject-hours">${s.total_hours}h</div>
+                <div class="subject-percent">${s.percentage}%</div>
+            </div>
+            <div class="subject-bar">
+                <div class="subject-bar-fill" style="width: ${s.percentage}%; background: ${colors[i % colors.length]}"></div>
+            </div>
+        `).join('');
+    },
+
+    renderEmotionChart(data) {
+        const container = document.getElementById('emotion-list');
+        if (!container) return;
+
+        const emotionMap = {
+            5: { class: 'emotion-very-good', icon: '&#128513;' },
+            4: { class: 'emotion-good', icon: '&#128578;' },
+            3: { class: 'emotion-normal', icon: '&#128528;' },
+            2: { class: 'emotion-bad', icon: '&#128533;' },
+            1: { class: 'emotion-very-bad', icon: '&#128542;' },
+        };
+
+        // 只显示最近14天
+        const recent = data.slice(-14);
+        container.innerHTML = recent.map(d => {
+            if (d.level === null) {
+                return `<div class="emotion-bar">
+                    <div class="emotion-bar-date">${d.date.slice(5)}</div>
+                    <div class="emotion-bar-dot emotion-normal" style="opacity:0.3">-</div>
+                </div>`;
+            }
+            const em = emotionMap[d.level] || emotionMap[3];
+            return `<div class="emotion-bar">
+                <div class="emotion-bar-date">${d.date.slice(5)}</div>
+                <div class="emotion-bar-dot ${em.class}">${em.icon}</div>
+            </div>`;
+        }).join('');
+    },
+
+    mountInsights() {
+        this.loadInsights(30);
     },
 };
 
+/* ========== 暴露全局 ========== */
 window.App = App;
-
-// 应用启动
-document.addEventListener('DOMContentLoaded', () => {
-    App.init();
-});

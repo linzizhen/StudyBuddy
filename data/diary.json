@@ -1,6 +1,20 @@
 {
   "entries": [
     {
+      "id": "20260525093052",
+      "date": "2026-05-25",
+      "emotion_level": 4,
+      "emotion_label": "还好",
+      "study_feeling": "",
+      "study_hours": 0,
+      "biggest_event": "",
+      "words_to_buddy": "",
+      "buddy_response": "",
+      "weather": "",
+      "tasks_completed": [],
+      "created_at": "2026-05-25T09:30:52.837883"
+    },
+    {
       "id": "20260427163434",
       "date": "2026-04-27",
       "emotion_level": 4,

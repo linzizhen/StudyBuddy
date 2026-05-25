@@ -293,9 +293,20 @@ class Buddy:
 
         这里调用 AI 模型，结合记忆和上下文生成回复
         """
-        # 从旧版 AI 模块获取对话能力
-        from src.ai.ai_helper import get_ai_instance
-        ai = get_ai_instance()
+        from src.ai.ai_helper import StudyPalAI
+
+        # 获取用户的模型配置
+        custom_config = None
+        model_key = None
+        user_profile = self.profile.get_profile()
+        user_data = user_profile.get("user", {})
+        if user_data.get("ai_custom_config"):
+            custom_config = user_data.get("ai_custom_config")
+        else:
+            model_key = user_data.get("ai_model_key")
+
+        # 创建 AI 实例（带用户模型配置）
+        ai = StudyPalAI(model_key=model_key, custom_config=custom_config)
 
         # 构建系统提示词
         system_prompt = self._build_system_prompt()

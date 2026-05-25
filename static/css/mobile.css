@@ -1,334 +1,636 @@
 /**
- * StudyPal 移动端深度适配 v1.0
- * 针对小屏幕设备、触摸交互、安全区域等优化
+ * StudyPal 移动端优化样式
+ * 针对手机和平板设备的响应式布局优化
+ *
+ * 作者：StudyPal
+ * 日期：2026-05-25
  */
 
-/* ===== 移动端断点定义 ===== */
-@layer mobile {
-    /* 小手机（320px - 480px）*/
-    @media screen and (max-width: 480px) {
-        /* 页面基础调整 */
-        .page {
-            padding: var(--space-3);
-            padding-bottom: calc(var(--bottom-nav-height) + var(--space-3) + var(--safe-area-bottom));
-        }
+/* ========== 响应式断点 ========== */
 
-        .page-title {
-            font-size: var(--text-xl);
-        }
-
-        /* 底部导航优化 */
-        .bottom-nav {
-            height: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
-            padding-bottom: var(--safe-area-bottom);
-        }
-
-        .nav-item {
-            padding: var(--space-2) var(--space-3);
-            min-width: 48px;
-        }
-
-        .nav-icon {
-            font-size: 22px;
-        }
-
-        .nav-label {
-            font-size: 9px;
-        }
-
-        /* 卡片样式优化 */
-        .card-body {
-            padding: var(--space-4);
-        }
-
-        .buddy-card {
-            padding: var(--space-4);
-            border-radius: var(--border-radius-lg);
-        }
-
-        .buddy-card-avatar {
-            width: 56px;
-            height: 56px;
-            font-size: 28px;
-            border-radius: 16px;
-        }
-
-        .buddy-card-name {
-            font-size: var(--text-lg);
-        }
-
-        /* 统计卡片 */
-        .stat-value {
-            font-size: var(--text-xl);
-        }
-
-        /* 按钮优化 - 触摸友好 */
-        .btn {
-            min-height: 44px;
-            min-width: 44px;
-            padding: var(--space-3) var(--space-4);
-            font-size: var(--text-sm);
-        }
-
-        .btn-lg {
-            min-height: 52px;
-            padding: var(--space-4) var(--space-6);
-            font-size: var(--text-base);
-        }
-
-        .btn-icon {
-            width: 44px;
-            height: 44px;
-        }
-
-        /* 聊天输入区域 */
-        .chat-input-area {
-            padding: var(--space-2) var(--space-3);
-        }
-
-        .chat-send-btn {
-            width: 44px;
-            height: 44px;
-        }
-
-        /* 日记情绪选择器 */
-        .emotion-option {
-            padding: var(--space-2);
-        }
-
-        .emotion-option .emotion-emoji {
-            font-size: 24px;
-        }
-
-        /* 成就网格 */
-        .achievement-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: var(--space-2);
-        }
-
-        .achievement-item {
-            padding: var(--space-2);
-        }
-
-        .achievement-item-icon {
-            font-size: 28px;
-        }
-
-        /* 任务列表 */
-        .task-item {
-            padding: var(--space-3);
-        }
-
-        /* 设置页面 */
-        .settings-item {
-            padding: var(--space-3);
-        }
-
-        /* 弹窗适配 */
-        .achievement-modal {
-            padding: var(--space-6);
-            max-width: 300px;
-        }
-
-        .achievement-icon {
-            font-size: 64px;
-        }
-
-        /* 进度环 */
-        .progress-ring-container {
-            width: 100px;
-            height: 100px;
-        }
-
-        .progress-ring-percent {
-            font-size: var(--text-xl);
-        }
-
-        /* Toast 提示优化 */
-        .toast {
-            max-width: 95%;
-            font-size: var(--text-xs);
-            padding: var(--space-2) var(--space-4);
-        }
+/* 超小屏幕 (< 360px) */
+@media (max-width: 359px) {
+    :root {
+        --text-base: 13px;
+        --text-sm: 11px;
+        --text-xs: 10px;
+        --gap-3: 8px;
+        --gap-4: 12px;
     }
 
-    /* 平板横屏（481px - 768px）*/
-    @media screen and (min-width: 481px) and (max-width: 768px) {
-        .page {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .bottom-nav {
-            max-width: 600px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
+    .top-bar {
+        padding: 12px 12px;
     }
 
-    /* 触摸设备优化 */
-    @media (hover: none) and (pointer: coarse) {
-        /* 移除 hover 效果的过渡 */
-        .card:hover {
-            transform: none;
-            box-shadow: var(--shadow-card);
-        }
-
-        .card:active {
-            transform: scale(0.98);
-        }
-
-        .nav-item:hover {
-            opacity: 1;
-        }
-
-        .nav-item:active {
-            transform: scale(0.95);
-        }
-
-        .suggestion-btn:hover {
-            transform: none;
-        }
-
-        .suggestion-btn:active {
-            transform: scale(0.95);
-        }
-
-        .emotion-btn:hover {
-            transform: scale(1.02);
-        }
-
-        .emotion-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* 增加触摸反馈 */
-        .btn:hover {
-            transform: none;
-        }
-
-        .btn:active {
-            transform: scale(0.97);
-            box-shadow: none;
-        }
-
-        /* 滚动优化 */
-        .scroll-container {
-            -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
-        }
+    .card {
+        padding: 14px;
     }
 
-    /* 安全区域适配 */
-    @supports (padding: env(safe-area-inset-bottom)) {
-        /* iPhone X 及以上 */
-        .bottom-nav,
-        .chat-input-area {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-
-        .page {
-            padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--space-4));
-        }
-
-        /* 首页顶部安全区域 */
-        .home-header {
-            padding-top: calc(var(--safe-area-top) + var(--space-4));
-        }
-
-        /* 全屏模态框 */
-        .achievement-overlay {
-            padding-bottom: env(safe-area-inset-bottom);
-        }
+    .bottom-nav {
+        padding: 6px 0;
     }
 
-    /* 高对比度模式 */
-    @media (prefers-contrast: high) {
-        :root {
-            --border: rgba(0, 0, 0, 0.3);
-            --border-strong: rgba(0, 0, 0, 0.5);
-        }
-
-        [data-theme="dark"] {
-            --border: rgba(255, 255, 255, 0.3);
-            --border-strong: rgba(255, 255, 255, 0.5);
-        }
-
-        .card,
-        .buddy-card,
-        .stat-card {
-            border-width: 2px;
-        }
+    .nav-item-label {
+        font-size: 10px;
     }
 
-    /* 减少动画（无障碍）*/
-    @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-        }
+    .nav-item-icon {
+        font-size: 18px;
+    }
+}
+
+/* 小屏幕 (360px - 480px) */
+@media (min-width: 360px) and (max-width: 480px) {
+    :root {
+        --text-base: 14px;
+        --gap-4: 14px;
     }
 
-    /* 深色模式下的 OLED 纯黑节省电量 */
-    @media (prefers-color-scheme: dark) {
-        @supports (background: #000) {
-            [data-theme="dark"] {
-                --bg-deep: #000000;
-                --bg-primary-dark: #000000;
-                --bg-secondary-dark: #0A0A0A;
-                --bg-card-dark: rgba(10, 10, 10, 0.95);
-            }
-        }
+    .card {
+        padding: 16px;
+    }
+}
+
+/* ========== 页面布局优化 ========== */
+
+.page {
+    padding: 16px;
+    padding-bottom: 80px; /* 为底部导航留空间 */
+    min-height: 100vh;
+    -webkit-overflow-scrolling: touch;
+}
+
+.page.active {
+    display: block;
+}
+
+.page:not(.active) {
+    display: none;
+}
+
+/* ========== 顶部栏优化 ========== */
+
+.top-bar {
+    padding: 14px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(to bottom, var(--bg-primary) 0%, var(--bg-primary) 80%, transparent 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.top-bar-greeting {
+    font-size: var(--text-lg);
+}
+
+.top-bar-sub {
+    font-size: var(--text-sm);
+}
+
+/* ========== 卡片优化 ========== */
+
+.card {
+    border-radius: var(--border-radius-lg);
+    margin-bottom: var(--gap-4);
+}
+
+@media (max-width: 480px) {
+    .card {
+        border-radius: var(--border-radius-md);
+        padding: 14px;
+        margin-bottom: 12px;
     }
 
-    /* 大字体模式 */
-    @media (prefers-font-size: 120%) {
-        :root {
-            --text-base: 18px;
-            --text-sm: 16px;
-            --text-xs: 14px;
-            --text-lg: 20px;
-            --text-xl: 24px;
-        }
+    .card-sm {
+        padding: 12px;
+    }
+}
 
-        .nav-label {
-            font-size: 12px;
-        }
+/* ========== 按钮优化 ========== */
+
+.btn {
+    min-height: 44px; /* 触摸友好的最小高度 */
+    padding: 12px 20px;
+    border-radius: var(--border-radius-md);
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    transition: all var(--duration-fast);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn-sm {
+    min-height: 36px;
+    padding: 8px 14px;
+    font-size: var(--text-xs);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========== 输入框优化 ========== */
+
+.input {
+    min-height: 48px;
+    padding: 12px 14px;
+    border-radius: var(--border-radius-md);
+    font-size: var(--text-base);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--mint);
+    box-shadow: 0 0 0 3px rgba(91, 191, 170, 0.15);
+}
+
+/* ========== 底部导航优化 ========== */
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color var(--duration-fast);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nav-item:active {
+    transform: scale(0.92);
+}
+
+.nav-item.active {
+    color: var(--mint);
+}
+
+.nav-item-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.nav-item-label {
+    font-size: 11px;
+    font-weight: var(--font-medium);
+}
+
+@media (min-width: 481px) {
+    .bottom-nav {
+        display: none; /* 桌面端隐藏底部导航 */
     }
 
-    /* 横屏模式 */
-    @media screen and (max-height: 500px) and (orientation: landscape) {
-        .bottom-nav {
-            width: 100%;
-            height: 56px;
-            flex-direction: row;
-            padding-bottom: 0;
-        }
-
-        .page {
-            padding-bottom: calc(56px + var(--space-4));
-        }
-
-        .splash-screen {
-            display: none;
-        }
-
-        body::before {
-            content: '请将设备竖过来使用';
-            position: fixed;
-            inset: 0;
-            z-index: 99999;
-            background: var(--bg-deep);
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: var(--text-lg);
-            padding: var(--space-4);
-            text-align: center;
-        }
+    .page {
+        padding-bottom: 20px;
     }
+}
+
+/* ========== 模态框优化 ========== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.modal {
+    background: var(--bg-card);
+    border-radius: var(--border-radius-xl);
+    padding: 24px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--text-muted);
+    transition: all var(--duration-fast);
+}
+
+.modal-close:hover {
+    background: var(--border-light);
+}
+
+/* ========== 聊天页面优化 ========== */
+
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 160px);
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.chat-input-area {
+    padding: 12px 0;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-primary);
+}
+
+.chat-input-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.chat-input {
+    flex: 1;
+    min-height: 48px;
+    max-height: 120px;
+    resize: none;
+    border-radius: var(--border-radius-lg);
+}
+
+@media (max-width: 480px) {
+    .chat-container {
+        height: calc(100vh - 150px);
+    }
+
+    .chat-message {
+        max-width: 85%;
+    }
+}
+
+/* ========== 图表优化 ========== */
+
+.chart-container {
+    min-height: 180px;
+}
+
+@media (max-width: 480px) {
+    .chart-container {
+        min-height: 150px;
+    }
+
+    #study-canvas {
+        height: 150px !important;
+    }
+}
+
+/* ========== 统计卡片优化 ========== */
+
+.stats-grid {
+    gap: 10px;
+}
+
+.stat-card {
+    padding: 14px 10px;
+}
+
+.stat-card-value {
+    font-size: 24px;
+}
+
+@media (max-width: 360px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .stat-card-value {
+        font-size: 20px;
+    }
+}
+
+/* ========== 任务列表优化 ========== */
+
+.task-item {
+    padding: 14px;
+    border-radius: var(--border-radius-md);
+    margin-bottom: 8px;
+}
+
+.task-title {
+    font-size: var(--text-sm);
+}
+
+@media (max-width: 480px) {
+    .task-item {
+        padding: 12px;
+    }
+
+    .task-checkbox {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* ========== 表单优化 ========== */
+
+.input-group {
+    margin-bottom: 16px;
+}
+
+.input-label {
+    font-size: var(--text-sm);
+    margin-bottom: 6px;
+}
+
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+}
+
+/* ========== 日记页优化 ========== */
+
+.diary-mood-selector {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.mood-btn {
+    flex: 1;
+    aspect-ratio: 1;
+    max-width: 60px;
+    border-radius: var(--border-radius-md);
+    background: var(--bg-soft);
+    border: 2px solid transparent;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    transition: all var(--duration-fast);
+}
+
+.mood-btn.selected {
+    border-color: var(--mint);
+    background: rgba(91, 191, 170, 0.1);
+}
+
+.mood-btn .mood-icon {
+    font-size: 24px;
+}
+
+.mood-btn .mood-label {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+    .diary-mood-selector {
+        gap: 6px;
+    }
+
+    .mood-btn {
+        max-width: 50px;
+    }
+
+    .mood-btn .mood-icon {
+        font-size: 20px;
+    }
+}
+
+/* ========== 成就页优化 ========== */
+
+.achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.achievement-item {
+    padding: 16px;
+    text-align: center;
+}
+
+.achievement-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.achievement-name {
+    font-size: var(--text-sm);
+}
+
+@media (max-width: 480px) {
+    .achievement-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .achievement-item {
+        padding: 12px;
+    }
+
+    .achievement-icon {
+        font-size: 28px;
+    }
+}
+
+/* ========== 设置页优化 ========== */
+
+.settings-group {
+    margin-bottom: 16px;
+}
+
+.settings-group-title {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+@media (max-width: 480px) {
+    .settings-group {
+        margin-bottom: 12px;
+    }
+
+    .settings-group-title {
+        font-size: var(--text-xs);
+        margin-bottom: 6px;
+    }
+}
+
+/* ========== 滚动优化 ========== */
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* 平滑滚动 */
+html {
+    scroll-behavior: smooth;
+}
+
+/* 隐藏滚动条但保持功能 */
+::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+/* ========== 防止内容被导航遮挡 ========== */
+
+@media (min-width: 481px) {
+    .page-container {
+        padding-bottom: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-container {
+        padding-bottom: 0;
+    }
+}
+
+/* ========== 角色选择弹窗优化 ========== */
+
+.role-item {
+    padding: 14px;
+    border-radius: var(--border-radius-md);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all var(--duration-fast);
+    border: 2px solid transparent;
+}
+
+.role-item:active {
+    transform: scale(0.98);
+}
+
+.role-item.active {
+    border-color: var(--mint);
+    background: rgba(91, 191, 170, 0.08);
+}
+
+.role-emoji {
+    font-size: 28px;
+    margin-right: 12px;
+}
+
+.role-name {
+    font-weight: var(--font-semibold);
+    font-size: var(--text-base);
+}
+
+.role-desc {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+    .role-item {
+        padding: 12px;
+    }
+
+    .role-emoji {
+        font-size: 24px;
+    }
+}
+
+/* ========== 暗色模式增强 ========== */
+
+@media (prefers-color-scheme: dark) {
+    :root[data-theme="auto"] {
+        --bg-primary: #1a1a2e;
+        --bg-card: #252542;
+        --bg-soft: #2d2d4a;
+        --text: #e8e8f0;
+        --text-muted: #9999bb;
+        --border-light: #3a3a5c;
+    }
+}
+
+/* ========== 横屏优化 ========== */
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .bottom-nav {
+        position: relative;
+        padding: 4px 0;
+    }
+
+    .page {
+        padding-bottom: 60px;
+    }
+
+    .modal {
+        max-height: 95vh;
+    }
+}
+
+/* ========== 触摸反馈 ========== */
+
+.touch-feedback {
+    position: relative;
+    overflow: hidden;
+}
+
+.touch-feedback::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.touch-feedback:active::after {
+    opacity: 0.1;
 }

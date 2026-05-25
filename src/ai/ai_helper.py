@@ -61,11 +61,23 @@ class StudyPalAI:
     - 支持对话上下文
     - 支持本地 Ollama 和云端 OpenAI 兼容 API
     - 对话历史持久化
+    - 支持用户自定义模型配置
     """
 
-    def __init__(self, model_key: str = None):
-        """初始化 StudyPal AI"""
-        self.model_key = model_key or DEFAULT_MODEL_KEY
+    def __init__(self, model_key: str = None, custom_config: dict = None):
+        """初始化 StudyPal AI
+
+        参数：
+            model_key: 预设模型 key，如果为 None 则使用默认配置
+            custom_config: 用户自定义模型配置 dict，格式：
+                {
+                    "base_url": "https://api.deepseek.com/v1",
+                    "api_key": "sk-xxx",
+                    "model": "deepseek-chat"
+                }
+        """
+        self.model_key = model_key
+        self.custom_config = custom_config
         self._load_model_config()
 
         self.conversation_history: List[Dict[str, str]] = []
@@ -76,12 +88,20 @@ class StudyPalAI:
 
     def _load_model_config(self):
         """从配置中加载模型信息"""
-        if self.model_key in MODELS_CONFIG:
+        # 优先使用用户自定义配置
+        if self.custom_config:
+            self.provider = "openai"  # 自定义模型假定为 OpenAI 兼容格式
+            self.model_name = self.custom_config.get("model", "")
+            self.base_url = self.custom_config.get("base_url", "")
+            self.model_api_key = self.custom_config.get("api_key", "")
+        # 其次使用预设模型
+        elif self.model_key and self.model_key in MODELS_CONFIG:
             config = MODELS_CONFIG[self.model_key]
             self.provider = config.get("provider", "openai")
             self.model_name = config.get("model", "llama-3.3-70b-versatile")
             self.base_url = config.get("base_url", "https://api.groq.com/openai/v1")
             self.model_api_key = config.get("api_key", "") or API_KEY
+        # 最后使用系统默认配置
         else:
             self.provider = "openai"
             self.model_name = ai_config.default_model
@@ -92,12 +112,22 @@ class StudyPalAI:
 
     def get_current_model_info(self) -> Dict[str, str]:
         """获取当前模型信息"""
+        if self.custom_config:
+            return {
+                "key": "custom",
+                "name": self.custom_config.get("name", "自定义模型"),
+                "provider": self.provider,
+                "model": self.model_name,
+                "base_url": self.base_url,
+                "is_custom": True
+            }
         return {
-            "key": self.model_key,
+            "key": self.model_key or DEFAULT_MODEL_KEY,
             "name": MODELS_CONFIG.get(self.model_key, {}).get("name", self.model_name),
             "provider": self.provider,
             "model": self.model_name,
             "base_url": self.base_url,
+            "is_custom": False
         }
 
     @property

@@ -61,7 +61,8 @@ def buddy_chat():
     result = buddy.chat(message, conversation_id)
 
     # 增加AI调用计数
-    user.increment_ai_calls()
+    from src.auth.auth import AuthService
+    AuthService.increment_ai_calls(user['id'])
 
     return jsonify({
         'success': True,

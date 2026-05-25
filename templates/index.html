@@ -3,863 +3,603 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#7C3AED">
+    <meta name="theme-color" content="#5BBFAA">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>StudyPal 考研搭子</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>StudyPal - 考研学习搭子</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- SVG 渐变定义 -->
-    <svg style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#667EEA"/>
-                <stop offset="50%" stop-color="#764BA2"/>
-                <stop offset="100%" stop-color="#F093FB"/>
-            </linearGradient>
-            <linearGradient id="buddyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#667EEA"/>
-                <stop offset="50%" stop-color="#764BA2"/>
-                <stop offset="100%" stop-color="#A855F7"/>
-            </linearGradient>
-            <linearGradient id="successGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#11998E"/>
-                <stop offset="100%" stop-color="#38EF7D"/>
-            </linearGradient>
-            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#F59E0B"/>
-                <stop offset="100%" stop-color="#FFD700"/>
-            </linearGradient>
-        </defs>
-    </svg>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/variables.css">
     <link rel="stylesheet" href="/static/css/base.css">
     <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/animations.css">
     <link rel="stylesheet" href="/static/css/mobile.css">
 </head>
 <body>
-    <!-- ===== 开屏动画 ===== -->
-    <div class="splash-screen" id="splash-screen">
-        <div class="splash-bg">
-            <div class="splash-orb splash-orb-1"></div>
-            <div class="splash-orb splash-orb-2"></div>
-            <div class="splash-orb splash-orb-3"></div>
-        </div>
-        <div class="splash-stars" id="splash-stars"></div>
-        <div class="splash-content">
-            <div class="splash-ring"></div>
-            <div class="splash-ring"></div>
-            <div class="splash-ring"></div>
-            <div class="splash-logo" id="splash-logo">📚</div>
-            <div class="splash-title">StudyPal</div>
-            <div class="splash-subtitle">考研学习搭子</div>
-        </div>
-        <div class="splash-particles" id="splash-particles"></div>
-    </div>
 
-    <!-- ===== Toast 提示 ===== -->
-    <div class="toast" id="toast"></div>
+    <!-- ===== 顶部栏 ===== -->
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <div>
+                <div class="top-bar-greeting" id="greeting-text">加载中...</div>
+                <div class="top-bar-sub" id="user-name">考研战士</div>
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <button class="btn-icon" id="btn-theme" onclick="App.toggleTheme()" title="切换主题">
+                <span id="theme-icon">&#127769;</span>
+            </button>
+            <button class="btn-icon" onclick="App.openProfile()">
+                <span id="user-avatar">&#128100;</span>
+            </button>
+        </div>
+    </header>
 
-    <!-- ===== 成就解锁弹窗 ===== -->
-    <div class="achievement-overlay" id="achievement-overlay" style="display: none;">
-        <div class="achievement-modal">
-            <div class="achievement-burst"></div>
-            <div class="achievement-icon" id="achievement-icon">🏆</div>
-            <div class="achievement-title">成就解锁！</div>
-            <div class="achievement-name" id="achievement-name">初出茅庐</div>
-            <div class="achievement-desc" id="achievement-desc">完成第一个番茄钟</div>
-            <div class="achievement-reward" id="achievement-reward">+10 积分</div>
+    <!-- ===== Toast ===== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ===== 成就弹窗 ===== -->
+    <div class="modal-overlay" id="achievement-modal">
+        <div class="modal" style="text-align:center;position:relative;">
+            <div style="font-size:56px;margin-bottom:12px;" id="ach-icon">&#127942;</div>
+            <h3 style="font-size:var(--text-xl);font-weight:700;margin-bottom:6px;">&#127942; 成就解锁！</h3>
+            <h4 style="font-size:var(--text-lg);font-weight:600;color:var(--text);margin-bottom:4px;" id="ach-name">初出茅庐</h4>
+            <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:20px;" id="ach-desc">完成第一个学习时段</p>
             <button class="btn btn-primary btn-block" onclick="App.closeAchievement()">太棒了！</button>
         </div>
     </div>
 
     <!-- ===== 角色选择弹窗 ===== -->
-    <div class="achievement-overlay" id="role-select-overlay" style="display: none;">
-        <div class="achievement-modal" style="max-width: 95vw; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-close-btn" onclick="App.closeRoleSelect()">✕</div>
-            <div class="achievement-title">选择你的搭子</div>
-            <div class="text-sm text-muted mb-4" style="text-align: center;">每个搭子都有独特的性格，找到最懂你的那个</div>
-            <div class="role-grid" id="role-grid">
-                <!-- 角色卡片由 JS 动态生成 -->
-            </div>
+    <div class="modal-overlay" id="role-modal">
+        <div class="modal" style="max-height:85vh;overflow-y:auto;position:relative;">
+            <button class="modal-close" onclick="App.closeRoleModal()" style="position:absolute;top:12px;right:12px;">&#10005;</button>
+            <h3 style="font-size:var(--text-xl);font-weight:700;margin-bottom:6px;">&#128149; 选择你的搭子</h3>
+            <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:20px;">每个搭子都有独特的性格，总有一款懂你</p>
+            <div id="role-list" style="display:flex;flex-direction:column;gap:10px;"></div>
         </div>
     </div>
 
-    <!-- ===== 首页 ===== -->
-    <div class="page active" id="page-home">
-        <!-- 顶部问候区 -->
-        <div class="home-header">
-            <div class="home-greeting">
-                <span class="home-greeting-time" id="greeting">加载中...</span>
-                <h1 class="home-title">StudyPal</h1>
+    <!-- ===== AI 模型配置弹窗 ===== -->
+    <div class="modal-overlay" id="model-modal">
+        <div class="modal" style="max-height:90vh;overflow-y:auto;position:relative;">
+            <button class="modal-close" onclick="App.closeModelModal()" style="position:absolute;top:12px;right:12px;">&#10005;</button>
+            <h3 style="font-size:var(--text-xl);font-weight:700;margin-bottom:4px;">&#129504; AI 模型配置</h3>
+            <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:16px;">选择预设模型或添加自定义模型</p>
+
+            <!-- 模型模式切换 -->
+            <div class="task-tabs mb-4">
+                <button class="task-tab active" data-filter="preset" onclick="App.switchModelTab('preset')">预设模型</button>
+                <button class="task-tab" data-filter="custom" onclick="App.switchModelTab('custom')">自定义模型</button>
             </div>
-            <button class="btn btn-icon home-theme-btn" onclick="App.toggleTheme()" id="theme-toggle" title="切换主题">
-                🌙
-            </button>
+
+            <!-- 预设模型列表 -->
+            <div id="preset-model-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+
+            <!-- 自定义模型表单 -->
+            <div id="custom-model-form" style="display:none;">
+                <div class="input-group mb-3">
+                    <label class="input-label">模型名称</label>
+                    <input type="text" class="input" id="custom-model-name" placeholder="我的 DeepSeek">
+                </div>
+                <div class="input-group mb-3">
+                    <label class="input-label">API 地址</label>
+                    <input type="text" class="input" id="custom-model-url" placeholder="https://api.deepseek.com/v1">
+                </div>
+                <div class="input-group mb-3">
+                    <label class="input-label">API Key</label>
+                    <input type="password" class="input" id="custom-model-key" placeholder="sk-xxxxxxxxxxxxxxxx">
+                </div>
+                <div class="input-group mb-3">
+                    <label class="input-label">模型名称</label>
+                    <input type="text" class="input" id="custom-model-model" placeholder="deepseek-chat">
+                </div>
+                <button class="btn btn-secondary btn-block mb-2" id="btn-test-model" onclick="App.testCustomModel()">&#128270; 测试连接</button>
+                <div id="test-result" class="text-sm" style="margin-bottom:12px;"></div>
+            </div>
+
+            <button class="btn btn-primary btn-block" onclick="App.saveModelConfig()">&#128190; 保存配置</button>
         </div>
+    </div>
 
-        <!-- 倒计时标签 -->
-        <div class="home-countdown" id="countdown-bar">
-            <span class="countdown-icon">🎯</span>
-            <span class="countdown-text" id="countdown">设置考研目标</span>
-        </div>
+    <!-- ===== 页面容器 ===== -->
+    <main class="page-container">
 
-        <!-- 搭子卡片 -->
-        <div class="buddy-card" id="buddy-card">
-            <div class="buddy-card-bg-orb buddy-bg-orb-1"></div>
-            <div class="buddy-card-bg-orb buddy-bg-orb-2"></div>
-            <div class="buddy-card-header">
-                <div class="buddy-card-avatar" id="buddy-avatar">🌸</div>
-                <div class="buddy-card-info">
-                    <div class="buddy-card-name" id="buddy-name">小豆</div>
-                    <div class="buddy-card-mood">
-                        <span id="buddy-emotion-emoji">😴</span>
-                        <span id="buddy-emotion-desc">休息中~</span>
+        <!-- ===== 首页 ===== -->
+        <div class="page active" id="page-home">
+
+            <!-- 搭子卡片 -->
+            <div class="card buddy-hero-card" id="buddy-hero" onclick="App.startChat()">
+                <div class="buddy-hero-inner">
+                    <div class="buddy-avatar-wrap">
+                        <div class="buddy-avatar" id="buddy-avatar">&#128150;</div>
+                        <div class="buddy-emotion-dot" id="buddy-emotion-dot"></div>
                     </div>
-                </div>
-                <div class="buddy-status-dot"></div>
-            </div>
-            <div class="buddy-card-level" id="buddy-level" onclick="App.openRoleSelect()">
-                <span class="level-badge" id="buddy-level-badge">Lv.1</span>
-                <span class="level-name" id="buddy-level-name">初级搭子</span>
-            </div>
-            <div class="buddy-card-message" id="buddy-message">
-                正在连接...
-            </div>
-            <div class="buddy-card-suggestions" id="buddy-suggestions">
-                <button class="suggestion-btn" onclick="App.openChatWith('聊聊心情')">聊聊心情</button>
-                <button class="suggestion-btn" onclick="App.openChatWith('制定计划')">做计划</button>
-                <button class="suggestion-btn" onclick="App.openChatWith('学不进去')">学不进去</button>
-            </div>
-            <button class="buddy-card-action" onclick="App.switchPage('chat')">
-                <span class="btn-glow-effect"></span>
-                <span class="btn-text" id="buddy-action-text">🌟 和小豆聊聊</span>
-            </button>
-        </div>
-
-        <!-- 关心卡片 -->
-        <div class="card caring-card" id="caring-section" style="display: none;">
-            <div class="caring-glow"></div>
-            <div class="card-body">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="caring-label">💭 搭子关心</span>
-                    <button class="btn btn-ghost btn-sm" onclick="App.dismissCaring()">知道了</button>
-                </div>
-                <div id="caring-message" class="text-sm caring-text"></div>
-            </div>
-        </div>
-
-        <!-- 统计卡片组 -->
-        <div class="stats-section">
-            <div class="stats-header">
-                <span class="stats-title">📊 今日数据</span>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card stat-card-primary">
-                    <div class="stat-icon">⏱️</div>
-                    <div class="stat-value" id="stat-today-hours">0h</div>
-                    <div class="stat-label">今日学习</div>
-                    <div class="stat-trend">+0h</div>
-                </div>
-                <div class="stat-card stat-card-fire">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-value" id="stat-streak">0</div>
-                    <div class="stat-label">连续天数</div>
-                    <div class="stat-trend stat-trend-fire">坚持中</div>
-                </div>
-                <div class="stat-card stat-card-gold">
-                    <div class="stat-icon">📈</div>
-                    <div class="stat-value" id="stat-week-hours">0h</div>
-                    <div class="stat-label">本周学习</div>
-                    <div class="stat-trend">总计</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 今日进度环 -->
-        <div class="card progress-ring-card">
-            <div class="card-body">
-                <div class="progress-ring-wrapper">
-                    <div class="progress-ring-container">
-                        <svg class="progress-ring-svg" viewBox="0 0 160 160">
-                            <circle class="progress-ring-bg" cx="80" cy="80" r="70" fill="none" stroke-width="12"/>
-                            <circle class="progress-ring-fill" cx="80" cy="80" r="70" fill="none" stroke-width="12"
-                                stroke="url(#timerGradient)" stroke-dasharray="440" stroke-dashoffset="440" stroke-linecap="round"/>
-                        </svg>
-                        <div class="progress-ring-content">
-                            <div class="progress-ring-percent" id="progress-value">0%</div>
-                            <div class="progress-ring-label" id="progress-label">今日进度</div>
-                        </div>
+                    <div class="buddy-info">
+                        <div class="buddy-name" id="buddy-name">小豆</div>
+                        <div class="buddy-emotion-text" id="buddy-emotion-text">心情不错~</div>
+                        <div class="buddy-msg" id="buddy-msg">今天感觉怎么样？</div>
                     </div>
-                    <div class="progress-ring-info">
-                        <div class="ring-info-item">
-                            <span class="ring-info-value" id="ring-hours">0</span>
-                            <span class="ring-info-label">目标小时</span>
-                        </div>
-                        <div class="ring-info-divider"></div>
-                        <div class="ring-info-item">
-                            <span class="ring-info-value" id="ring-achieved">0</span>
-                            <span class="ring-info-label">已完成</span>
-                        </div>
+                    <div class="buddy-arrow">
+                        <span style="font-size:20px;color:var(--text-faint);">&#8250;</span>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 心情记录 -->
-        <div class="card emotion-quick-card" onclick="App.switchPage('diary')">
-            <div class="card-body">
-                <div class="flex items-center gap-4">
-                    <div class="emotion-avatar" id="emotion-emoji">📝</div>
-                    <div class="flex-1">
-                        <div class="emotion-title" id="emotion-label">记录今日心情</div>
-                        <div class="emotion-subtitle" id="emotion-hint">点击记录今天的感觉</div>
+            <!-- 今日进度 -->
+            <div class="card today-progress-card">
+                <div class="card-header" style="margin-bottom:var(--gap-3);">
+                    <div>
+                        <div class="card-title">&#128198; 今日进度</div>
                     </div>
-                    <div class="emotion-arrow">›</div>
+                    <div class="badge badge-mint" id="streak-badge">
+                        <span id="streak-num">0</span>天连续
+                    </div>
+                </div>
+                <div class="today-stats-grid">
+                    <div class="today-stat">
+                        <div class="today-stat-val" id="today-hours">0.0</div>
+                        <div class="today-stat-label">学习时长</div>
+                    </div>
+                    <div class="today-stat">
+                        <div class="today-stat-val" id="today-sessions">0</div>
+                        <div class="today-stat-label">番茄数</div>
+                    </div>
+                    <div class="today-stat">
+                        <div class="today-stat-val" id="today-goal">0%</div>
+                        <div class="today-stat-label">目标完成</div>
+                    </div>
+                </div>
+                <div class="progress" style="margin-top:var(--gap-4);">
+                    <div class="progress-bar" id="today-progress-bar" style="width:0%"></div>
                 </div>
             </div>
-        </div>
 
-        <!-- 学习计时器 -->
-        <div class="card study-card">
-            <div class="card-body">
-                <div class="study-card-header">
-                    <span class="study-card-title">📚 专注学习</span>
-                    <span class="study-card-subject" id="timer-subject">数学</span>
-                </div>
-
-                <!-- 科目选择 -->
-                <div class="study-subjects" id="study-subjects">
-                    <div class="subject-btn selected" data-subject="数学" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">📐</span>
-                        <span>数学</span>
-                    </div>
-                    <div class="subject-btn" data-subject="英语" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">📖</span>
-                        <span>英语</span>
-                    </div>
-                    <div class="subject-btn" data-subject="政治" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">🏛️</span>
-                        <span>政治</span>
-                    </div>
-                    <div class="subject-btn" data-subject="专业课" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">📚</span>
-                        <span>专业课</span>
-                    </div>
-                </div>
-
-                <!-- 计时器显示 -->
-                <div class="study-timer" id="study-timer" style="display: none;">
-                    <div class="timer-ring-display">
-                        <svg class="timer-ring-svg" viewBox="0 0 160 160">
-                            <circle class="timer-ring-bg-circle" cx="80" cy="80" r="70" fill="none" stroke-width="8"/>
-                            <circle class="timer-ring-progress-circle" cx="80" cy="80" r="70" fill="none" stroke-width="8"
-                                stroke="url(#buddyGradient)" stroke-dasharray="440" stroke-dashoffset="0" stroke-linecap="round"/>
-                        </svg>
-                        <div class="timer-ring-content">
-                            <div class="timer-ring-time" id="timer-display">25:00</div>
-                            <div class="timer-ring-status" id="timer-label">学习中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 学习按钮 -->
-                <button class="study-btn start mt-4" id="study-btn" onclick="App.toggleStudy()">
-                    <span class="btn-glow-effect"></span>
-                    <span class="btn-icon-animate">🚀</span>
-                    <span class="btn-text">开始学习</span>
+            <!-- 快捷操作 -->
+            <div class="quick-actions-grid">
+                <button class="quick-action-btn" id="btn-start-study" onclick="App.toggleStudy()">
+                    <div class="quick-action-icon" style="background:var(--mint-ghost);color:var(--mint);">&#127919;</div>
+                    <div class="quick-action-label" id="study-btn-text">开始学习</div>
+                </button>
+                <button class="quick-action-btn" onclick="App.navigate('chat')">
+                    <div class="quick-action-icon" style="background:var(--coral-ghost);color:var(--coral);">&#128172;</div>
+                    <div class="quick-action-label">和搭子聊聊</div>
+                </button>
+                <button class="quick-action-btn" onclick="App.navigate('diary')">
+                    <div class="quick-action-icon" style="background:rgba(107,174,214,0.15);color:var(--sky);">&#128221;</div>
+                    <div class="quick-action-label">写日记</div>
+                </button>
+                <button class="quick-action-btn" onclick="App.navigate('tasks')">
+                    <div class="quick-action-icon" style="background:rgba(179,155,200,0.15);color:var(--dusk);">&#9745;</div>
+                    <div class="quick-action-label">待办事项</div>
                 </button>
             </div>
-        </div>
 
-        <!-- 快速操作 -->
-        <div class="quick-actions">
-            <div class="quick-action-item" onclick="App.switchPage('tasks')">
-                <div class="quick-action-icon">✅</div>
-                <div class="quick-action-label">任务</div>
-            </div>
-            <div class="quick-action-item" onclick="App.switchPage('plans')">
-                <div class="quick-action-icon">📋</div>
-                <div class="quick-action-label">计划</div>
-            </div>
-            <div class="quick-action-item" onclick="App.switchPage('achievements')">
-                <div class="quick-action-icon">🏆</div>
-                <div class="quick-action-label">成就</div>
-            </div>
-            <div class="quick-action-item" onclick="App.switchPage('memory')">
-                <div class="quick-action-icon">🧠</div>
-                <div class="quick-action-label">记忆</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 聊天页面 ===== -->
-    <div class="page" id="page-chat">
-        <!-- 聊天头部 -->
-        <div class="chat-header">
-            <button class="btn btn-icon btn-ghost chat-back-btn" onclick="App.switchPage('home')">
-                ←
-            </button>
-            <div class="chat-header-info">
-                <div class="chat-header-avatar" id="chat-buddy-avatar">🌸</div>
-                <div class="chat-header-detail">
-                    <div class="chat-header-name" id="chat-buddy-name">小豆</div>
-                    <div class="chat-header-status" id="chat-buddy-status">
-                        <span class="status-online-dot"></span>
-                        <span id="chat-buddy-personality">温柔陪伴型</span>
-                    </div>
+            <!-- 目标概览 -->
+            <div class="card goal-overview-card">
+                <div class="card-header" style="margin-bottom:var(--gap-3);">
+                    <div class="card-title">&#127808; 考研目标</div>
+                    <button class="btn btn-ghost btn-sm" onclick="App.navigate('settings')">编辑</button>
                 </div>
-            </div>
-            <div class="chat-header-actions">
-                <button class="btn btn-icon btn-ghost" onclick="App.openRoleSelect()" title="切换搭子">🔄</button>
-            </div>
-        </div>
-
-        <!-- 聊天消息区域 -->
-        <div class="chat-messages-container" id="chat-messages">
-            <div class="loading-state">加载对话...</div>
-        </div>
-
-        <!-- 快速建议 -->
-        <div class="chat-suggestions" id="chat-suggestions">
-            <button class="chat-suggestion-btn" onclick="App.openChatWith('聊聊心情')">聊聊心情</button>
-            <button class="chat-suggestion-btn" onclick="App.openChatWith('学不进去怎么办')">学不进去</button>
-            <button class="chat-suggestion-btn" onclick="App.openChatWith('给我一些学习建议')">学习建议</button>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="chat-input-container">
-            <div class="chat-input-wrapper">
-                <textarea
-                    class="chat-textarea"
-                    id="chat-input"
-                    placeholder="和小豆说说..."
-                    rows="1"
-                    onkeydown="App.handleChatKeydown(event)"
-                    oninput="App.autoResize(this)"
-                ></textarea>
-                <button class="chat-send-btn" id="chat-send" onclick="App.sendMessage()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 日记页面 ===== -->
-    <div class="page" id="page-diary">
-        <div class="page-header">
-            <h2 class="page-title">📖 考研日记</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.showEmotionChart()">📅 情绪日历</button>
-        </div>
-
-        <!-- 日记表单 -->
-        <div class="diary-form-card">
-            <div class="diary-form-header">
-                <div class="diary-form-date" id="diary-date-title">📝 记录今日心情</div>
-                <div class="diary-date-display" id="diary-date">今晚记录</div>
-            </div>
-
-            <!-- 情绪选择 -->
-            <div class="form-group">
-                <label class="form-label">今天心情怎么样？</label>
-                <div class="emotion-picker" id="emotion-picker">
-                    <div class="emotion-option" data-level="1" onclick="App.selectEmotion(1)">
-                        <span class="emotion-emoji">😭</span>
-                        <span class="emotion-label">崩溃</span>
+                <div class="goal-detail-grid">
+                    <div class="goal-item">
+                        <div class="goal-item-icon">&#127891;</div>
+                        <div class="goal-item-val" id="goal-school">清华大学</div>
+                        <div class="goal-item-label">目标院校</div>
                     </div>
-                    <div class="emotion-option" data-level="2" onclick="App.selectEmotion(2)">
-                        <span class="emotion-emoji">😢</span>
-                        <span class="emotion-label">不好</span>
+                    <div class="goal-item">
+                        <div class="goal-item-icon">&#128218;</div>
+                        <div class="goal-item-val" id="goal-major">计算机</div>
+                        <div class="goal-item-label">目标专业</div>
                     </div>
-                    <div class="emotion-option selected" data-level="3" onclick="App.selectEmotion(3)">
-                        <span class="emotion-emoji">😐</span>
-                        <span class="emotion-label">一般</span>
+                    <div class="goal-item">
+                        <div class="goal-item-icon">&#9889;</div>
+                        <div class="goal-item-val" id="goal-score">380</div>
+                        <div class="goal-item-label">目标分数</div>
                     </div>
-                    <div class="emotion-option" data-level="4" onclick="App.selectEmotion(4)">
-                        <span class="emotion-emoji">😊</span>
-                        <span class="emotion-label">还好</span>
-                    </div>
-                    <div class="emotion-option" data-level="5" onclick="App.selectEmotion(5)">
-                        <span class="emotion-emoji">😄</span>
-                        <span class="emotion-label">很开心</span>
+                    <div class="goal-item">
+                        <div class="goal-item-icon">&#128197;</div>
+                        <div class="goal-item-val" id="goal-days">--</div>
+                        <div class="goal-item-label">剩余天数</div>
                     </div>
                 </div>
             </div>
 
-            <!-- 学习感受 -->
-            <div class="form-group">
-                <label class="form-label">学习感受</label>
-                <div class="flex flex-wrap gap-2" id="feeling-picker">
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">充实</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">疲惫</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">焦虑</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">麻木</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">充实+疲惫</button>
-                </div>
-            </div>
-
-            <!-- 最大事件 -->
-            <div class="form-group">
-                <label class="form-label">今天最大的事</label>
-                <textarea class="diary-form-textarea" id="diary-event" placeholder="做了什么？有什么收获？"></textarea>
-            </div>
-
-            <!-- 对小豆说的话 -->
-            <div class="form-group">
-                <label class="form-label">有什么想对小豆说的？</label>
-                <textarea class="diary-form-textarea" id="diary-words" placeholder="说说心里话，小豆会记住的..."></textarea>
-            </div>
-
-            <button class="btn btn-primary btn-block btn-lg" onclick="App.saveDiary()">
-                💾 保存日记
-            </button>
-        </div>
-
-        <!-- 情绪日历 -->
-        <div id="emotion-chart-section">
-            <div class="emotion-chart-card">
-                <div class="chart-header">
-                    <div class="chart-title">本周情绪曲线</div>
-                    <div class="chart-month-nav">
-                        <span class="chart-current-month" id="calendar-month">加载中...</span>
+            <!-- 学习计时器 -->
+            <div class="card study-timer-card" id="study-timer-card" style="display:none;">
+                <div class="timer-center">
+                    <div class="timer-ring-wrap">
+                        <svg class="timer-ring-svg" width="140" height="140" viewBox="0 0 140 140">
+                            <circle class="progress-ring-bg" cx="70" cy="70" r="58" stroke-width="8" stroke-dasharray="364.4" stroke-dashoffset="0"></circle>
+                            <circle class="progress-ring-fill" id="timer-ring" cx="70" cy="70" r="58" stroke-width="8" stroke-dasharray="364.4" stroke-dashoffset="364.4"></circle>
+                        </svg>
+                        <div class="timer-display">
+                            <div class="timer-time" id="timer-display">25:00</div>
+                            <div class="timer-subject" id="timer-subject">&#128218; 数学</div>
+                        </div>
+                    </div>
+                    <div class="timer-subject-selector" id="subject-selector">
+                        <button class="subject-chip active" data-subject="数学">&#128220; 数学</button>
+                        <button class="subject-chip" data-subject="英语">&#128214; 英语</button>
+                        <button class="subject-chip" data-subject="政治">&#127963; 政治</button>
+                        <button class="subject-chip" data-subject="专业课">&#128218; 专业课</button>
+                    </div>
+                    <div class="timer-controls">
+                        <button class="btn btn-primary btn-lg" id="btn-timer-start" onclick="App.toggleTimer()">
+                            &#9654; 开始专注
+                        </button>
                     </div>
                 </div>
-                <div class="emotion-calendar" id="calendar-grid">
-                    <div class="calendar-weekday">日</div>
-                    <div class="calendar-weekday">一</div>
-                    <div class="calendar-weekday">二</div>
-                    <div class="calendar-weekday">三</div>
-                    <div class="calendar-weekday">四</div>
-                    <div class="calendar-weekday">五</div>
-                    <div class="calendar-weekday">六</div>
+            </div>
+
+        </div>
+
+        <!-- ===== 搭话页 ===== -->
+        <div class="page" id="page-chat">
+            <div class="chat-container">
+                <div class="chat-buddy-bar" id="chat-buddy-bar">
+                    <div class="buddy-avatar avatar-sm" id="chat-buddy-avatar">&#128150;</div>
+                    <div>
+                        <div class="font-semibold" id="chat-buddy-name">和小豆聊天</div>
+                        <div class="text-sm text-muted" id="chat-buddy-status">在线</div>
+                    </div>
+                    <button class="btn-icon btn-icon-sm ml-auto" onclick="App.switchRole()">&#128247;</button>
                 </div>
-                <div class="calendar-legend">
-                    <div class="legend-item"><span class="legend-emoji">😭</span> 很差</div>
-                    <div class="legend-item"><span class="legend-emoji">😐</span> 一般</div>
-                    <div class="legend-item"><span class="legend-emoji">😄</span> 很好</div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="empty-state" style="padding:var(--gap-8) 0;">
+                        <div class="empty-state-icon">&#128172;</div>
+                        <div class="empty-state-title">还没聊过</div>
+                        <div class="empty-state-desc">打个招呼吧，搭子一直在等你</div>
+                    </div>
                 </div>
-                <div class="chart-analysis" id="chart-analysis">还没有情绪记录~</div>
+                <div class="chat-input-area">
+                    <input type="text" class="input chat-input" id="chat-input" placeholder="和搭子说点什么..." onkeypress="if(event.key==='Enter')App.sendChat()">
+                    <button class="btn btn-primary btn-icon" id="btn-send" onclick="App.sendChat()">
+                        <span>&#10148;</span>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- 历史日记 -->
-        <div class="diary-history-section">
-            <div class="diary-history-header">
-                <h3 class="diary-history-title">历史日记</h3>
+        <!-- ===== 记忆页 ===== -->
+        <div class="page" id="page-memory">
+            <h2 class="heading-2 mb-6">&#128161; 搭子记忆</h2>
+            <div class="card card-sm mb-4">
+                <p class="text-muted text-sm" id="memory-summary">搭子已记住 0 件事</p>
             </div>
-            <div id="diary-history">
+            <div id="memory-list">
                 <div class="empty-state">
-                    <div class="empty-icon">📝</div>
-                    <p>还没有日记，从今天开始记录吧~</p>
+                    <div class="empty-state-icon">&#128169;</div>
+                    <div class="empty-state-title">记忆空空</div>
+                    <div class="empty-state-desc">多和搭子聊天，它会记住关于你的一切</div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- ===== 设置页面 ===== -->
-    <div class="page" id="page-settings">
-        <div class="page-header">
-            <h2 class="page-title">⚙️ 设置</h2>
-        </div>
+        <!-- ===== 日记页 ===== -->
+        <div class="page" id="page-diary">
+            <h2 class="heading-2 mb-6">&#128214; 心情日记</h2>
 
-        <!-- 基本设置 -->
-        <div class="card mb-4">
-            <div class="card-body p-5">
-                <div class="text-base font-semibold mb-4">📋 基本信息</div>
-
-                <div class="form-group">
-                    <label class="form-label">你的昵称</label>
-                    <input type="text" class="form-input" id="setup-name" placeholder="叫我小明就好~">
+            <!-- 写日记 -->
+            <div class="card diary-write-card mb-6">
+                <div class="diary-date-row">
+                    <div class="heading-4" id="diary-date">2026年5月21日</div>
+                    <div class="badge badge-mint" id="diary-weekday">周四</div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">目标院校</label>
-                    <input type="text" class="form-input" id="setup-school" placeholder="XX大学">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">目标专业</label>
-                        <input type="text" class="form-input" id="setup-major" placeholder="计算机">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">目标分数</label>
-                        <input type="number" class="form-input" id="setup-score" placeholder="380">
+                <div class="diary-emotion-row mt-4">
+                    <div class="text-sm text-muted mb-2">今天心情怎么样？</div>
+                    <div class="emotion-picker" id="emotion-picker">
+                        <button class="emotion-btn" data-level="1" title="很难受">&#128546;</button>
+                        <button class="emotion-btn" data-level="2" title="有点丧">&#128557;</button>
+                        <button class="emotion-btn active" data-level="3" title="一般">&#128528;</button>
+                        <button class="emotion-btn" data-level="4" title="还好">&#128578;</button>
+                        <button class="emotion-btn" data-level="5" title="很开心">&#128513;</button>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">考试日期</label>
-                    <input type="date" class="form-input" id="setup-exam-date">
+                <div class="input-group mt-4">
+                    <label class="input-label">记录一下今天</label>
+                    <textarea class="input" id="diary-content" rows="4" placeholder="今天发生了什么？有什么想对搭子说的？"></textarea>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">每日学习目标</label>
-                    <div class="flex flex-wrap gap-2" id="goal-selector">
-                        <button class="goal-option" data-hours="6" onclick="App.selectGoal(this)">6小时</button>
-                        <button class="goal-option selected" data-hours="8" onclick="App.selectGoal(this)">8小时</button>
-                        <button class="goal-option" data-hours="10" onclick="App.selectGoal(this)">10小时</button>
-                        <button class="goal-option" data-hours="12" onclick="App.selectGoal(this)">12小时</button>
-                    </div>
-                </div>
-
-                <button class="btn btn-primary btn-block btn-lg" onclick="App.saveProfile()">
-                    💾 保存设置
+                <button class="btn btn-primary btn-block mt-4" onclick="App.saveDiary()">
+                    &#128190; 保存日记
                 </button>
             </div>
-        </div>
 
-        <!-- 搭子名称 -->
-        <div class="card mb-4">
-            <div class="card-body p-5">
-                <div class="text-base font-semibold mb-4">🐱 搭子设置</div>
-                <div class="form-group">
-                    <label class="form-label">搭子名称</label>
-                    <input type="text" class="form-input" id="buddy-name-input" placeholder="小豆" value="小豆">
+            <!-- 历史日记 -->
+            <div class="section-title mb-4">
+                <span class="heading-4">&#128197; 过往日记</span>
+            </div>
+            <div id="diary-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#128214;</div>
+                    <div class="empty-state-title">还没有日记</div>
+                    <div class="empty-state-desc">记录每天的心情，搭子会帮你分析情绪变化</div>
                 </div>
             </div>
         </div>
 
-        <!-- 成就入口 -->
-        <div class="card mb-4 interactive" onclick="App.showAchievements()">
-            <div class="card-body p-4">
-                <div class="flex items-center gap-4">
-                    <div style="font-size: 36px;">🏆</div>
-                    <div class="flex-1">
-                        <div class="font-semibold">成就殿堂</div>
-                        <div class="text-sm text-muted" id="achievement-stats">已解锁 0/32 个成就</div>
+        <!-- ===== 任务页 ===== -->
+        <div class="page" id="page-tasks">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="heading-2">&#9745; 待办事项</h2>
+                <button class="btn btn-primary btn-sm" onclick="App.showAddTask()">+ 新任务</button>
+            </div>
+            <div id="task-tabs" class="task-tabs mb-4">
+                <button class="task-tab active" data-filter="all">全部</button>
+                <button class="task-tab" data-filter="pending">待完成</button>
+                <button class="task-tab" data-filter="completed">已完成</button>
+            </div>
+            <div id="task-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#9745;</div>
+                    <div class="empty-state-title">任务清单空空</div>
+                    <div class="empty-state-desc">添加一些任务，让学习更有计划</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 设置页 ===== -->
+        <div class="page" id="page-settings">
+            <h2 class="heading-2 mb-6">&#9881; 设置</h2>
+
+            <div class="card mb-4">
+                <div class="profile-section">
+                    <div class="avatar avatar-lg" id="settings-avatar">&#128100;</div>
+                    <div>
+                        <div class="font-semibold heading-4" id="settings-name">考研战士</div>
+                        <div class="text-sm text-muted" id="settings-email">user@example.com</div>
                     </div>
-                    <div class="text-muted">›</div>
                 </div>
             </div>
+
+            <div class="settings-group mb-4">
+                <div class="settings-group-title">&#127991; 考研目标</div>
+                <div class="card card-sm">
+                    <div class="input-group mb-3">
+                        <label class="input-label">目标院校</label>
+                        <input type="text" class="input" id="setting-school" placeholder="清华大学">
+                    </div>
+                    <div class="input-group mb-3">
+                        <label class="input-label">目标专业</label>
+                        <input type="text" class="input" id="setting-major" placeholder="计算机科学与技术">
+                    </div>
+                    <div class="input-group mb-3">
+                        <label class="input-label">目标分数</label>
+                        <input type="number" class="input" id="setting-score" placeholder="380">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">考研日期</label>
+                        <input type="date" class="input" id="setting-exam-date">
+                    </div>
+                    <button class="btn btn-primary btn-block mt-4" onclick="App.saveProfile()">&#128190; 保存目标</button>
+                </div>
+            </div>
+
+            <div class="settings-group mb-4">
+                <div class="settings-group-title">&#128218; 学习设置</div>
+                <div class="card card-sm">
+                    <div class="setting-row">
+                        <div>
+                            <div class="font-medium">每日目标时长</div>
+                            <div class="text-sm text-muted"><span id="goal-hours-val">8</span> 小时</div>
+                        </div>
+                        <input type="range" class="slider" id="setting-goal-hours" min="4" max="14" value="8" oninput="document.getElementById('goal-hours-val').textContent=this.value">
+                    </div>
+                    <div class="divider"></div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="font-medium">当前搭子</div>
+                            <div class="text-sm text-muted" id="current-role-name">小豆</div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="App.switchRole()">切换</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-group mb-4">
+                <div class="settings-group-title">&#129504; AI 模型配置</div>
+                <div class="card card-sm">
+                    <div class="setting-row">
+                        <div>
+                            <div class="font-medium">当前模型</div>
+                            <div class="text-sm text-muted" id="current-model-name">加载中...</div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="App.showModelConfig()">配置</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-group mb-4">
+                <div class="settings-group-title">&#128274; 外观</div>
+                <div class="card card-sm">
+                    <div class="setting-row">
+                        <div class="font-medium">深色模式</div>
+                        <button class="toggle" id="dark-toggle" onclick="App.toggleTheme()"></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-group mb-4">
+                <div class="settings-group-title">&#128200; 数据统计</div>
+                <div class="card card-sm">
+                    <div class="stat-row">
+                        <span class="text-muted">总学习时长</span>
+                        <span class="font-semibold" id="stat-total-hours">0 小时</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="stat-row">
+                        <span class="text-muted">连续学习</span>
+                        <span class="font-semibold" id="stat-streak">0 天</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="stat-row">
+                        <span class="text-muted">最高连续</span>
+                        <span class="font-semibold" id="stat-longest">0 天</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-group mb-4">
+                <div class="settings-group-title">&#127795; 关于</div>
+                <div class="card card-sm">
+                    <div class="stat-row">
+                        <span class="text-muted">版本</span>
+                        <span class="font-semibold">v3.0</span>
+                    </div>
+                    <div class="divider"></div>
+                    <button class="list-item" onclick="App.logout()">
+                        <div class="list-item-icon" style="background:var(--coral-ghost);color:var(--coral);">&#128682;</div>
+                        <div class="list-item-content">
+                            <div class="list-item-title" style="color:var(--coral);">退出登录</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
         </div>
 
-        <!-- 导出数据 -->
-        <div class="card mb-4">
-            <div class="card-body p-4">
+        <!-- ===== 成就页 ===== -->
+        <div class="page" id="page-achievements">
+            <h2 class="heading-2 mb-6">&#127942; 成就徽章</h2>
+            <div class="card card-sm mb-4">
                 <div class="flex items-center justify-between">
                     <div>
-                        <div class="font-semibold">导出数据</div>
-                        <div class="text-sm text-muted">备份所有学习数据</div>
+                        <div class="text-sm text-muted">已解锁</div>
+                        <div class="heading-3"><span id="ach-unlocked">0</span> / <span id="ach-total">13</span></div>
                     </div>
-                    <button class="btn btn-secondary btn-sm" onclick="App.exportData()">导出</button>
+                    <div class="heading-3" style="color:var(--sunny);">&#11088; <span id="ach-points">0</span></div>
                 </div>
             </div>
+            <div id="ach-list"></div>
         </div>
 
-        <!-- 关于 -->
-        <div class="text-center text-sm text-muted p-4">
-            <p>StudyPal 考研搭子 v2.0</p>
-            <p class="mt-2">陪你走完考研每一天</p>
-        </div>
-    </div>
-
-    <!-- ===== 记忆页面 ===== -->
-    <div class="page" id="page-memory">
-        <div class="page-header">
-            <h2 class="page-title">🧠 搭子记忆</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.switchPage('chat')">去聊天</button>
-        </div>
-
-        <!-- 记忆统计 -->
-        <div class="card mb-4">
-            <div class="card-body p-4">
-                <div class="text-base font-semibold mb-2">我记住的事</div>
-                <div class="text-sm text-muted" id="memory-stats">正在加载...</div>
+        <!-- ===== 计划页 ===== -->
+        <div class="page" id="page-plans">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="heading-2">&#128203; 学习计划</h2>
+                <button class="btn btn-primary btn-sm" onclick="App.showAddPlan()">+ 新计划</button>
             </div>
-        </div>
-
-        <!-- 最近记忆 -->
-        <div>
-            <h3 class="text-base font-semibold mb-3">最近发生的事</h3>
-            <div id="recent-scenes">
+            <div id="plan-list">
                 <div class="empty-state">
-                    <div class="empty-icon">🧠</div>
-                    <p>还没有记忆记录，和小豆多聊聊吧~</p>
+                    <div class="empty-state-icon">&#128203;</div>
+                    <div class="empty-state-title">还没有学习计划</div>
+                    <div class="empty-state-desc">制定计划让复习更有条理</div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- ===== 成就页面 ===== -->
-    <div class="page" id="page-achievements">
-        <div class="page-header">
-            <h2 class="page-title">🏆 成就徽章</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.switchPage('home')">返回</button>
-        </div>
+        <!-- ===== 数据洞察页 ===== -->
+        <div class="page" id="page-insights">
+            <h2 class="heading-2 mb-6">&#128202; 数据洞察</h2>
 
-        <!-- 等级卡片 -->
-        <div class="card mb-4" id="achievement-level-card">
-            <div class="card-body p-4">
-                <div class="flex items-center gap-4">
-                    <div class="level-icon" id="level-icon">🌱</div>
-                    <div class="flex-1">
-                        <div class="text-base font-semibold" id="level-name">学习小白</div>
-                        <div class="text-sm text-muted" id="level-points">0 积分</div>
+            <!-- 时间选择 -->
+            <div class="flex gap-2 mb-4">
+                <button class="btn btn-sm insight-tab active" data-days="7" onclick="App.switchInsightPeriod(7)">近7天</button>
+                <button class="btn btn-sm insight-tab" data-days="30" onclick="App.switchInsightPeriod(30)">近30天</button>
+                <button class="btn btn-sm insight-tab" data-days="90" onclick="App.switchInsightPeriod(90)">近90天</button>
+            </div>
+
+            <!-- 概览卡片 -->
+            <div class="stats-grid mb-4">
+                <div class="stat-card">
+                    <div class="stat-card-value" id="insight-total-hours">0</div>
+                    <div class="stat-card-label">累计学习</div>
+                    <div class="stat-card-unit">小时</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" id="insight-daily-avg">0</div>
+                    <div class="stat-card-label">日均学习</div>
+                    <div class="stat-card-unit">小时</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" id="insight-total-sessions">0</div>
+                    <div class="stat-card-label">学习时段</div>
+                    <div class="stat-card-unit">次</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" id="insight-diary-count">0</div>
+                    <div class="stat-card-label">日记记录</div>
+                    <div class="stat-card-unit">篇</div>
+                </div>
+            </div>
+
+            <!-- 学习曲线 -->
+            <div class="card mb-4">
+                <h3 class="heading-4 mb-3">&#128200; 学习曲线</h3>
+                <div class="chart-container" id="study-chart">
+                    <div class="chart-placeholder" id="study-chart-placeholder">
+                        <span class="chart-placeholder-icon">&#128200;</span>
+                        <span class="chart-placeholder-text">暂无学习数据</span>
                     </div>
-                    <div class="text-right">
-                        <div class="text-sm font-semibold" style="color: var(--primary);" id="level-progress-text">0%</div>
-                        <div class="progress-bar mt-1" style="width: 80px; height: 6px;">
-                            <div class="progress-fill" id="level-progress-bar" style="width: 0%"></div>
+                    <canvas id="study-canvas" style="display:none;"></canvas>
+                </div>
+            </div>
+
+            <!-- 科目分布 -->
+            <div class="card mb-4">
+                <h3 class="heading-4 mb-3">&#128218; 科目分布</h3>
+                <div id="subject-list">
+                    <div class="empty-state empty-state-sm">
+                        <div class="empty-state-title">暂无科目数据</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 情绪趋势 -->
+            <div class="card mb-4">
+                <h3 class="heading-4 mb-3">&#129392; 情绪趋势</h3>
+                <div class="emotion-chart" id="emotion-chart">
+                    <div id="emotion-list">
+                        <div class="empty-state empty-state-sm">
+                            <div class="empty-state-title">暂无情绪数据</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 统计概览 -->
-        <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="stat-card">
-                <div class="stat-value" id="achievement-unlocked">0</div>
-                <div class="stat-label">已解锁</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="achievement-locked">0</div>
-                <div class="stat-label">待解锁</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="achievement-rate">0%</div>
-                <div class="stat-label">完成率</div>
-            </div>
-        </div>
-
-        <!-- 成就列表 -->
-        <h3 class="text-base font-semibold mb-3">全部成就</h3>
-        <div id="achievements-list">
-            <div class="empty-state">
-                <div class="empty-icon">🏆</div>
-                <p>加载中...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 任务管理页面 ===== -->
-    <div class="page" id="page-tasks">
-        <div class="page-header">
-            <h2 class="page-title">✅ 学习任务</h2>
-            <button class="btn btn-primary btn-sm" onclick="App.showAddTask()">+ 添加任务</button>
-        </div>
-
-        <!-- 任务统计 -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="stat-card">
-                <div class="stat-value" id="tasks-total">0</div>
-                <div class="stat-label">总任务</div>
-            </div>
-            <div class="stat-card" style="border-left: 2px solid var(--success);">
-                <div class="stat-value" style="color: var(--success);" id="tasks-completed">0</div>
-                <div class="stat-label">已完成</div>
-            </div>
-        </div>
-
-        <!-- 今日任务 -->
-        <h3 class="text-base font-semibold mb-3">待办任务</h3>
-        <div id="tasks-list">
-            <div class="empty-state">
-                <div class="empty-icon">📝</div>
-                <p>暂无任务，点击右上角添加</p>
-            </div>
-        </div>
-
-        <!-- 添加任务弹窗 -->
-        <div class="achievement-overlay" id="task-overlay">
-            <div class="achievement-modal">
-                <div class="modal-close-btn" onclick="App.hideAddTask()">✕</div>
-                <div class="achievement-title">添加新任务</div>
-                <div class="form-group mt-4">
-                    <label class="form-label">任务名称</label>
-                    <input type="text" class="form-input" id="task-title" placeholder="今天要完成什么？">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">科目</label>
-                    <select class="form-input" id="task-subject">
-                        <option value="数学">数学</option>
-                        <option value="英语">英语</option>
-                        <option value="政治">政治</option>
-                        <option value="专业课">专业课</option>
-                        <option value="其他">其他</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">优先级</label>
-                    <div class="flex gap-2">
-                        <button class="feeling-tag selected" data-priority="medium" onclick="App.selectTaskPriority(this)">中</button>
-                        <button class="feeling-tag" data-priority="high" onclick="App.selectTaskPriority(this)">高</button>
-                        <button class="feeling-tag" data-priority="low" onclick="App.selectTaskPriority(this)">低</button>
-                    </div>
-                </div>
-                <div class="flex gap-2 mt-4">
-                    <button class="btn btn-secondary flex-1" onclick="App.hideAddTask()">取消</button>
-                    <button class="btn btn-primary flex-1" onclick="App.addTask()">添加</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 学习计划页面 ===== -->
-    <div class="page" id="page-plans">
-        <div class="page-header">
-            <h2 class="page-title">📋 学习计划</h2>
-            <button class="btn btn-primary btn-sm" onclick="App.showCreatePlan()">+ 创建计划</button>
-        </div>
-
-        <!-- 计划统计 -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="stat-card">
-                <div class="stat-value" id="plans-total">0</div>
-                <div class="stat-label">总计划</div>
-            </div>
-            <div class="stat-card" style="border-left: 2px solid var(--warning);">
-                <div class="stat-value" style="color: var(--warning);" id="plans-expiring">0</div>
-                <div class="stat-label">即将到期</div>
-            </div>
-        </div>
-
-        <!-- 计划列表 -->
-        <h3 class="text-base font-semibold mb-3">我的计划</h3>
-        <div id="plans-list">
-            <div class="empty-state">
-                <div class="empty-icon">📋</div>
-                <p>暂无学习计划</p>
-            </div>
-        </div>
-
-        <!-- 创建计划弹窗 -->
-        <div class="achievement-overlay" id="plan-overlay">
-            <div class="achievement-modal" style="max-height: 80vh; overflow-y: auto;">
-                <div class="modal-close-btn" onclick="App.hideCreatePlan()">✕</div>
-                <div class="achievement-title">创建学习计划</div>
-                <div class="form-group mt-4">
-                    <label class="form-label">计划名称</label>
-                    <input type="text" class="form-input" id="plan-title" placeholder="如：考研数学强化阶段">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">目标时长（天）</label>
-                    <input type="number" class="form-input" id="plan-duration" value="30" min="1" max="365">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">每天学习时长（小时）</label>
-                    <input type="number" class="form-input" id="plan-hours" value="8" min="1" max="16">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">备注（可选）</label>
-                    <textarea class="form-input" id="plan-notes" rows="3" placeholder="补充说明..."></textarea>
-                </div>
-                <div class="flex gap-2 mt-4">
-                    <button class="btn btn-secondary flex-1" onclick="App.hideCreatePlan()">取消</button>
-                    <button class="btn btn-primary flex-1" onclick="App.createPlan()">创建</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    </main>
 
     <!-- ===== 底部导航 ===== -->
     <nav class="bottom-nav">
-        <div class="nav-item active" data-page="home" onclick="App.switchPage('home')">
-            <div class="nav-icon">🏠</div>
-            <div class="nav-label">首页</div>
-        </div>
-        <div class="nav-item" data-page="chat" onclick="App.switchPage('chat')">
-            <div class="nav-icon">💬</div>
-            <div class="nav-label">搭话</div>
-        </div>
-        <div class="nav-item" data-page="memory" onclick="App.switchPage('memory')">
-            <div class="nav-icon">🧠</div>
-            <div class="nav-label">记忆</div>
-        </div>
-        <div class="nav-item" data-page="tasks" onclick="App.switchPage('tasks')">
-            <div class="nav-icon">✅</div>
-            <div class="nav-label">任务</div>
-        </div>
-        <div class="nav-item" data-page="plans" onclick="App.switchPage('plans')">
-            <div class="nav-icon">📋</div>
-            <div class="nav-label">计划</div>
-        </div>
-        <div class="nav-item" data-page="achievements" onclick="App.switchPage('achievements')">
-            <div class="nav-icon">🏆</div>
-            <div class="nav-label">成就</div>
-        </div>
-        <div class="nav-item" data-page="diary" onclick="App.switchPage('diary')">
-            <div class="nav-icon">📖</div>
-            <div class="nav-label">日记</div>
-        </div>
-        <div class="nav-item" data-page="settings" onclick="App.switchPage('settings')">
-            <div class="nav-icon">⚙️</div>
-            <div class="nav-label">设置</div>
-        </div>
+        <button class="nav-item active" data-page="home" onclick="App.navigate('home')">
+            <span class="nav-item-icon">&#127968;</span>
+            <span class="nav-item-label">首页</span>
+        </button>
+        <button class="nav-item" data-page="chat" onclick="App.navigate('chat')">
+            <span class="nav-item-icon">&#128172;</span>
+            <span class="nav-item-label">搭话</span>
+        </button>
+        <button class="nav-item" data-page="insights" onclick="App.navigate('insights')">
+            <span class="nav-item-icon">&#128202;</span>
+            <span class="nav-item-label">洞察</span>
+        </button>
+        <button class="nav-item" data-page="memory" onclick="App.navigate('memory')">
+            <span class="nav-item-icon">&#128161;</span>
+            <span class="nav-item-label">记忆</span>
+        </button>
+        <button class="nav-item" data-page="settings" onclick="App.navigate('settings')">
+            <span class="nav-item-icon">&#9881;</span>
+            <span class="nav-item-label">设置</span>
+        </button>
     </nav>
 
-    <!-- ===== 脚本 ===== -->
-    <script src="/static/js/error-handler.js"></script>
+    <!-- ===== 加载脚本 ===== -->
     <script src="/static/js/constants.js"></script>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/state.js"></script>
-    <script src="/static/js/utils.js"></script>
     <script src="/static/js/router.js"></script>
+    <script src="/static/js/app.js"></script>
     <script src="/static/js/pages/home.js"></script>
     <script src="/static/js/pages/chat.js"></script>
     <script src="/static/js/pages/diary.js"></script>
-    <script src="/static/js/pages/memory.js"></script>
     <script src="/static/js/pages/tasks.js"></script>
-    <script src="/static/js/pages/plans.js"></script>
-    <script src="/static/js/pages/achievements.js"></script>
     <script src="/static/js/pages/settings.js"></script>
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/pages/achievements.js"></script>
+    <script src="/static/js/pages/plans.js"></script>
     <script>
-    // 开屏动画控制
-    function initSplash() {
-        const starsContainer = document.getElementById('splash-stars');
-        if (starsContainer) {
-            for (let i = 0; i < 50; i++) {
-                const star = document.createElement('div');
-                star.className = 'splash-star';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.animationDelay = Math.random() * 3 + 's';
-                star.style.animationDuration = (2 + Math.random() * 2) + 's';
-                star.style.width = (2 + Math.random() * 3) + 'px';
-                star.style.height = star.style.width;
-                starsContainer.appendChild(star);
-            }
-        }
-
-        const particlesContainer = document.getElementById('splash-particles');
-        if (particlesContainer) {
-            const colors = ['#667EEA', '#764BA2', '#F093FB', '#00D9FF', '#00F5A0'];
-            for (let i = 0; i < 20; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'splash-particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-                particle.style.animationDelay = Math.random() * 8 + 's';
-                particle.style.animationDuration = (6 + Math.random() * 6) + 's';
-                particle.style.width = (4 + Math.random() * 6) + 'px';
-                particle.style.height = particle.style.width;
-                particlesContainer.appendChild(particle);
-            }
-        }
-
-        setTimeout(() => {
-            const splash = document.getElementById('splash-screen');
-            if (splash) {
-                splash.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
-                splash.style.opacity = '0';
-                splash.style.transform = 'scale(1.1)';
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                }, 800);
-            }
-        }, 3500);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSplash);
-    } else {
-        initSplash();
-    }
+        App.init();
     </script>
 </body>
 </html>

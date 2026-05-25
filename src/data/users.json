@@ -1,0 +1,29 @@
+{
+  "lzz@qq.com": {
+    "id": 1,
+    "email": "lzz@qq.com",
+    "password_hash": "bcb15f821479b4d5772bd0ca866c00ad5f926e3580720659cc80d39c9d09802a",
+    "nickname": "lzz",
+    "avatar": "🌸",
+    "subscription_tier": "free",
+    "subscription_expires": null,
+    "ai_api_calls": 0,
+    "ai_api_reset_date": null,
+    "theme": "light",
+    "current_role_id": "xiaodou",
+    "custom_buddy_name": null,
+    "target_school": null,
+    "target_major": null,
+    "target_score": 0,
+    "exam_date": null,
+    "daily_goal_hours": 8.0,
+    "total_study_hours": 0.0,
+    "total_sessions": 0,
+    "current_streak": 0,
+    "longest_streak": 0,
+    "created_at": "2026-05-25T09:15:56.675392",
+    "last_active": "2026-05-25T09:41:46.148815",
+    "is_active": true,
+    "is_admin": false
+  }
+}

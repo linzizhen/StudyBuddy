@@ -85,7 +85,33 @@ class BuddyProfile:
 
     def get_profile(self) -> Dict[str, Any]:
         """获取完整档案"""
-        return self.data.copy()
+        profile = self.data.copy()
+        # 合并数据库用户配置
+        db_user = self._get_db_user()
+        if db_user:
+            profile["user"]["ai_model_key"] = db_user.ai_model_key
+            profile["user"]["ai_custom_config"] = db_user.ai_custom_config
+            profile["user"]["current_role_id"] = db_user.current_role_id
+            profile["user"]["daily_goal_hours"] = db_user.daily_goal_hours
+            profile["user"]["target_school"] = db_user.target_school
+            profile["user"]["target_major"] = db_user.target_major
+            profile["user"]["target_score"] = db_user.target_score
+            profile["buddy"]["role_id"] = db_user.current_role_id
+            if db_user.custom_buddy_name:
+                profile["buddy"]["name"] = db_user.custom_buddy_name
+        return profile
+
+    def _get_db_user(self):
+        """从数据库获取当前登录用户"""
+        try:
+            from flask import g, current_app
+            if hasattr(g, 'current_user'):
+                return g.current_user
+            if hasattr(current_app, '_user'):
+                return current_app._user
+        except Exception:
+            pass
+        return None
 
     def get_user(self) -> Dict[str, Any]:
         """获取用户信息"""
