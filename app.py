@@ -1,10 +1,10 @@
 """
-StudyPal Web 应用入口 v3.0
+StudyPal Web 应用入口 v3.1
 完整版 - JSON 数据存储 + 统一服务层
 
 作者：StudyPal
 创建日期：2026-04-13
-重构日期：2026-05-25 v3.1（数据层重构）
+重构日期：2026-05-25 v3.1（数据层重构、洞察、模型配置）
 """
 
 from flask import Flask, render_template, jsonify, request
