@@ -3,847 +3,390 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#7C3AED">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>StudyPal 考研搭子</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- SVG 渐变定义 -->
-    <svg style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#667EEA"/>
-                <stop offset="50%" stop-color="#764BA2"/>
-                <stop offset="100%" stop-color="#F093FB"/>
-            </linearGradient>
-            <linearGradient id="buddyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#667EEA"/>
-                <stop offset="50%" stop-color="#764BA2"/>
-                <stop offset="100%" stop-color="#A855F7"/>
-            </linearGradient>
-            <linearGradient id="successGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#11998E"/>
-                <stop offset="100%" stop-color="#38EF7D"/>
-            </linearGradient>
-            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#F59E0B"/>
-                <stop offset="100%" stop-color="#FFD700"/>
-            </linearGradient>
-        </defs>
-    </svg>
-    <link rel="stylesheet" href="/static/css/variables.css">
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/animations.css">
-    <link rel="stylesheet" href="/static/css/mobile.css">
+    <meta name="theme-color" content="#10b981">
+    <title>StudyPal</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2310b981'/%3E%3Cpath d='M9 16L14 21L23 12' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <style>
+        :root {
+            --mint: #10b981;
+            --mint-light: #34d399;
+            --mint-dark: #059669;
+            --mint-ghost: rgba(16, 185, 129, 0.15);
+            --mint-subtle: rgba(16, 185, 129, 0.07);
+            --coral: #FF8C69;
+            --coral-ghost: rgba(255, 140, 105, 0.12);
+            --sky: #6BAED6;
+            --dusk: #B39BC8;
+            --sunny: #FFD166;
+            --bg: #F4F8FA;
+            --text: #1E2A33;
+            --text-muted: #6B7E8D;
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #1A1D23;
+            --text: #E8EDF1;
+            --text-muted: #8898A6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+        }
+
+        .splash {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .splash-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                145deg,
+                #F0FAF8 0%,
+                #E8F6F3 25%,
+                #F4F8FA 50%,
+                #F8FBFD 75%,
+                #FFFFFF 100%
+            );
+            opacity: 0;
+            animation: splashBgIn 600ms var(--ease-out) forwards;
+        }
+
+        @keyframes splashBgIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        .splash-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .splash-orb-1 {
+            width: 300px;
+            height: 300px;
+            top: 10%;
+            left: -80px;
+            background: rgba(16, 185, 129, 0.15);
+            opacity: 0;
+            animation: orbFloat1 3s ease-in-out infinite, orbFadeIn 800ms 100ms var(--ease-out) forwards;
+        }
+
+        .splash-orb-2 {
+            width: 220px;
+            height: 220px;
+            bottom: 20%;
+            right: -60px;
+            background: rgba(255, 140, 105, 0.1);
+            opacity: 0;
+            animation: orbFloat2 3.5s ease-in-out infinite, orbFadeIn 800ms 200ms var(--ease-out) forwards;
+        }
+
+        .splash-orb-3 {
+            width: 180px;
+            height: 180px;
+            top: 30%;
+            right: 15%;
+            background: rgba(107, 174, 214, 0.08);
+            opacity: 0;
+            animation: orbFloat3 4s ease-in-out infinite, orbFadeIn 800ms 300ms var(--ease-out) forwards;
+        }
+
+        @keyframes orbFadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        @keyframes orbFloat1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%       { transform: translate(15px, -20px) scale(1.05); }
+        }
+
+        @keyframes orbFloat2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%       { transform: translate(-10px, 15px) scale(1.08); }
+        }
+
+        @keyframes orbFloat3 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50%       { transform: translate(8px, 12px) scale(1.03); }
+        }
+
+        .splash-logo-wrap {
+            position: relative;
+            z-index: 10;
+            margin-bottom: 32px;
+        }
+
+        .splash-logo-ring {
+            position: absolute;
+            inset: -12px;
+            border-radius: 50%;
+            border: 2px solid rgba(16, 185, 129, 0.15);
+            opacity: 0;
+            animation: ringExpand 600ms 400ms var(--ease-out) forwards;
+        }
+
+        .splash-logo-ring-2 {
+            position: absolute;
+            inset: -24px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(16, 185, 129, 0.08);
+            opacity: 0;
+            animation: ringExpand 600ms 600ms var(--ease-out) forwards;
+        }
+
+        @keyframes ringExpand {
+            from { opacity: 0; transform: scale(0.6); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        .splash-logo {
+            width: 88px;
+            height: 88px;
+            border-radius: 24px;
+            background: linear-gradient(145deg, var(--mint), var(--mint-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow:
+                0 8px 32px rgba(16, 185, 129, 0.28),
+                0 2px 8px rgba(16, 185, 129, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            opacity: 0;
+            transform: scale(0.4) translateY(20px);
+            animation: logoAppear 700ms 200ms var(--ease-out) forwards;
+        }
+
+        @keyframes logoAppear {
+            0%   { opacity: 0; transform: scale(0.4) translateY(20px); }
+            60%  { opacity: 1; transform: scale(1.08) translateY(-3px); }
+            80%  { transform: scale(0.97) translateY(1px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .splash-logo svg { width: 44px; height: 44px; }
+
+        .splash-brand {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+            opacity: 0;
+            transform: translateY(12px);
+            animation: brandFadeIn 600ms 500ms var(--ease-out) forwards;
+        }
+
+        .splash-brand span { color: var(--mint); }
+
+        @keyframes brandFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .splash-tagline {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+            margin-bottom: 48px;
+            opacity: 0;
+            transform: translateY(8px);
+            animation: brandFadeIn 600ms 650ms var(--ease-out) forwards;
+        }
+
+        .splash-buddies {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 48px;
+            opacity: 0;
+            animation: buddiesSlideIn 700ms 800ms var(--ease-out) forwards;
+        }
+
+        @keyframes buddiesSlideIn {
+            from { opacity: 0; transform: translateY(24px) scale(0.9); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .splash-buddy {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            opacity: 0;
+            transform: translateY(16px);
+            animation: buddyPop 500ms var(--ease-out) forwards;
+        }
+
+        .splash-buddy:nth-child(1) { background: linear-gradient(135deg, #FDE68A, #FCD34D); animation-delay: 900ms; }
+        .splash-buddy:nth-child(2) { background: linear-gradient(135deg, #FEE2E2, #FCA5A5); animation-delay: 1000ms; }
+        .splash-buddy:nth-child(3) { background: linear-gradient(135deg, #E0E7FF, #A5B4FC); animation-delay: 1100ms; }
+        .splash-buddy:nth-child(4) { background: linear-gradient(135deg, #CFFAFE, #67E8F9); animation-delay: 1200ms; }
+        .splash-buddy:nth-child(5) { background: linear-gradient(135deg, #F3E8FF, #D8B4FE); animation-delay: 1300ms; }
+        .splash-buddy:nth-child(6) { background: linear-gradient(135deg, #D1FAE5, #6EE7B7); animation-delay: 1400ms; }
+
+        @keyframes buddyPop {
+            0%   { opacity: 0; transform: translateY(16px) scale(0.7); }
+            70%  { transform: translateY(-4px) scale(1.1); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .splash-progress-wrap {
+            width: 160px;
+            height: 4px;
+            background: rgba(16, 185, 129, 0.12);
+            border-radius: 999px;
+            overflow: hidden;
+            opacity: 0;
+            animation: fadeIn 400ms 1200ms var(--ease-out) forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .splash-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--mint), var(--mint-light));
+            border-radius: 999px;
+            width: 0%;
+            animation: progressLoad 1.5s 1.5s var(--ease-out) forwards;
+        }
+
+        @keyframes progressLoad {
+            0%   { width: 0%; }
+            30%  { width: 60%; }
+            60%  { width: 80%; }
+            100% { width: 100%; }
+        }
+
+        .splash-footer {
+            position: absolute;
+            bottom: 48px;
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0;
+            letter-spacing: 0.5px;
+            animation: fadeIn 600ms 1600ms var(--ease-out) forwards;
+        }
+
+        .splash-footer span { margin: 0 6px; opacity: 0.5; }
+
+        .splash.exiting .splash-bg { animation: splashBgOut 600ms 200ms var(--ease-out) forwards; }
+        .splash.exiting .splash-logo-wrap,
+        .splash.exiting .splash-brand,
+        .splash.exiting .splash-tagline,
+        .splash.exiting .splash-buddies,
+        .splash.exiting .splash-footer { animation: splashFadeOut 400ms var(--ease-out) forwards; }
+        .splash.exiting .splash-progress-wrap { animation: progressFadeOut 300ms var(--ease-out) forwards; }
+        .splash.exiting .splash-logo { animation: logoExit 400ms var(--ease-out) forwards; }
+
+        @keyframes splashBgOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes splashFadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
+        @keyframes progressFadeOut { from { opacity: 1; transform: scaleX(1); } to { opacity: 0; transform: scaleX(0.8); } }
+        @keyframes logoExit { 0% { opacity: 1; transform: scale(1) rotate(0deg); } 100% { opacity: 0; transform: scale(0.6) rotate(10deg); } }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+            .splash-bg { opacity: 1; }
+            .splash-logo { opacity: 1; transform: none; }
+            .splash-brand, .splash-tagline { opacity: 1; transform: none; }
+            .splash-buddies { opacity: 1; }
+            .splash-buddy { opacity: 1; }
+            .splash-progress-wrap { opacity: 1; }
+            .splash-progress-bar { width: 100%; }
+            .splash-footer { opacity: 0.5; }
+        }
+    </style>
 </head>
 <body>
-    <!-- ===== 开屏动画 ===== -->
-    <div class="splash-screen" id="splash-screen">
-        <div class="splash-bg">
-            <div class="splash-orb splash-orb-1"></div>
-            <div class="splash-orb splash-orb-2"></div>
-            <div class="splash-orb splash-orb-3"></div>
-        </div>
-        <div class="splash-stars" id="splash-stars"></div>
-        <div class="splash-content">
-            <div class="splash-ring"></div>
-            <div class="splash-ring"></div>
-            <div class="splash-ring"></div>
-            <div class="splash-logo" id="splash-logo">📚</div>
-            <div class="splash-title">StudyPal</div>
-            <div class="splash-subtitle">考研学习搭子</div>
-        </div>
-        <div class="splash-particles" id="splash-particles"></div>
-    </div>
+    <div class="splash" id="splash">
+        <div class="splash-bg"></div>
+        <div class="splash-orb splash-orb-1"></div>
+        <div class="splash-orb splash-orb-2"></div>
+        <div class="splash-orb splash-orb-3"></div>
 
-    <!-- ===== Toast 提示 ===== -->
-    <div class="toast" id="toast"></div>
-
-    <!-- ===== 成就解锁弹窗 ===== -->
-    <div class="achievement-overlay" id="achievement-overlay" style="display: none;">
-        <div class="achievement-modal">
-            <div class="achievement-burst"></div>
-            <div class="achievement-icon" id="achievement-icon">🏆</div>
-            <div class="achievement-title">成就解锁！</div>
-            <div class="achievement-name" id="achievement-name">初出茅庐</div>
-            <div class="achievement-desc" id="achievement-desc">完成第一个番茄钟</div>
-            <div class="achievement-reward" id="achievement-reward">+10 积分</div>
-            <button class="btn btn-primary btn-block" onclick="App.closeAchievement()">太棒了！</button>
-        </div>
-    </div>
-
-    <!-- ===== 首页 ===== -->
-    <div class="page active" id="page-home">
-        <!-- 顶部问候区 -->
-        <div class="home-header">
-            <div class="home-greeting">
-                <span class="home-greeting-time" id="greeting">加载中...</span>
-                <h1 class="home-title">StudyPal</h1>
-            </div>
-            <button class="btn btn-icon home-theme-btn" onclick="App.toggleTheme()" id="theme-toggle" title="切换主题">
-                🌙
-            </button>
-        </div>
-
-        <!-- 倒计时标签 -->
-        <div class="home-countdown" id="countdown-bar">
-            <span class="countdown-icon">🎯</span>
-            <span class="countdown-text" id="countdown">设置考研目标</span>
-        </div>
-
-        <!-- 搭子卡片 -->
-        <div class="buddy-card" id="buddy-card">
-            <div class="buddy-card-bg-orb buddy-bg-orb-1"></div>
-            <div class="buddy-card-bg-orb buddy-bg-orb-2"></div>
-            <div class="buddy-card-header">
-                <div class="buddy-card-avatar" id="buddy-avatar">🐱</div>
-                <div class="buddy-card-info">
-                    <div class="buddy-card-name" id="buddy-name">小豆</div>
-                    <div class="buddy-card-mood">
-                        <span id="buddy-emotion-emoji">😴</span>
-                        <span id="buddy-emotion-desc">休息中~</span>
-                    </div>
-                </div>
-                <div class="buddy-status-dot"></div>
-            </div>
-            <div class="buddy-card-message" id="buddy-message">
-                正在连接...
-            </div>
-            <div class="buddy-card-suggestions" id="buddy-suggestions">
-                <button class="suggestion-btn" onclick="App.openChatWith('聊聊心情')">聊聊心情</button>
-                <button class="suggestion-btn" onclick="App.openChatWith('制定计划')">做计划</button>
-                <button class="suggestion-btn" onclick="App.openChatWith('学不进去')">学不进去</button>
-            </div>
-            <button class="buddy-card-action" onclick="App.switchPage('chat')">
-                <span class="btn-glow-effect"></span>
-                <span class="btn-text">🌟 和小豆聊聊</span>
-            </button>
-        </div>
-
-        <!-- 关心卡片 -->
-        <div class="card caring-card" id="caring-section" style="display: none;">
-            <div class="caring-glow"></div>
-            <div class="card-body">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="caring-label">💭 搭子关心</span>
-                    <button class="btn btn-ghost btn-sm" onclick="App.dismissCaring()">知道了</button>
-                </div>
-                <div id="caring-message" class="text-sm caring-text"></div>
+        <div class="splash-logo-wrap">
+            <div class="splash-logo-ring"></div>
+            <div class="splash-logo-ring-2"></div>
+            <div class="splash-logo">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 24L20 32L36 16" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </div>
         </div>
 
-        <!-- 统计卡片组 -->
-        <div class="stats-section">
-            <div class="stats-header">
-                <span class="stats-title">📊 今日数据</span>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card stat-card-primary">
-                    <div class="stat-icon">⏱️</div>
-                    <div class="stat-value" id="stat-today-hours">0h</div>
-                    <div class="stat-label">今日学习</div>
-                    <div class="stat-trend">+0h</div>
-                </div>
-                <div class="stat-card stat-card-fire">
-                    <div class="stat-icon">🔥</div>
-                    <div class="stat-value" id="stat-streak">0</div>
-                    <div class="stat-label">连续天数</div>
-                    <div class="stat-trend stat-trend-fire">坚持中</div>
-                </div>
-                <div class="stat-card stat-card-gold">
-                    <div class="stat-icon">📈</div>
-                    <div class="stat-value" id="stat-week-hours">0h</div>
-                    <div class="stat-label">本周学习</div>
-                    <div class="stat-trend">总计</div>
-                </div>
-            </div>
+        <div class="splash-brand">你的专属 <span>学习搭子</span></div>
+        <div class="splash-tagline">学习路上，你从来不是一个人</div>
+
+        <div class="splash-buddies">
+            <div class="splash-buddy">&#128150;</div>
+            <div class="splash-buddy">&#128293;</div>
+            <div class="splash-buddy">&#128218;</div>
+            <div class="splash-buddy">&#127769;</div>
+            <div class="splash-buddy">&#127814;</div>
+            <div class="splash-buddy">&#129302;</div>
         </div>
 
-        <!-- 今日进度环 -->
-        <div class="card progress-ring-card">
-            <div class="card-body">
-                <div class="progress-ring-wrapper">
-                    <div class="progress-ring-container">
-                        <svg class="progress-ring-svg" viewBox="0 0 160 160">
-                            <circle class="progress-ring-bg" cx="80" cy="80" r="70" fill="none" stroke-width="12"/>
-                            <circle class="progress-ring-fill" cx="80" cy="80" r="70" fill="none" stroke-width="12"
-                                stroke="url(#timerGradient)" stroke-dasharray="440" stroke-dashoffset="440" stroke-linecap="round"/>
-                        </svg>
-                        <div class="progress-ring-content">
-                            <div class="progress-ring-percent" id="progress-value">0%</div>
-                            <div class="progress-ring-label" id="progress-label">今日进度</div>
-                        </div>
-                    </div>
-                    <div class="progress-ring-info">
-                        <div class="ring-info-item">
-                            <span class="ring-info-value" id="ring-hours">0</span>
-                            <span class="ring-info-label">目标小时</span>
-                        </div>
-                        <div class="ring-info-divider"></div>
-                        <div class="ring-info-item">
-                            <span class="ring-info-value" id="ring-achieved">0</span>
-                            <span class="ring-info-label">已完成</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="splash-progress-wrap">
+            <div class="splash-progress-bar"></div>
         </div>
 
-        <!-- 心情记录 -->
-        <div class="card emotion-quick-card" onclick="App.switchPage('diary')">
-            <div class="card-body">
-                <div class="flex items-center gap-4">
-                    <div class="emotion-avatar" id="emotion-emoji">📝</div>
-                    <div class="flex-1">
-                        <div class="emotion-title" id="emotion-label">记录今日心情</div>
-                        <div class="emotion-subtitle" id="emotion-hint">点击记录今天的感觉</div>
-                    </div>
-                    <div class="emotion-arrow">›</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 学习计时器 -->
-        <div class="card study-card">
-            <div class="card-body">
-                <div class="study-card-header">
-                    <span class="study-card-title">📚 专注学习</span>
-                    <span class="study-card-subject" id="timer-subject">数学</span>
-                </div>
-
-                <!-- 科目选择 -->
-                <div class="study-subjects" id="study-subjects">
-                    <div class="subject-btn selected" data-subject="数学" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">📐</span>
-                        <span>数学</span>
-                    </div>
-                    <div class="subject-btn" data-subject="英语" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">📖</span>
-                        <span>英语</span>
-                    </div>
-                    <div class="subject-btn" data-subject="政治" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">🏛️</span>
-                        <span>政治</span>
-                    </div>
-                    <div class="subject-btn" data-subject="专业课" onclick="App.selectSubject(this)">
-                        <span class="subject-icon">📚</span>
-                        <span>专业课</span>
-                    </div>
-                </div>
-
-                <!-- 计时器显示 -->
-                <div class="study-timer" id="study-timer" style="display: none;">
-                    <div class="timer-ring-display">
-                        <svg class="timer-ring-svg" viewBox="0 0 160 160">
-                            <circle class="timer-ring-bg-circle" cx="80" cy="80" r="70" fill="none" stroke-width="8"/>
-                            <circle class="timer-ring-progress-circle" cx="80" cy="80" r="70" fill="none" stroke-width="8"
-                                stroke="url(#buddyGradient)" stroke-dasharray="440" stroke-dashoffset="0" stroke-linecap="round"/>
-                        </svg>
-                        <div class="timer-ring-content">
-                            <div class="timer-ring-time" id="timer-display">25:00</div>
-                            <div class="timer-ring-status" id="timer-label">学习中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 学习按钮 -->
-                <button class="study-btn start mt-4" id="study-btn" onclick="App.toggleStudy()">
-                    <span class="btn-glow-effect"></span>
-                    <span class="btn-icon-animate">🚀</span>
-                    <span class="btn-text">开始学习</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- 快速操作 -->
-        <div class="quick-actions">
-            <div class="quick-action-item" onclick="App.switchPage('tasks')">
-                <div class="quick-action-icon">✅</div>
-                <div class="quick-action-label">任务</div>
-            </div>
-            <div class="quick-action-item" onclick="App.switchPage('plans')">
-                <div class="quick-action-icon">📋</div>
-                <div class="quick-action-label">计划</div>
-            </div>
-            <div class="quick-action-item" onclick="App.switchPage('achievements')">
-                <div class="quick-action-icon">🏆</div>
-                <div class="quick-action-label">成就</div>
-            </div>
-            <div class="quick-action-item" onclick="App.switchPage('memory')">
-                <div class="quick-action-icon">🧠</div>
-                <div class="quick-action-label">记忆</div>
-            </div>
+        <div class="splash-footer">
+            StudyPal <span>&bull;</span> 让每一次学习都有人陪
         </div>
     </div>
 
-    <!-- ===== 聊天页面 ===== -->
-    <div class="page" id="page-chat">
-        <!-- 聊天头部 -->
-        <div class="chat-header">
-            <button class="btn btn-icon btn-ghost chat-back-btn" onclick="App.switchPage('home')">
-                ←
-            </button>
-            <div class="chat-header-info">
-                <div class="chat-header-avatar" id="chat-buddy-avatar">🐱</div>
-                <div class="chat-header-detail">
-                    <div class="chat-header-name" id="chat-buddy-name">小豆</div>
-                    <div class="chat-header-status" id="chat-buddy-status">
-                        <span class="status-online-dot"></span>
-                        在线
-                    </div>
-                </div>
-            </div>
-            <div class="chat-header-actions">
-                <button class="btn btn-icon btn-ghost">⋯</button>
-            </div>
-        </div>
-
-        <!-- 聊天消息区域 -->
-        <div class="chat-messages-container" id="chat-messages">
-            <div class="loading-state">加载对话...</div>
-        </div>
-
-        <!-- 快速建议 -->
-        <div class="chat-suggestions" id="chat-suggestions">
-            <button class="chat-suggestion-btn" onclick="App.openChatWith('聊聊心情')">聊聊心情</button>
-            <button class="chat-suggestion-btn" onclick="App.openChatWith('学不进去怎么办')">学不进去</button>
-            <button class="chat-suggestion-btn" onclick="App.openChatWith('给我一些学习建议')">学习建议</button>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="chat-input-container">
-            <div class="chat-input-wrapper">
-                <textarea
-                    class="chat-textarea"
-                    id="chat-input"
-                    placeholder="和小豆说说..."
-                    rows="1"
-                    onkeydown="App.handleChatKeydown(event)"
-                    oninput="App.autoResize(this)"
-                ></textarea>
-                <button class="chat-send-btn" id="chat-send" onclick="App.sendMessage()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 日记页面 ===== -->
-    <div class="page" id="page-diary">
-        <div class="page-header">
-            <h2 class="page-title">📖 考研日记</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.showEmotionChart()">📅 情绪日历</button>
-        </div>
-
-        <!-- 日记表单 -->
-        <div class="diary-form-card">
-            <div class="diary-form-header">
-                <div class="diary-form-date" id="diary-date-title">📝 记录今日心情</div>
-                <div class="diary-date-display" id="diary-date">今晚记录</div>
-            </div>
-
-            <!-- 情绪选择 -->
-            <div class="form-group">
-                <label class="form-label">今天心情怎么样？</label>
-                <div class="emotion-picker" id="emotion-picker">
-                    <div class="emotion-option" data-level="1" onclick="App.selectEmotion(1)">
-                        <span class="emotion-emoji">😭</span>
-                        <span class="emotion-label">崩溃</span>
-                    </div>
-                    <div class="emotion-option" data-level="2" onclick="App.selectEmotion(2)">
-                        <span class="emotion-emoji">😢</span>
-                        <span class="emotion-label">不好</span>
-                    </div>
-                    <div class="emotion-option selected" data-level="3" onclick="App.selectEmotion(3)">
-                        <span class="emotion-emoji">😐</span>
-                        <span class="emotion-label">一般</span>
-                    </div>
-                    <div class="emotion-option" data-level="4" onclick="App.selectEmotion(4)">
-                        <span class="emotion-emoji">😊</span>
-                        <span class="emotion-label">还好</span>
-                    </div>
-                    <div class="emotion-option" data-level="5" onclick="App.selectEmotion(5)">
-                        <span class="emotion-emoji">😄</span>
-                        <span class="emotion-label">很开心</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 学习感受 -->
-            <div class="form-group">
-                <label class="form-label">学习感受</label>
-                <div class="flex flex-wrap gap-2" id="feeling-picker">
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">充实</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">疲惫</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">焦虑</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">麻木</button>
-                    <button class="feeling-tag" onclick="App.selectFeeling(this)">充实+疲惫</button>
-                </div>
-            </div>
-
-            <!-- 最大事件 -->
-            <div class="form-group">
-                <label class="form-label">今天最大的事</label>
-                <textarea class="diary-form-textarea" id="diary-event" placeholder="做了什么？有什么收获？"></textarea>
-            </div>
-
-            <!-- 对小豆说的话 -->
-            <div class="form-group">
-                <label class="form-label">有什么想对小豆说的？</label>
-                <textarea class="diary-form-textarea" id="diary-words" placeholder="说说心里话，小豆会记住的..."></textarea>
-            </div>
-
-            <button class="btn btn-primary btn-block btn-lg" onclick="App.saveDiary()">
-                💾 保存日记
-            </button>
-        </div>
-
-        <!-- 情绪日历 -->
-        <div id="emotion-chart-section">
-            <div class="emotion-chart-card">
-                <div class="chart-header">
-                    <div class="chart-title">本周情绪曲线</div>
-                    <div class="chart-month-nav">
-                        <span class="chart-current-month" id="calendar-month">加载中...</span>
-                    </div>
-                </div>
-                <div class="emotion-calendar" id="calendar-grid">
-                    <div class="calendar-weekday">日</div>
-                    <div class="calendar-weekday">一</div>
-                    <div class="calendar-weekday">二</div>
-                    <div class="calendar-weekday">三</div>
-                    <div class="calendar-weekday">四</div>
-                    <div class="calendar-weekday">五</div>
-                    <div class="calendar-weekday">六</div>
-                </div>
-                <div class="calendar-legend">
-                    <div class="legend-item"><span class="legend-emoji">😭</span> 很差</div>
-                    <div class="legend-item"><span class="legend-emoji">😐</span> 一般</div>
-                    <div class="legend-item"><span class="legend-emoji">😄</span> 很好</div>
-                </div>
-                <div class="chart-analysis" id="chart-analysis">还没有情绪记录~</div>
-            </div>
-        </div>
-
-        <!-- 历史日记 -->
-        <div class="diary-history-section">
-            <div class="diary-history-header">
-                <h3 class="diary-history-title">历史日记</h3>
-            </div>
-            <div id="diary-history">
-                <div class="empty-state">
-                    <div class="empty-icon">📝</div>
-                    <p>还没有日记，从今天开始记录吧~</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 设置页面 ===== -->
-    <div class="page" id="page-settings">
-        <div class="page-header">
-            <h2 class="page-title">⚙️ 设置</h2>
-        </div>
-
-        <!-- 基本设置 -->
-        <div class="card mb-4">
-            <div class="card-body p-5">
-                <div class="text-base font-semibold mb-4">📋 基本信息</div>
-
-                <div class="form-group">
-                    <label class="form-label">你的昵称</label>
-                    <input type="text" class="form-input" id="setup-name" placeholder="叫我小明就好~">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">目标院校</label>
-                    <input type="text" class="form-input" id="setup-school" placeholder="XX大学">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">目标专业</label>
-                        <input type="text" class="form-input" id="setup-major" placeholder="计算机">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">目标分数</label>
-                        <input type="number" class="form-input" id="setup-score" placeholder="380">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">考试日期</label>
-                    <input type="date" class="form-input" id="setup-exam-date">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">每日学习目标</label>
-                    <div class="flex flex-wrap gap-2" id="goal-selector">
-                        <button class="goal-option" data-hours="6" onclick="App.selectGoal(this)">6小时</button>
-                        <button class="goal-option selected" data-hours="8" onclick="App.selectGoal(this)">8小时</button>
-                        <button class="goal-option" data-hours="10" onclick="App.selectGoal(this)">10小时</button>
-                        <button class="goal-option" data-hours="12" onclick="App.selectGoal(this)">12小时</button>
-                    </div>
-                </div>
-
-                <button class="btn btn-primary btn-block btn-lg" onclick="App.saveProfile()">
-                    💾 保存设置
-                </button>
-            </div>
-        </div>
-
-        <!-- 搭子名称 -->
-        <div class="card mb-4">
-            <div class="card-body p-5">
-                <div class="text-base font-semibold mb-4">🐱 搭子设置</div>
-                <div class="form-group">
-                    <label class="form-label">搭子名称</label>
-                    <input type="text" class="form-input" id="buddy-name-input" placeholder="小豆" value="小豆">
-                </div>
-            </div>
-        </div>
-
-        <!-- 成就入口 -->
-        <div class="card mb-4 interactive" onclick="App.showAchievements()">
-            <div class="card-body p-4">
-                <div class="flex items-center gap-4">
-                    <div style="font-size: 36px;">🏆</div>
-                    <div class="flex-1">
-                        <div class="font-semibold">成就殿堂</div>
-                        <div class="text-sm text-muted" id="achievement-stats">已解锁 0/32 个成就</div>
-                    </div>
-                    <div class="text-muted">›</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 导出数据 -->
-        <div class="card mb-4">
-            <div class="card-body p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <div class="font-semibold">导出数据</div>
-                        <div class="text-sm text-muted">备份所有学习数据</div>
-                    </div>
-                    <button class="btn btn-secondary btn-sm" onclick="App.exportData()">导出</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 关于 -->
-        <div class="text-center text-sm text-muted p-4">
-            <p>StudyPal 考研搭子 v2.0</p>
-            <p class="mt-2">陪你走完考研每一天</p>
-        </div>
-    </div>
-
-    <!-- ===== 记忆页面 ===== -->
-    <div class="page" id="page-memory">
-        <div class="page-header">
-            <h2 class="page-title">🧠 搭子记忆</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.switchPage('chat')">去聊天</button>
-        </div>
-
-        <!-- 记忆统计 -->
-        <div class="card mb-4">
-            <div class="card-body p-4">
-                <div class="text-base font-semibold mb-2">我记住的事</div>
-                <div class="text-sm text-muted" id="memory-stats">正在加载...</div>
-            </div>
-        </div>
-
-        <!-- 最近记忆 -->
-        <div>
-            <h3 class="text-base font-semibold mb-3">最近发生的事</h3>
-            <div id="recent-scenes">
-                <div class="empty-state">
-                    <div class="empty-icon">🧠</div>
-                    <p>还没有记忆记录，和小豆多聊聊吧~</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 成就页面 ===== -->
-    <div class="page" id="page-achievements">
-        <div class="page-header">
-            <h2 class="page-title">🏆 成就徽章</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.switchPage('home')">返回</button>
-        </div>
-
-        <!-- 等级卡片 -->
-        <div class="card mb-4" id="achievement-level-card">
-            <div class="card-body p-4">
-                <div class="flex items-center gap-4">
-                    <div class="level-icon" id="level-icon">🌱</div>
-                    <div class="flex-1">
-                        <div class="text-base font-semibold" id="level-name">学习小白</div>
-                        <div class="text-sm text-muted" id="level-points">0 积分</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-sm font-semibold" style="color: var(--primary);" id="level-progress-text">0%</div>
-                        <div class="progress-bar mt-1" style="width: 80px; height: 6px;">
-                            <div class="progress-fill" id="level-progress-bar" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 统计概览 -->
-        <div class="grid grid-cols-3 gap-3 mb-4">
-            <div class="stat-card">
-                <div class="stat-value" id="achievement-unlocked">0</div>
-                <div class="stat-label">已解锁</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="achievement-locked">0</div>
-                <div class="stat-label">待解锁</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="achievement-rate">0%</div>
-                <div class="stat-label">完成率</div>
-            </div>
-        </div>
-
-        <!-- 成就列表 -->
-        <h3 class="text-base font-semibold mb-3">全部成就</h3>
-        <div id="achievements-list">
-            <div class="empty-state">
-                <div class="empty-icon">🏆</div>
-                <p>加载中...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 任务管理页面 ===== -->
-    <div class="page" id="page-tasks">
-        <div class="page-header">
-            <h2 class="page-title">✅ 学习任务</h2>
-            <button class="btn btn-primary btn-sm" onclick="App.showAddTask()">+ 添加任务</button>
-        </div>
-
-        <!-- 任务统计 -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="stat-card">
-                <div class="stat-value" id="tasks-total">0</div>
-                <div class="stat-label">总任务</div>
-            </div>
-            <div class="stat-card" style="border-left: 2px solid var(--success);">
-                <div class="stat-value" style="color: var(--success);" id="tasks-completed">0</div>
-                <div class="stat-label">已完成</div>
-            </div>
-        </div>
-
-        <!-- 今日任务 -->
-        <h3 class="text-base font-semibold mb-3">待办任务</h3>
-        <div id="tasks-list">
-            <div class="empty-state">
-                <div class="empty-icon">📝</div>
-                <p>暂无任务，点击右上角添加</p>
-            </div>
-        </div>
-
-        <!-- 添加任务弹窗 -->
-        <div class="achievement-overlay" id="task-overlay">
-            <div class="achievement-modal">
-                <div class="modal-close-btn" onclick="App.hideAddTask()">✕</div>
-                <div class="achievement-title">添加新任务</div>
-                <div class="form-group mt-4">
-                    <label class="form-label">任务名称</label>
-                    <input type="text" class="form-input" id="task-title" placeholder="今天要完成什么？">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">科目</label>
-                    <select class="form-input" id="task-subject">
-                        <option value="数学">数学</option>
-                        <option value="英语">英语</option>
-                        <option value="政治">政治</option>
-                        <option value="专业课">专业课</option>
-                        <option value="其他">其他</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">优先级</label>
-                    <div class="flex gap-2">
-                        <button class="feeling-tag selected" data-priority="medium" onclick="App.selectTaskPriority(this)">中</button>
-                        <button class="feeling-tag" data-priority="high" onclick="App.selectTaskPriority(this)">高</button>
-                        <button class="feeling-tag" data-priority="low" onclick="App.selectTaskPriority(this)">低</button>
-                    </div>
-                </div>
-                <div class="flex gap-2 mt-4">
-                    <button class="btn btn-secondary flex-1" onclick="App.hideAddTask()">取消</button>
-                    <button class="btn btn-primary flex-1" onclick="App.addTask()">添加</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 学习计划页面 ===== -->
-    <div class="page" id="page-plans">
-        <div class="page-header">
-            <h2 class="page-title">📋 学习计划</h2>
-            <button class="btn btn-primary btn-sm" onclick="App.showCreatePlan()">+ 创建计划</button>
-        </div>
-
-        <!-- 计划统计 -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
-            <div class="stat-card">
-                <div class="stat-value" id="plans-total">0</div>
-                <div class="stat-label">总计划</div>
-            </div>
-            <div class="stat-card" style="border-left: 2px solid var(--warning);">
-                <div class="stat-value" style="color: var(--warning);" id="plans-expiring">0</div>
-                <div class="stat-label">即将到期</div>
-            </div>
-        </div>
-
-        <!-- 计划列表 -->
-        <h3 class="text-base font-semibold mb-3">我的计划</h3>
-        <div id="plans-list">
-            <div class="empty-state">
-                <div class="empty-icon">📋</div>
-                <p>暂无学习计划</p>
-            </div>
-        </div>
-
-        <!-- 创建计划弹窗 -->
-        <div class="achievement-overlay" id="plan-overlay">
-            <div class="achievement-modal" style="max-height: 80vh; overflow-y: auto;">
-                <div class="modal-close-btn" onclick="App.hideCreatePlan()">✕</div>
-                <div class="achievement-title">创建学习计划</div>
-                <div class="form-group mt-4">
-                    <label class="form-label">计划名称</label>
-                    <input type="text" class="form-input" id="plan-title" placeholder="如：考研数学强化阶段">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">目标时长（天）</label>
-                    <input type="number" class="form-input" id="plan-duration" value="30" min="1" max="365">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">每天学习时长（小时）</label>
-                    <input type="number" class="form-input" id="plan-hours" value="8" min="1" max="16">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">备注（可选）</label>
-                    <textarea class="form-input" id="plan-notes" rows="3" placeholder="补充说明..."></textarea>
-                </div>
-                <div class="flex gap-2 mt-4">
-                    <button class="btn btn-secondary flex-1" onclick="App.hideCreatePlan()">取消</button>
-                    <button class="btn btn-primary flex-1" onclick="App.createPlan()">创建</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== 底部导航 ===== -->
-    <nav class="bottom-nav">
-        <div class="nav-item active" data-page="home" onclick="App.switchPage('home')">
-            <div class="nav-icon">🏠</div>
-            <div class="nav-label">首页</div>
-        </div>
-        <div class="nav-item" data-page="chat" onclick="App.switchPage('chat')">
-            <div class="nav-icon">💬</div>
-            <div class="nav-label">搭话</div>
-        </div>
-        <div class="nav-item" data-page="memory" onclick="App.switchPage('memory')">
-            <div class="nav-icon">🧠</div>
-            <div class="nav-label">记忆</div>
-        </div>
-        <div class="nav-item" data-page="tasks" onclick="App.switchPage('tasks')">
-            <div class="nav-icon">✅</div>
-            <div class="nav-label">任务</div>
-        </div>
-        <div class="nav-item" data-page="plans" onclick="App.switchPage('plans')">
-            <div class="nav-icon">📋</div>
-            <div class="nav-label">计划</div>
-        </div>
-        <div class="nav-item" data-page="achievements" onclick="App.switchPage('achievements')">
-            <div class="nav-icon">🏆</div>
-            <div class="nav-label">成就</div>
-        </div>
-        <div class="nav-item" data-page="diary" onclick="App.switchPage('diary')">
-            <div class="nav-icon">📖</div>
-            <div class="nav-label">日记</div>
-        </div>
-        <div class="nav-item" data-page="settings" onclick="App.switchPage('settings')">
-            <div class="nav-icon">⚙️</div>
-            <div class="nav-label">设置</div>
-        </div>
-    </nav>
-
-    <!-- ===== 脚本 ===== -->
-    <script src="/static/js/error-handler.js"></script>
-    <script src="/static/js/constants.js"></script>
-    <script src="/static/js/api.js"></script>
-    <script src="/static/js/state.js"></script>
-    <script src="/static/js/utils.js"></script>
-    <script src="/static/js/router.js"></script>
-    <script src="/static/js/pages/home.js"></script>
-    <script src="/static/js/pages/chat.js"></script>
-    <script src="/static/js/pages/diary.js"></script>
-    <script src="/static/js/pages/memory.js"></script>
-    <script src="/static/js/pages/tasks.js"></script>
-    <script src="/static/js/pages/plans.js"></script>
-    <script src="/static/js/pages/achievements.js"></script>
-    <script src="/static/js/pages/settings.js"></script>
-    <script src="/static/js/app.js"></script>
     <script>
-    // 开屏动画控制
-    function initSplash() {
-        const starsContainer = document.getElementById('splash-stars');
-        if (starsContainer) {
-            for (let i = 0; i < 50; i++) {
-                const star = document.createElement('div');
-                star.className = 'splash-star';
-                star.style.left = Math.random() * 100 + '%';
-                star.style.top = Math.random() * 100 + '%';
-                star.style.animationDelay = Math.random() * 3 + 's';
-                star.style.animationDuration = (2 + Math.random() * 2) + 's';
-                star.style.width = (2 + Math.random() * 3) + 'px';
-                star.style.height = star.style.width;
-                starsContainer.appendChild(star);
-            }
-        }
+        (function() {
+            var splash = document.getElementById('splash');
+            var totalDuration = 2000;
 
-        const particlesContainer = document.getElementById('splash-particles');
-        if (particlesContainer) {
-            const colors = ['#667EEA', '#764BA2', '#F093FB', '#00D9FF', '#00F5A0'];
-            for (let i = 0; i < 20; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'splash-particle';
-                particle.style.left = Math.random() * 100 + '%';
-                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-                particle.style.animationDelay = Math.random() * 8 + 's';
-                particle.style.animationDuration = (6 + Math.random() * 6) + 's';
-                particle.style.width = (4 + Math.random() * 6) + 'px';
-                particle.style.height = particle.style.width;
-                particlesContainer.appendChild(particle);
+            function exitSplash() {
+                if (splash) {
+                    splash.classList.add('exiting');
+                    setTimeout(function() {
+                        splash.style.display = 'none';
+                        window.location.href = '/app';
+                    }, 400);
+                }
             }
-        }
 
-        setTimeout(() => {
-            const splash = document.getElementById('splash-screen');
-            if (splash) {
-                splash.style.transition = 'opacity 0.8s ease, transform 0.8s ease';
-                splash.style.opacity = '0';
-                splash.style.transform = 'scale(1.1)';
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                }, 800);
-            }
-        }, 3500);
-    }
+            setTimeout(exitSplash, totalDuration);
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSplash);
-    } else {
-        initSplash();
-    }
+            window.addEventListener('app-ready', function() {
+                var elapsed = Date.now() - window.__splashStartTime;
+                if (elapsed >= 1500) {
+                    exitSplash();
+                } else {
+                    setTimeout(exitSplash, Math.max(0, 1500 - elapsed));
+                }
+            });
+
+            window.__splashStartTime = Date.now();
+        })();
     </script>
 </body>
 </html>

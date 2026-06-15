@@ -619,6 +619,35 @@ class Buddy:
         self._last_active = datetime.now()
         self.set_emotion("idle")
 
+    def switch_role(self, role_key: str) -> bool:
+        """
+        切换搭子角色
+
+        参数:
+            role_key: 角色标识符，如 'xiaodou', 'aran', 'senior' 等
+
+        返回:
+            bool: 切换是否成功
+        """
+        from src.buddy.buddy_roles import BUDDY_ROLES
+
+        if role_key not in BUDDY_ROLES:
+            return False
+
+        role = BUDDY_ROLES[role_key]
+        # 更新 profile 中的搭子配置
+        self.profile.update_buddy(
+            name=role['name'],
+            emoji=role['emoji'],
+            trait=role['personality'],
+            role_key=role_key,
+        )
+
+        # 更新当前情绪
+        self.set_emotion("happy")
+
+        return True
+
 
     # ========== 兼容属性 ==========
 

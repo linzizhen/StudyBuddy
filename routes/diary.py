@@ -8,7 +8,6 @@ import os
 import base64
 import uuid
 from flask import Blueprint, jsonify, request
-from src.auth.auth import auth_required
 from src.diary.diary import get_diary, DiaryEntry
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ def get_diary_entries():
         'success': True,
         'entries': [e.to_dict() for e in entries],
         'streak': diary.get_streak(),
-        'total': len(diary.entries)
+        'total': diary.count()
     })
 
 
@@ -73,7 +72,7 @@ def get_diary_stats():
     return jsonify({
         'success': True,
         'streak': diary.get_streak(),
-        'total_entries': len(diary.entries),
+        'total_entries': diary.count(),
         'emotion_curve': curve,
         'tags': diary.get_user_tags()
     })
@@ -235,7 +234,6 @@ def remove_tag(tag):
 
 # ==================== 图片上传 ====================
 
-@auth_required
 @diary_bp.route('/upload-image', methods=['POST'])
 def upload_diary_image():
     """上传日记图片"""
@@ -293,6 +291,12 @@ def upload_diary_image():
 
 
 def get_buddy():
-    """获取搭子实例"""
-    from src.core.buddy import get_buddy
+    """复用 utils 的缓存版本"""
+    from routes.utils import get_buddy
     return get_buddy()
+
+
+def get_diary():
+    """获取日记实例"""
+    from src.diary.diary import get_diary as _get_diary
+    return _get_diary()

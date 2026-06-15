@@ -1,17 +1,23 @@
 /**
- * StudyPal API 调用层 v2.0
- * 封装所有后端 API 调用
+ * StudyPal API 调用层 v2.1
+ * - AbortController 10s 超时
+ * - GET 参数过滤 null/undefined
+ * - 命名空间 window.StudyPalAPI
  */
 
-const API = {
+const StudyPalAPI = {
     baseURL: '/api',
 
-    async request(endpoint, options) {
+    async request(endpoint, options = {}) {
         const url = this.baseURL + endpoint;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+
         const defaultOptions = {
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
         };
-        const config = Object.assign({}, defaultOptions, options || {});
+        const config = { ...defaultOptions, ...options };
 
         if (config.body && typeof config.body === 'object') {
             config.body = JSON.stringify(config.body);
@@ -19,12 +25,17 @@ const API = {
 
         try {
             const response = await fetch(url, config);
+            clearTimeout(timer);
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || data.message || '请求失败');
             }
             return data;
         } catch (error) {
+            clearTimeout(timer);
+            if (error.name === 'AbortError') {
+                throw new Error('请求超时，请稍后重试');
+            }
             console.error('API Error [' + endpoint + ']:', error);
             throw error;
         }
@@ -33,9 +44,12 @@ const API = {
     get: function(endpoint, params) {
         let url = endpoint;
         if (params && typeof params === 'object') {
-            const qs = Object.keys(params).map(function(k) {
-                return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-            }).join('&');
+            // 过滤 null / undefined 值，避免生成 "key=null" 的 query string
+            const qs = Object.keys(params)
+                .filter(k => params[k] !== null && params[k] !== undefined)
+                .map(function(k) {
+                    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+                }).join('&');
             if (qs) url = endpoint + '?' + qs;
         }
         return this.request(url, { method: 'GET' });
@@ -68,6 +82,9 @@ const API = {
     },
     addBuddyMemory: function(memory) { return this.post('/buddy/memory', memory); },
     getCaringEvents: function() { return this.get('/buddy/caring'); },
+    getBuddyRoles: function() { return this.get('/buddy/roles'); },
+    switchBuddyRole: function(roleKey) { return this.post('/buddy/switch/' + roleKey, {}); },
+    currentRole: function() { return this.get('/buddy/current-role'); },
 
     // 日记
     getDiaries: function(limit) {
@@ -114,6 +131,12 @@ const API = {
     // 通知
     getNotificationSettings: function() { return this.get('/notification/settings'); },
     setNotificationSettings: function(settings) { return this.post('/notification/settings', settings); },
+
+    // 模型配置
+    getModelConfig: function() { return this.get('/model/config'); },
+    updateModelConfig: function(config) { return this.post('/model/config', config); },
 };
 
-window.API = API;
+// 兼容旧调用
+window.API = StudyPalAPI;
+window.StudyPalAPI = StudyPalAPI;

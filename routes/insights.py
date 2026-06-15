@@ -5,29 +5,38 @@ StudyPal 搭子洞察路由
 
 from flask import Blueprint, jsonify
 from src.ai.prompt_templates import generate_weekly_insight
+import concurrent.futures
 
 insights_bp = Blueprint('insights', __name__, url_prefix='/api/insights')
 
 
+def _get_buddy():
+    from routes.utils import get_buddy
+    return get_buddy()
+
+
 @insights_bp.route('/weekly-insight', methods=['GET'])
 def get_weekly_insight():
-    """生成搭子周记"""
-    from src.core.buddy import get_buddy
+    """生成搭子周记（3 个 I/O 并行）"""
+    buddy = _get_buddy()
 
-    buddy = get_buddy()
+    def _load_study():
+        return buddy.study.get_stats()
 
-    # 获取本周学习数据
-    study_stats = buddy.study.get_stats()
+    def _load_emotion():
+        return buddy.diary.get_emotion_curve(7)
 
-    # 获取本周日记情绪
-    diary = buddy.diary
-    emotion_data = diary.get_emotion_curve(7)
+    def _load_memory():
+        return buddy.memory.get_recent_scenes(7)
 
-    # 获取本周记忆
-    memory = buddy.memory
-    memories = memory.get_recent_scenes(7)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        f1 = executor.submit(_load_study)
+        f2 = executor.submit(_load_emotion)
+        f3 = executor.submit(_load_memory)
+        study_stats = f1.result()
+        emotion_data = f2.result()
+        memories = f3.result()
 
-    # 生成周记
     insight = generate_weekly_insight(study_stats, emotion_data, memories)
 
     return jsonify({
@@ -47,28 +56,31 @@ def get_weekly_insight():
 
 @insights_bp.route('/monthly-report', methods=['GET'])
 def get_monthly_report():
-    """生成月度报告"""
-    from src.core.buddy import get_buddy
-    from datetime import datetime
+    """生成月度报告（3 个 I/O 并行）"""
+    buddy = _get_buddy()
 
-    buddy = get_buddy()
+    def _load_study():
+        return buddy.study.get_stats()
 
-    # 获取本月学习数据
-    study_stats = buddy.study.get_stats()
+    def _load_entries():
+        return buddy.diary.get_entries(30)
 
-    # 获取本月日记
-    diary = buddy.diary
-    entries = diary.get_entries(30)
+    def _load_memory():
+        return buddy.memory.get_recent_scenes(30)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        f1 = executor.submit(_load_study)
+        f2 = executor.submit(_load_entries)
+        f3 = executor.submit(_load_memory)
+        study_stats = f1.result()
+        entries = f2.result()
+        memories = f3.result()
 
     # 情绪统计
     emotion_counts = {}
     for entry in entries:
         label = entry.emotion_label
         emotion_counts[label] = emotion_counts.get(label, 0) + 1
-
-    # 获取本月记忆
-    memory = buddy.memory
-    memories = memory.get_recent_scenes(30)
 
     # 生成分析
     total_hours = study_stats.get('total_hours', 0)
@@ -119,16 +131,14 @@ def _generate_monthly_suggestions(total_hours, top_emotion, memory_count):
 @insights_bp.route('/insight-summary', methods=['GET'])
 def get_insight_summary():
     """获取洞察摘要（用于首页展示）"""
-    from src.core.buddy import get_buddy
-
-    buddy = get_buddy()
+    buddy = _get_buddy()
 
     # 获取关键指标
     study = buddy.study
     stats = study.get_stats()
     diary = buddy.diary
 
-    # 计算本周 vs 上周
+    # 计算本周 vs 上周（一次加载，两次过滤）
     recent_sessions = study.get_recent_sessions(14)
     this_week = [s for s in recent_sessions if _is_this_week(s.get('date', ''))]
     last_week = [s for s in recent_sessions if _is_last_week(s.get('date', ''))]
@@ -156,7 +166,7 @@ def get_insight_summary():
         'trend': trend,
         'trend_text': trend_text,
         'emotion_avg': round(avg_emotion, 1),
-        'emotion_label': ['很难受', '有点丧', '一般', '还好', '很开心'][int(avg_emotion) - 1] if valid_levels else '一般',
+        'emotion_label': (lambda idx: ['很难受', '有点丧', '一般', '还好', '很开心'][max(0, min(4, idx))] if valid_levels else '一般')(int(avg_emotion) - 1),
         'streak_days': stats.get('streak_days', 0),
         'study_summary': _get_study_summary(stats),
     }

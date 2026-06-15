@@ -34,12 +34,21 @@ CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
 @app.route('/')
 def index():
-    """主页"""
+    """主页 - 渲染 splash 介绍页（自动跳到 /app）"""
     return render_template('index.html')
+
+
+@app.route('/app')
+@app.route('/dashboard')
+def app_page():
+    """应用主页 - 三栏 Dashboard"""
+    return render_template('dashboard.html')
 
 # ==================== Blueprint 路由注册 ====================
 
 from routes import register_blueprints
+
+# 注册所有 Blueprint（包含 settings_bp）
 register_blueprints(app)
 
 

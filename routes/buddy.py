@@ -10,8 +10,8 @@ buddy_bp = Blueprint('buddy', __name__, url_prefix='/api/buddy')
 
 
 def get_buddy():
-    """获取 Buddy 实例"""
-    from src.core.buddy import get_buddy
+    """复用 utils 的缓存版本"""
+    from routes.utils import get_buddy
     return get_buddy()
 
 
@@ -159,6 +159,40 @@ def get_caring_events():
             }
             for e in events
         ]
+    })
+
+
+@buddy_bp.route('/roles', methods=['GET'])
+def get_buddy_roles():
+    """获取所有搭子角色列表"""
+    from src.buddy.buddy_roles import BuddyRoles
+    roles = BuddyRoles.get_all_roles()
+    return jsonify({'success': True, 'roles': roles})
+
+
+@buddy_bp.route('/switch/<role_key>', methods=['POST'])
+def switch_buddy_role(role_key):
+    """切换搭子角色"""
+    buddy = get_buddy()
+    success = buddy.switch_role(role_key)
+    if success:
+        return jsonify({'success': True, 'message': f'已切换到 {role_key}'})
+    return jsonify({'success': False, 'error': '角色不存在'}), 400
+
+
+@buddy_bp.route('/current-role', methods=['GET'])
+def get_current_role():
+    """获取当前搭子角色"""
+    from src.buddy.buddy_profile import get_buddy_profile
+    profile = get_buddy_profile()
+    buddy_info = profile.get_buddy_info()
+    current_role = buddy_info.get('role_key', 'xiaodou')
+    return jsonify({
+        'success': True,
+        'role': current_role,
+        'name': buddy_info.get('name', '小豆'),
+        'emoji': buddy_info.get('emoji', '🌸'),
+        'trait': buddy_info.get('personality', '温柔陪伴型'),
     })
 
 

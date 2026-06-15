@@ -9,8 +9,8 @@ study_bp = Blueprint('study', __name__, url_prefix='/api/study')
 
 
 def get_buddy():
-    """获取 Buddy 实例"""
-    from src.core.buddy import get_buddy
+    """复用 utils 的缓存版本"""
+    from routes.utils import get_buddy
     return get_buddy()
 
 

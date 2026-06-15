@@ -104,7 +104,7 @@ class BuddyProfile:
         if "buddy" not in self.data:
             self.data["buddy"] = {}
         for key, value in kwargs.items():
-            if key in ["name", "personality", "introduction"]:
+            if key in ["name", "personality", "introduction", "emoji", "trait", "role_key"]:
                 self.data["buddy"][key] = value
         self._save()
 

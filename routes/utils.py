@@ -11,12 +11,14 @@ from functools import lru_cache
 from flask import jsonify
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=32)
 def get_buddy():
     """
     获取 Buddy 单例实例
 
-    使用 LRU 缓存确保同一请求周期内只创建一个实例
+    LRU 缓存（maxsize=32）：连续请求复用同一实例，
+    当实例超过 32 个（几乎不可能）时自动淘汰最久未用的。
+    单次 Flask 请求内必定复用，不会有重复初始化开销。
     """
     from src.core.buddy import get_buddy
     return get_buddy()

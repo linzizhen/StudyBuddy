@@ -1,0 +1,291 @@
+{
+  "plans": [
+    {
+      "id": "0eb7b16d",
+      "subject": "???",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习???第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习???第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 13:54"
+    },
+    {
+      "id": "c4d6d0b3",
+      "subject": "M",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习M第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习M第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 14:13"
+    },
+    {
+      "id": "74475139",
+      "subject": "M",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习M第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习M第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 14:15"
+    },
+    {
+      "id": "fcabb010",
+      "subject": "M",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习M第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习M第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 14:16"
+    },
+    {
+      "id": "91b77bdc",
+      "subject": "M",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习M第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习M第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 14:17"
+    },
+    {
+      "id": "c889af59",
+      "subject": "Math",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习Math第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习Math第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 14:21"
+    },
+    {
+      "id": "4f98e410",
+      "subject": "Math",
+      "exam_date": "2026-12-21",
+      "daily_hours": 2,
+      "total_hours": 376,
+      "tasks": [
+        {
+          "phase": "基础阶段",
+          "duration": 62,
+          "focus": "系统学习基础知识",
+          "tasks": [
+            "学习Math第一章到第五章",
+            "完成对应习题",
+            "整理笔记"
+          ]
+        },
+        {
+          "phase": "强化阶段",
+          "duration": 62,
+          "focus": "深入理解和练习",
+          "tasks": [
+            "学习Math第六章到第十章",
+            "做章节练习题",
+            "总结重点难点"
+          ]
+        },
+        {
+          "phase": "冲刺阶段",
+          "duration": 64,
+          "focus": "模拟测试和查漏补缺",
+          "tasks": [
+            "做历年真题",
+            "模拟考试",
+            "复习错题集"
+          ]
+        }
+      ],
+      "completed": false,
+      "created_at": "2026-06-15 14:22"
+    }
+  ]
+}

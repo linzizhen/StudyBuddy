@@ -1,7 +1,24 @@
 {
   "profile_notes": {},
-  "scenes": [],
+  "scenes": [
+    {
+      "id": "scene_20260615151524",
+      "date": "2026-06-15",
+      "type": "conversation",
+      "summary": "聊到了高数",
+      "details": "数学",
+      "tags": [
+        "高数"
+      ],
+      "feeling": "",
+      "buddy_said": "",
+      "importance": 2,
+      "access_count": 0,
+      "last_accessed": "2026-06-15T15:15:24.129255",
+      "created_at": "2026-06-15T15:15:24.129255"
+    }
+  ],
   "conversation_summaries": [],
   "preferences": {},
-  "updated_at": "2026-04-27T14:17:44.672152"
+  "updated_at": "2026-06-15T15:15:24.129255"
 }

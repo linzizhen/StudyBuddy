@@ -262,6 +262,10 @@ class Diary:
                 return True
         return False
 
+    def count(self) -> int:
+        """返回条目总数（无需遍历创建 DiaryEntry 对象）"""
+        return len(self.entries)
+
     def get_streak(self) -> int:
         """获取连续记录天数"""
         if not self.entries:

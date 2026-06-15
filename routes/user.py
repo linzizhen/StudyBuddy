@@ -13,7 +13,7 @@ user_bp = Blueprint('user', __name__, url_prefix='/api')
 @user_bp.route('/home', methods=['GET'])
 def get_home_data():
     """获取首页数据"""
-    from src.core.buddy import get_buddy
+    from routes.utils import get_buddy
     buddy = get_buddy()
     status = buddy.get_full_status()
 
@@ -27,8 +27,7 @@ def get_home_data():
 def ask():
     """AI 问答"""
     from src.ai.ai_helper import ask_ai_with_context
-    from src.core.buddy import get_buddy
-
+    from routes.utils import get_buddy
     buddy = get_buddy()
     data = request.json or {}
     question = data.get('question', '')
@@ -74,14 +73,15 @@ def set_motto():
     from src.modules.data_manager import set_motto
     data = request.json or {}
     motto = data.get('motto', '').strip()
-
-    if set_motto(motto):
+    try:
+        set_motto(motto)
         return jsonify({
             'success': True,
             'message': '座右铭已更新',
             'motto': motto
         })
-    return jsonify({'success': False, 'error': '保存失败'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @user_bp.route('/favorite_quote', methods=['GET'])
