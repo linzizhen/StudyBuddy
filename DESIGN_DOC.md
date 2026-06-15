@@ -1218,18 +1218,21 @@ def caring_engine_tick(buddy):
 #### 前端架构
 | 模块 | 文件 | 状态 | 说明 |
 |------|------|------|------|
-| 单页应用 | `templates/index.html` | ✅ | 8 个页面：首页、聊天、记忆、任务、计划、成就、日记、设置 |
+| 单页应用 | `templates/index.html` | ✅ | 多页面 SPA 架构 |
 | API 调用层 | `static/js/api.js` | ✅ | 完整的 API 封装 |
 | 状态管理 | `static/js/state.js` | ✅ | 观察者模式、持久化 |
-| 工具函数 | `static/js/utils.js` | ✅ | 常用工具函数 |
+| 页面模块 | `static/js/pages/` | ✅ | 页面级 JS 模块 |
 
 #### CSS 设计系统
 | 文件 | 状态 | 说明 |
 |------|------|------|
 | `static/css/variables.css` | ✅ | CSS 变量、主题颜色 |
-| `static/css/base.css` | ✅ | 基础样式、工具类 |
-| `static/css/components.css` | ✅ | UI 组件样式 |
-| `static/css/animations.css` | ✅ | 动画关键帧 |
+| `static/css/app.css` | ✅ | 应用基础样式 |
+| `static/css/home.css` | ✅ | 首页样式 |
+| `static/css/chat.css` | ✅ | 聊天页样式 |
+| `static/css/diary.css` | ✅ | 日记页样式 |
+| `static/css/bento.css` | ✅ | Bento 网格布局 |
+| `static/css/landing.css` | ✅ | 着陆页样式 |
 
 #### 核心业务模块
 | 模块 | 文件 | 状态 | 说明 |
@@ -1272,26 +1275,33 @@ def caring_engine_tick(buddy):
 routes/                          # Flask Blueprint 路由
 ├── __init__.py                 # 路由注册中心
 ├── buddy.py                    # 搭子对话/档案/记忆/关心
-├── diary.py                    # 日记/情绪
+├── ai_model.py                 # AI 模型配置
+├── auth.py                     # 用户认证（JWT）
 ├── study.py                    # 学习打卡/计时
+├── diary.py                    # 日记/情绪
 ├── tasks.py                    # 任务管理
 ├── achievements.py             # 成就系统
 ├── plans.py                    # 学习计划
 ├── user.py                     # 用户设置/AI/导出
 ├── timeline.py                 # 考研历程
-└── recommend.py                # 每日推荐
+├── recommend.py                # 每日推荐
+├── insights.py                 # 数据洞察
+└── splash.py                   # 开屏页
 
 src/                            # 核心业务模块
+├── auth/
+│   └── auth.py                 # JWT + 用户认证
 ├── ai/
-│   ├── ai_helper.py            # AI 对话核心（Ollama）
+│   ├── ai_helper.py            # AI 对话核心
 │   └── prompt_templates.py     # 提示词模板库
 ├── buddy/
+│   ├── buddy_roles.py          # 角色配置 + 情绪映射
 │   ├── buddy_profile.py        # 搭子档案
 │   ├── buddy_memory.py         # 三层记忆系统
+│   ├── buddy_tools.py          # 搭子技能工具
 │   └── caring_engine.py        # 主动关心引擎
 ├── core/
-│   ├── buddy.py                # 搭子系统核心
-│   └── timer.py                # 学习计时器
+│   └── buddy.py                # 搭子系统核心
 ├── diary/
 │   └── diary.py                # 日记系统
 ├── modules/
@@ -1300,21 +1310,34 @@ src/                            # 核心业务模块
 │   ├── plan_generator.py       # 计划生成器
 │   ├── timeline.py             # 考研历程
 │   ├── daily_recommender.py    # 每日推荐
-│   ├── data_manager.py         # 数据管理
+│   ├── data_manager.py        # 数据管理
 │   └── ai_memory.py            # AI 记忆
-└── study/
-    └── study_tracker.py        # 学习追踪
+├── study/
+│   └── study_tracker.py        # 学习追踪
+└── utils/
+    ├── validators.py           # 输入验证
+    └── file_lock.py            # 文件锁
 
 static/
 ├── css/
 │   ├── variables.css          # CSS 变量
-│   ├── base.css               # 基础样式
-│   ├── components.css          # 组件样式
-│   └── animations.css         # 动画
+│   ├── app.css                # 应用样式
+│   ├── home.css               # 首页样式
+│   ├── chat.css               # 聊天样式
+│   ├── diary.css              # 日记样式
+│   ├── bento.css              # Bento 网格
+│   ├── landing.css            # 着陆页样式
+│   └── tokens.css              # 设计令牌
 └── js/
-    ├── api.js                 # API 调用层
+    ├── app.js                 # 主应用
+    ├── router.js              # SPA 路由
     ├── state.js               # 状态管理
-    └── utils.js               # 工具函数
+    ├── api.js                 # API 调用层
+    ├── constants.js            # 常量定义
+    └── pages/                 # 页面模块
+        ├── home.js
+        ├── chat.js
+        └── diary.js
 
 data/                           # JSON 数据存储
 ├── buddy_profile.json         # 用户档案
