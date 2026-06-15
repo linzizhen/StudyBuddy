@@ -11,6 +11,7 @@ import json
 import os
 import uuid
 from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
 from src.utils.file_lock import atomic_read_json, atomic_write_json
 
 # 使用 sys.path 确保导入正确的 config
@@ -82,6 +83,8 @@ class Task:
             "title": self.title,
             "description": self.description,
             "completed": self.completed,
+            "status": "completed" if self.completed else "pending",
+            "subject": None,
             "deadline": self.deadline.strftime("%Y-%m-%d %H:%M") if self.deadline else None,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M")
         }
@@ -94,9 +97,11 @@ class Task:
             description=data.get("description", ""),
             deadline=data.get("deadline")
         )
-        # 确保 ID 始终为字符串
         task.id = str(data.get("id", task.id))
-        task.completed = data.get("completed", False)
+        if "completed" in data:
+            task.completed = data.get("completed", False)
+        elif "status" in data:
+            task.completed = (data.get("status") == "completed")
         if "created_at" in data:
             task.created_at = datetime.strptime(data["created_at"], "%Y-%m-%d %H:%M")
         return task
@@ -389,3 +394,15 @@ class TaskManager:
         """字符串表示"""
         stats = self.get_stats()
         return f"TaskManager: {stats['completed']}/{stats['total']} 完成 ({stats['completion_rate']:.0f}%)"
+
+
+# 全局单例
+_task_manager_instance: Optional['TaskManager'] = None
+
+
+def get_task_manager() -> TaskManager:
+    """获取任务管理器单例"""
+    global _task_manager_instance
+    if _task_manager_instance is None:
+        _task_manager_instance = TaskManager()
+    return _task_manager_instance

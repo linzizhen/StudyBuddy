@@ -1,6 +1,7 @@
 /**
- * StudyPal 路由系统 v2.0
- * 基于 Hash 的客户端路由，支持页面切换和参数传递
+ * StudyPal 路由系统 v2.3
+ * 支持 Hash + 直接 URL 访问，基于 pushState 无刷新导航
+ * 优化：移除 50ms 轮询，改为 app-ready 事件驱动
  */
 
 class Router {
@@ -8,117 +9,113 @@ class Router {
         this.routes = new Map();
         this.currentPage = null;
         this.currentParams = [];
+        this._pendingRoute = null; // 缓存 App 未就绪时的路由请求
         this._init();
     }
 
-    /**
-     * 注册路由
-     * @param {string} name - 路由名称
-     * @param {Function} handler - 路由处理器
-     */
     register(name, handler) {
         this.routes.set(name, handler);
     }
 
-    /**
-     * 初始化路由监听
-     */
     _init() {
-        window.addEventListener('hashchange', () => this._handleRoute());
-        window.addEventListener('load', () => this._handleRoute());
+        window.addEventListener('popstate', () => this._handleRoute());
+
+        window.addEventListener('app-ready', () => {
+            // App 就绪后，如果有 pending 路由则执行
+            if (this._pendingRoute) {
+                const { page, params } = this._pendingRoute;
+                this._pendingRoute = null;
+                this._handleRoute();
+            } else {
+                this._handleRoute();
+            }
+        });
+
+        // App-ready 监听器如果已错过，在 load 时检查 App 状态
+        window.addEventListener('load', () => {
+            if (window.App && window.App._routerReady) {
+                this._handleRoute();
+            }
+        });
     }
 
-    /**
-     * 处理路由变化
-     */
     _handleRoute() {
-        const hash = window.location.hash.slice(1) || 'home';
-        const [page, ...params] = hash.split('/');
+        let page = window.location.pathname.replace(/^\//, '').split('/')[0];
+        if (!page || page === 'app' || page === 'index.html') page = 'home';
+
+        const hash = window.location.hash.slice(1);
+        if (hash) {
+            const hashPage = hash.split('/')[0];
+            if (this.routes.has(hashPage)) {
+                page = hashPage;
+            }
+        }
+
+        const params = [];
+        if (hash) {
+            const parts = hash.split('/');
+            if (parts.length > 1) params.push(...parts.slice(1));
+        }
 
         if (this.routes.has(page)) {
-            this.navigate(page, params);
+            this.navigate(page, params, true);
         } else {
-            this.navigate('home', []);
+            this.navigate('home', [], true);
         }
     }
 
-    /**
-     * 导航到指定页面
-     * @param {string} page - 页面名称
-     * @param {Array} params - 路由参数
-     */
-    navigate(page, params = []) {
-        if (!this.routes.has(page)) {
-            console.warn(`Route "${page}" not found`);
+    navigate(page, params = [], fromHistory = false) {
+        if (!this.routes.has(page)) return;
+
+        if (this.currentPage === page && JSON.stringify(this.currentParams) === JSON.stringify(params)) {
             return;
         }
 
-        // 清理旧页面
         if (this.currentPage && this.routes.get(this.currentPage)?.unmount) {
             this.routes.get(this.currentPage).unmount();
         }
 
-        // 加载新页面
         this.currentPage = page;
         this.currentParams = params;
 
         const handler = this.routes.get(page);
         handler.mount(params);
-
-        // 更新导航状态
         this._updateNavigation(page);
 
-        // 更新浏览器历史
-        window.location.hash = params.length > 0 ? `${page}/${params.join('/')}` : page;
+        if (!fromHistory) {
+            const newHash = params.length > 0 ? `#${page}/${params.join('/')}` : `#${page}`;
+            window.history.pushState({ page, params }, '', newHash);
+        }
     }
 
-    /**
-     * 更新底部导航状态
-     */
     _updateNavigation(page) {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.page === page);
         });
-
-        // 同步更新 State
         if (window.State) {
             State.set('ui.currentPage', page);
         }
     }
 
-    /**
-     * 获取当前页面名称
-     */
     getCurrentPage() {
         return this.currentPage;
     }
 
-    /**
-     * 获取当前路由参数
-     */
     getParams() {
         return this.currentParams;
     }
 
-    /**
-     * 返回首页
-     */
     goHome() {
         this.navigate('home');
     }
 
-    /**
-     * 刷新当前页面
-     */
     refresh() {
         if (this.currentPage) {
-            this.navigate(this.currentPage, this.currentParams);
+            this.navigate(this.currentPage, this.currentParams, true);
         }
     }
 }
 
 const router = new Router();
-
-// 导出
 window.Router = Router;
 window.router = router;

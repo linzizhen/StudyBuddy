@@ -32,7 +32,7 @@ class AppConfig:
 @dataclass
 class AIConfig:
     """AI 模型配置"""
-    base_url: str = field(default_factory=lambda: os.getenv('OLLAMA_BASE_URL', 'https://api.groq.com/openai/v1'))
+    base_url: str = field(default_factory=lambda: os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'))
     default_model: str = field(default_factory=lambda: os.getenv('DEFAULT_MODEL', 'llama-3.3-70b-versatile'))
     timeout: int = field(default_factory=lambda: int(os.getenv('AI_TIMEOUT', '60')))
     max_retries: int = field(default_factory=lambda: int(os.getenv('AI_MAX_RETRIES', '3')))
@@ -136,7 +136,7 @@ MODELS_CONFIG = {
     },
 
     # ===== OpenAI 兼容 API（需付费）=====
-    # "openai_gpt4o": {
+    # "openapi_gpt4o": {
     #     "name": "GPT-4o (OpenAI)",
     #     "model": "gpt-4o",
     #     "provider": "openai",
@@ -144,6 +144,19 @@ MODELS_CONFIG = {
     #     "api_key": "your-api-key-here"
     # },
 }
+
+# ========== 自动从环境变量填充 API Key ==========
+# 预设模型的 api_key 默认为空，需要用户配置
+# 这里支持从环境变量自动注入，方便部署
+_env_api_keys = {
+    'GROQ_API_KEY': 'groq_llama',
+    'DEEPSEEK_API_KEY': 'deepseek_chat',
+}
+for _env_var, _model_key in _env_api_keys.items():
+    _env_key = os.getenv(_env_var, '')
+    if _env_key:
+        if _model_key in MODELS_CONFIG:
+            MODELS_CONFIG[_model_key]['api_key'] = _env_key
 
 # 默认使用的模型配置 key（推荐使用云端免费模型）
 DEFAULT_MODEL_KEY = os.getenv('DEFAULT_MODEL_KEY', 'groq_llama')

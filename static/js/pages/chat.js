@@ -37,7 +37,7 @@ class ChatPage {
         const avatar = document.getElementById('chat-buddy-avatar');
         if (avatar) {
             avatar.textContent = this.getEmotionEmoji(emotion);
-            avatar.className = `chat-header-avatar emotion-${emotion}`;
+            avatar.className = 'db-buddy-avatar emotion-' + emotion;
         }
     }
 
@@ -77,27 +77,35 @@ class ChatPage {
         const container = document.getElementById('chat-messages');
         if (!container) return;
 
+        const emptyEl = document.getElementById('chat-empty');
         if (this.history.length === 0) {
             const buddyMsg = State?.get('buddy.message') || '你好！我是小豆，今天感觉怎么样？';
             const emotion = State?.get('buddy.emotion') || 'idle';
+            if (emptyEl) {
+                emptyEl.style.display = '';
+            }
             container.innerHTML = `
-                <div class="message buddy emotion-${emotion}">
-                    <div class="msg-avatar emotion-${emotion}">${this.getEmotionEmoji(emotion)}</div>
-                    <div class="msg-content">
-                        <div class="msg-bubble emotion-bubble emotion-${emotion}">${buddyMsg}</div>
-                        <div class="msg-time">${this.formatTime(new Date())}</div>
+                <div class="db-msg buddy emotion-${emotion}">
+                    <div class="db-msg-avatar emotion-${emotion}">${this.getEmotionEmoji(emotion)}</div>
+                    <div class="db-msg-body">
+                        <div class="db-msg-bubble">${buddyMsg}</div>
+                        <div class="db-msg-time">${this.formatTime(new Date())}</div>
                     </div>
                 </div>
             `;
             return;
         }
 
+        if (emptyEl) {
+            emptyEl.style.display = 'none';
+        }
+
         container.innerHTML = this.history.map(msg => `
-            <div class="message ${msg.role} emotion-${msg.emotion || 'idle'}">
-                <div class="msg-avatar ${msg.role === 'buddy' ? 'emotion-' + (msg.emotion || 'idle') : ''}">${msg.role === 'buddy' ? this.getEmotionEmoji(msg.emotion || 'idle') : '我'}</div>
-                <div class="msg-content">
-                    <div class="msg-bubble emotion-bubble emotion-${msg.emotion || 'idle'}">${msg.content}</div>
-                    <div class="msg-time">${msg.time}</div>
+            <div class="db-msg ${msg.role} emotion-${msg.emotion || 'idle'}">
+                <div class="db-msg-avatar ${msg.role === 'buddy' ? 'emotion-' + (msg.emotion || 'idle') : ''}">${msg.role === 'buddy' ? this.getEmotionEmoji(msg.emotion || 'idle') : '我'}</div>
+                <div class="db-msg-body">
+                    <div class="db-msg-bubble">${msg.content}</div>
+                    <div class="db-msg-time">${msg.time}</div>
                 </div>
             </div>
         `).join('');
@@ -109,16 +117,19 @@ class ChatPage {
         const container = document.getElementById('chat-messages');
         if (!container) return;
 
+        const emptyEl = document.getElementById('chat-empty');
+        if (emptyEl) emptyEl.style.display = 'none';
+
         const t = time || this.formatTime(new Date());
         this.history.push({ role, content, emotion, time: t });
 
         const msgEl = document.createElement('div');
-        msgEl.className = `message ${role} emotion-${emotion}`;
+        msgEl.className = 'db-msg ' + role;
         msgEl.innerHTML = `
-            <div class="msg-avatar ${role === 'buddy' ? 'emotion-' + emotion : ''}">${role === 'buddy' ? this.getEmotionEmoji(emotion) : '我'}</div>
-            <div class="msg-content">
-                <div class="msg-bubble emotion-bubble emotion-${emotion}">${content}</div>
-                <div class="msg-time">${t}</div>
+            <div class="db-msg-avatar">${role === 'buddy' ? this.getEmotionEmoji(emotion) : '我'}</div>
+            <div class="db-msg-body">
+                <div class="db-msg-bubble">${content}</div>
+                <div class="db-msg-time">${t}</div>
             </div>
         `;
         container.appendChild(msgEl);
@@ -129,22 +140,18 @@ class ChatPage {
         const container = document.getElementById('chat-messages');
         if (!container) return;
 
-        let typingEl = container.querySelector('.message.typing');
+        let typingEl = container.querySelector('.db-typing');
         if (typingEl) {
-            typingEl.querySelector('.msg-avatar').textContent = this.getEmotionEmoji(emotion);
+            typingEl.querySelector('.db-typing-avatar').textContent = this.getEmotionEmoji(emotion);
             return;
         }
 
         typingEl = document.createElement('div');
-        typingEl.className = `message buddy typing emotion-${emotion}`;
+        typingEl.className = 'db-typing';
         typingEl.innerHTML = `
-            <div class="msg-avatar emotion-${emotion}">${this.getEmotionEmoji(emotion)}</div>
-            <div class="msg-content">
-                <div class="msg-bubble emotion-bubble emotion-${emotion}">
-                    <div class="typing-indicator">
-                        <span></span><span></span><span></span>
-                    </div>
-                </div>
+            <div class="db-typing-avatar">${this.getEmotionEmoji(emotion)}</div>
+            <div class="db-typing-dots">
+                <span></span><span></span><span></span>
             </div>
         `;
         container.appendChild(typingEl);
@@ -154,24 +161,20 @@ class ChatPage {
     hideTyping() {
         const container = document.getElementById('chat-messages');
         if (!container) return;
-        const typingEl = container.querySelector('.message.typing');
+        const typingEl = container.querySelector('.db-typing');
         if (typingEl) typingEl.remove();
     }
 
     updateLastMessageEmotion(emotion) {
         const container = document.getElementById('chat-messages');
         if (!container) return;
-        const lastBuddyMsg = container.querySelector('.message.buddy:last-child');
+        const lastBuddyMsg = container.querySelector('.db-msg.buddy:last-child');
         if (lastBuddyMsg) {
-            lastBuddyMsg.className = `message buddy emotion-${emotion}`;
-            const avatar = lastBuddyMsg.querySelector('.msg-avatar');
+            lastBuddyMsg.className = 'db-msg buddy emotion-' + emotion;
+            const avatar = lastBuddyMsg.querySelector('.db-msg-avatar');
             if (avatar) {
                 avatar.textContent = this.getEmotionEmoji(emotion);
-                avatar.className = `msg-avatar emotion-${emotion}`;
-            }
-            const bubble = lastBuddyMsg.querySelector('.msg-bubble');
-            if (bubble) {
-                bubble.className = `msg-bubble emotion-bubble emotion-${emotion}`;
+                avatar.className = 'db-msg-avatar emotion-' + emotion;
             }
         }
     }
@@ -180,9 +183,9 @@ class ChatPage {
         const container = document.getElementById('chat-suggestions');
         if (!container || !suggestions || suggestions.length === 0) return;
 
-        container.innerHTML = suggestions.map(s => `
-            <button class="chat-suggestion-btn" onclick="App.sendSuggestion('${s.replace(/'/g, "\\'")}')">${s}</button>
-        `).join('');
+        container.innerHTML = suggestions.map(s =>
+            `<button class="db-suggestion-btn" onclick="App.sendSuggestion('${s.replace(/'/g, "\\'")}')">${s}</button>`
+        ).join('');
     }
 
     formatTime(date) {

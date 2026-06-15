@@ -11,8 +11,8 @@ tasks_bp = Blueprint('tasks', __name__, url_prefix='/api/tasks')
 
 def get_task_manager():
     """获取任务管理器"""
-    from src.modules.task_manager import TaskManager
-    return TaskManager()
+    from src.modules.task_manager import get_task_manager as _get_tm
+    return _get_tm()
 
 
 def get_buddy():
@@ -68,7 +68,13 @@ def update_task(task_id):
     data = request.json or {}
 
     valid_fields = ['title', 'description', 'deadline', 'completed']
-    update_data = {k: v for k, v in data.items() if k in valid_fields}
+    update_data = {}
+    for k, v in data.items():
+        if k in valid_fields:
+            if k == 'completed':
+                update_data['status'] = 'completed' if v else 'pending'
+            else:
+                update_data[k] = v
 
     task = task_manager.update_task(task_id, **update_data)
     if task:

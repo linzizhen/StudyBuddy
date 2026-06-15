@@ -70,7 +70,7 @@ class HomePage {
         const el = document.getElementById('countdown');
         if (!el) return;
         if (profile.days_remaining >= 0) {
-            el.textContent = `考研倒计时 ${profile.days_remaining} 天`;
+            el.textContent = `目标倒计时 ${profile.days_remaining} 天`;
             el.style.color = 'var(--primary)';
         } else {
             el.textContent = '设置目标';

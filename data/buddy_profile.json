@@ -12,8 +12,13 @@
     "created_at": "2026-04-27T14:17:44.671153"
   },
   "buddy": {
-    "name": "小豆",
-    "personality": "温暖但有原则",
-    "introduction": "我是小豆，会陪你走完这段考研路"
+    "name": "戏精",
+    "personality": "幽默搞怪型",
+    "introduction": "我是小豆，会陪你走完这段考研路",
+    "role_id": "xj",
+    "level": 1,
+    "custom_name": null,
+    "total_interactions": 0,
+    "emoji": "🎭"
   }
 }

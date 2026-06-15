@@ -236,7 +236,7 @@ const State = {
             const days = state.profile.daysRemaining;
             if (days < 0) return '设置目标';
             if (days === 0) return '今天考试！';
-            return `考研倒计时 ${days} 天`;
+            return `目标倒计时 ${days} 天`;
         },
 
         /**
