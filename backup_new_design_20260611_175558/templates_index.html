@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#6366F1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>StudyPal - 学习搭子</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var l = document.createElement('link');
+            l.rel = 'stylesheet';
+            l.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap';
+            var n = document.querySelector('link[rel="stylesheet"]');
+            n.parentNode.insertBefore(l, n);
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/css/variables.css">
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/animate.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="stylesheet" href="/static/css/chat-deepseek.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+</head>
+<body>
+
+    <!-- SVG 渐变定义 -->
+    <svg width="0" height="0" style="position:absolute;">
+        <defs>
+            <linearGradient id="ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#818CF8;stop-opacity:1" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- 背景渐变层 -->
+    <div class="bg-gradient"></div>
+
+    <!-- ===== 顶部栏 ===== -->
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <button class="btn-icon" id="btn-back" onclick="App.goBack()" style="display:none;" title="返回">
+                <span>&#8592;</span>
+            </button>
+            <div>
+                <div class="top-bar-greeting" id="greeting-text">加载中...</div>
+                <div class="top-bar-date" id="user-name">学习战士</div>
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <button class="btn-icon" id="btn-theme" onclick="App.toggleTheme()" title="切换主题">
+                <span id="theme-icon">&#127769;</span>
+            </button>
+            <button class="btn-icon" onclick="App.navigate('settings')">
+                <span id="user-avatar">&#128100;</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ===== Toast ===== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ===== 成就弹窗 ===== -->
+    <div class="modal-overlay" id="achievement-modal">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-body" style="text-align:center;">
+                <div class="ach-modal-icon" id="ach-icon">&#127942;</div>
+                <div class="ach-modal-title">&#127942; 成就解锁</div>
+                <div class="ach-modal-desc" id="ach-desc">太棒了</div>
+                <button class="btn btn-primary btn-block" onclick="App.closeAchievement()">继续加油</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 角色选择弹窗 ===== -->
+    <div class="modal-overlay" id="role-modal">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <div class="modal-title">&#128149; 切换学习搭子</div>
+                <button class="modal-close-btn" onclick="App.closeRoleModal()">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div id="role-list" class="role-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== AI 模型配置弹窗 ===== -->
+    <div class="modal-overlay" id="model-modal">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <div class="modal-title">&#129504; AI 模型配置</div>
+                <button class="modal-close-btn" onclick="App.closeModelModal()">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:var(--bg-elevated);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:16px;font-size:var(--text-xs);color:var(--text-secondary);line-height:1.6;">
+                    <div style="font-weight:600;margin-bottom:4px;color:var(--text);">&#9432; 关于配置名称和模型名称</div>
+                    <div><strong>配置名称</strong>：给你的配置起个名字，方便识别（如"我的 DeepSeek"）。</div>
+                    <div style="margin-top:4px;"><strong>模型名称</strong>：填写 OpenAI 兼容接口的模型名称（如 deepseek-chat、gpt-4o）。</div>
+                    <div style="margin-top:4px;color:var(--primary);">&#128173; 如不配置，系统将使用免费云端模型。</div>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">配置名称（选填）</label>
+                    <input type="text" class="input" id="custom-model-name" placeholder="我的 DeepSeek">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">API 地址</label>
+                    <input type="text" class="input" id="custom-model-url" placeholder="https://api.deepseek.com/v1">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">API Key</label>
+                    <input type="password" class="input" id="custom-model-key" placeholder="sk-xxxxxxxxxxxxxxxx">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">模型名称</label>
+                    <input type="text" class="input" id="custom-model-model" placeholder="deepseek-chat">
+                    <div class="input-hint" style="font-size:var(--text-xs);color:var(--text-muted);margin-top:4px;">填写 OpenAI 兼容接口的模型名称</div>
+                </div>
+                <button class="btn btn-secondary btn-block mb-4" id="btn-test-model" onclick="App.testCustomModel()">&#128270; 测试连接</button>
+                <div id="test-result" style="margin-bottom:16px;"></div>
+                <button class="btn btn-primary btn-block" onclick="App.saveModelConfig()">&#128190; 保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 头像选择器弹窗 ===== -->
+    <div class="modal-overlay" id="avatar-picker-modal">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <div class="modal-title" id="avatar-picker-title">更换头像</div>
+                <button class="modal-close-btn" onclick="App.closeAvatarPicker()">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="avatar-upload-section" id="avatar-upload-section">
+                    <label class="avatar-upload-btn" for="avatar-file-input">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        从本地上传图片
+                    </label>
+                    <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="App.handleAvatarFileSelect(event)">
+                    <div class="avatar-upload-preview" id="avatar-upload-preview"></div>
+                </div>
+                <div class="avatar-category-title" style="font-size:var(--text-sm);font-weight:600;color:var(--text-muted);margin:16px 0 12px;">或选择头像</div>
+                <div class="avatar-picker-grid" id="avatar-picker-grid">
+                </div>
+                <button class="btn btn-primary btn-block mt-4" onclick="App.saveAvatar()">&#10003; 确定更换</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 学习目标设置弹窗 ===== -->
+    <div class="modal-overlay" id="goal-modal">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <div class="modal-title">&#127891; 学习目标</div>
+                <button class="modal-close-btn" onclick="App.closeGoalModal()">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label class="input-label">目标名称</label>
+                    <input type="text" class="input" id="goal-school-input" placeholder="例如：英语六级、前端工程师、考研">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">具体目标</label>
+                    <input type="text" class="input" id="goal-major-input" placeholder="例如：通过考试、完成项目">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">目标分数（选填）</label>
+                    <input type="number" class="input" id="goal-score-input" placeholder="例如：600、500" min="0" max="1000">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">目标日期</label>
+                    <input type="date" class="input" id="goal-exam-date-input">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">每日学习时长</label>
+                    <div class="hours-slider-wrap">
+                        <input type="range" class="hours-range" id="goal-hours-range" min="1" max="14" value="8" step="0.5" style="width:100%;accent-color:var(--primary);">
+                        <div style="text-align:center;margin-top:8px;font-size:var(--text-sm);color:var(--text-secondary);">每天 <span id="goal-hours-display" style="font-weight:700;color:var(--primary);">8</span> 小时</div>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block mt-4" onclick="App.saveGoalSettings()">&#10003; 保存目标</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 自定义搭子设计器弹窗 ===== -->
+    <div class="modal-overlay" id="buddy-designer-modal">
+        <div class="modal-sheet">
+            <div class="modal-handle"></div>
+            <div class="modal-header">
+                <div class="modal-title">&#9998; 搭子设计器</div>
+                <button class="modal-close-btn" onclick="App.closeBuddyDesigner()">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <div class="buddy-preview-card" id="buddy-preview" style="background:var(--gradient-brand-subtle);border:1.5px solid var(--primary-ghost);border-radius:var(--radius-2xl);padding:24px;text-align:center;margin-bottom:20px;">
+                    <div class="buddy-preview-avatar" id="preview-emoji" style="width:64px;height:64px;border-radius:var(--radius-2xl);background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 12px;box-shadow:0 4px 16px rgba(99,102,241,0.3);">&#129302;</div>
+                    <div class="buddy-preview-name" id="preview-name" style="font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:4px;">我的搭子</div>
+                    <div class="buddy-preview-desc" id="preview-desc" style="font-size:var(--text-sm);color:var(--text-secondary);">自定义学习搭子</div>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">搭子名称 <span style="color:var(--coral);">*</span></label>
+                    <input type="text" class="input" id="buddy-name" placeholder="给你的搭子起个名字" maxlength="20" oninput="App.updateBuddyPreview()">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">选择头像</label>
+                    <div class="emoji-picker" id="emoji-picker"></div>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">性格设定</label>
+                    <input type="text" class="input" id="buddy-personality" placeholder="例如：活泼开朗，乐于助人" oninput="App.updateBuddyPreview()">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">关系描述</label>
+                    <input type="text" class="input" id="buddy-relationship" placeholder="例如：最好的朋友 / 战友 / 学长">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">说话风格</label>
+                    <input type="text" class="input" id="buddy-speaking-style" placeholder="例如：轻松俏皮，偶尔用网络热词">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">背景故事（选填）</label>
+                    <textarea class="input" id="buddy-background" placeholder="可以描述搭子的背景，让它更立体..." rows="2"></textarea>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">进阶提示词（选填）</label>
+                    <textarea class="input" id="buddy-system-prompt" placeholder="如果你想完全自定义搭子的行为，可以在这里编写系统提示词..." rows="3"></textarea>
+                    <div class="input-hint" style="font-size:var(--text-xs);color:var(--text-muted);margin-top:4px;">高级功能：填写后将覆盖上述性格设定</div>
+                </div>
+                <button class="btn btn-primary btn-block mt-4" onclick="App.saveCustomBuddy()">&#127881; 创建专属搭子</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 页面容器 ===== -->
+    <main class="page-container">
+        <!-- 加载状态 -->
+        <div class="app-loading" id="app-loading">
+            <div style="width:48px;height:48px;border-radius:var(--radius-2xl);background:var(--gradient-brand);display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 8px 24px rgba(99,102,241,0.4);">&#128218;</div>
+            <div class="loading-spinner" style="width:24px;height:24px;border-width:2.5px;"></div>
+            <div class="loading-text">加载中...</div>
+        </div>
+
+        <!-- ===== 首页 ===== -->
+        <div class="page active" id="page-home">
+
+            <!-- ===== BENTO GRID 布局 ===== -->
+            <div class="home-bento">
+
+                <!-- 搭子主卡片 -->
+                <div class="bento-card bento-hero anim-card-hover" id="buddy-hero" onclick="App.startChat()" style="grid-area:hero;">
+                    <div class="bento-hero-inner">
+                        <div class="bento-hero-left">
+                            <div class="bento-avatar-wrap">
+                                <div class="bento-avatar" id="buddy-avatar">&#128150;</div>
+                                <button class="avatar-edit-btn" onclick="App.editBuddyAvatar(event)" title="更换头像">&#9998;</button>
+                                <div class="bento-online-dot"></div>
+                            </div>
+                            <div class="bento-hero-info">
+                                <div class="bento-hero-name" id="buddy-name">小豆</div>
+                                <div class="bento-hero-mood" id="buddy-emotion-text">心情不错~</div>
+                                <div class="bento-hero-badge" id="buddy-tag">&#128149; 温柔陪伴</div>
+                            </div>
+                        </div>
+                        <button class="bento-chat-btn" onclick="App.startChat()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="bento-hero-msg" id="buddy-msg">
+                        今天感觉怎么样？有什么想聊的吗？
+                    </div>
+                </div>
+
+                <!-- 计时器卡片 -->
+                <div class="bento-card bento-timer anim-card-hover" id="study-timer-card" style="grid-area:timer;">
+                    <div class="bento-timer-ring-wrap">
+                        <div class="bento-timer-ring">
+                            <svg viewBox="0 0 180 180">
+                                <circle class="bento-timer-ring-bg" cx="90" cy="90" r="80" />
+                                <circle class="bento-timer-ring-fill" id="timer-ring" cx="90" cy="90" r="80"
+                                    stroke-dasharray="502.65" stroke-dashoffset="502.65" />
+                            </svg>
+                            <div class="bento-timer-center">
+                                <div class="bento-timer-time" id="timer-display">25:00</div>
+                                <div class="bento-timer-subject" id="timer-subject-tag">&#128218; 数学</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-timer-presets" id="timer-presets">
+                        <button class="bento-timer-preset-btn" data-minutes="15">15</button>
+                        <button class="bento-timer-preset-btn active" data-minutes="25">25</button>
+                        <button class="bento-timer-preset-btn" data-minutes="45">45</button>
+                        <button class="bento-timer-preset-btn" data-minutes="60">60</button>
+                    </div>
+                    <div class="bento-timer-subjects" id="subject-chips">
+                        <button class="bento-subject-chip active" data-subject="数学">&#128218; 数学</button>
+                        <button class="bento-subject-chip" data-subject="英语">&#128214; 英语</button>
+                        <button class="bento-subject-chip" data-subject="政治">&#127963; 政治</button>
+                        <button class="bento-subject-chip" data-subject="专业课">&#128218;</button>
+                    </div>
+                    <button class="btn btn-primary btn-block" id="btn-timer-start" onclick="App.toggleTimer()">
+                        <span>&#9654;</span> <span id="timer-btn-text">开始专注</span>
+                    </button>
+                </div>
+
+                <!-- 今日学习时长 -->
+                <div class="bento-card bento-stat-card anim-card-hover" onclick="App.navigate('insights')" style="grid-area:stat-hours;">
+                    <div class="bento-stat-icon" style="background:var(--primary-soft);color:var(--primary);">&#128218;</div>
+                    <div class="bento-stat-val accent" id="today-hours">0.0</div>
+                    <div class="bento-stat-label">学习时长</div>
+                </div>
+
+                <!-- 番茄数 -->
+                <div class="bento-card bento-stat-card anim-card-hover" onclick="App.navigate('insights')" style="grid-area:stat-sessions;">
+                    <div class="bento-stat-icon" style="background:var(--accent-soft);color:var(--accent);">&#127813;</div>
+                    <div class="bento-stat-val" id="today-sessions">0</div>
+                    <div class="bento-stat-label">番茄数</div>
+                </div>
+
+                <!-- 目标完成 -->
+                <div class="bento-card bento-stat-card anim-card-hover" onclick="App.navigate('insights')" style="grid-area:stat-goal;">
+                    <div class="bento-stat-icon" style="background:var(--mint-ghost);color:var(--mint);">&#127941;</div>
+                    <div class="bento-stat-val" id="today-goal">0%</div>
+                    <div class="bento-stat-label">目标完成</div>
+                </div>
+
+                <!-- 连续天数 -->
+                <div class="bento-card bento-stat-card anim-card-hover" onclick="App.navigate('achievements')" style="grid-area:stat-streak;">
+                    <div class="bento-stat-icon" style="background:var(--gold-ghost);color:var(--gold);">&#128293;</div>
+                    <div class="bento-stat-val" id="streak-num">0</div>
+                    <div class="bento-stat-label">连续天数</div>
+                </div>
+
+                <!-- 快捷操作：开始学习 -->
+                <div class="bento-card bento-quick-card anim-card-hover" onclick="App.toggleStudy()" style="grid-area:quick-study;">
+                    <div class="bento-quick-icon" style="background:var(--gradient-primary);box-shadow:0 4px 16px rgba(99,102,241,0.3);">&#127919;</div>
+                    <div class="bento-quick-info">
+                        <div class="bento-quick-title" id="study-btn-text">开始学习</div>
+                        <div class="bento-quick-sub">专注 25 分钟</div>
+                    </div>
+                    <div class="bento-quick-arrow">&#8250;</div>
+                </div>
+
+                <!-- 快捷操作：写日记 -->
+                <div class="bento-card bento-quick-card anim-card-hover" onclick="App.navigate('diary')" style="grid-area:quick-diary;">
+                    <div class="bento-quick-icon" style="background:var(--gradient-accent-subtle);color:var(--accent);">&#128221;</div>
+                    <div class="bento-quick-info">
+                        <div class="bento-quick-title">写日记</div>
+                        <div class="bento-quick-sub">记录今天心情</div>
+                    </div>
+                    <div class="bento-quick-arrow">&#8250;</div>
+                </div>
+
+                <!-- 快捷操作：待办事项 -->
+                <div class="bento-card bento-quick-card anim-card-hover" onclick="App.navigate('tasks')" style="grid-area:quick-tasks;">
+                    <div class="bento-quick-icon" style="background:var(--mint-ghost);color:var(--mint);">&#9745;</div>
+                    <div class="bento-quick-info">
+                        <div class="bento-quick-title">待办事项</div>
+                        <div class="bento-quick-sub">学习计划</div>
+                    </div>
+                    <div class="bento-quick-arrow">&#8250;</div>
+                </div>
+
+                <!-- 快捷操作：搭子聊聊 -->
+                <div class="bento-card bento-quick-card anim-card-hover" onclick="App.startChat()" style="grid-area:quick-chat;">
+                    <div class="bento-quick-icon" style="background:var(--violet-ghost);color:var(--violet);">&#128172;</div>
+                    <div class="bento-quick-info">
+                        <div class="bento-quick-title">和搭子聊聊</div>
+                        <div class="bento-quick-sub">随时陪伴</div>
+                    </div>
+                    <div class="bento-quick-arrow">&#8250;</div>
+                </div>
+
+                <!-- 目标卡片 -->
+                <div class="bento-card bento-goal-card" style="grid-area:goal;">
+                    <div class="bento-goal-header">
+                        <div class="bento-goal-title">&#127808; 学习目标</div>
+                    </div>
+                    <div class="bento-goal-grid">
+                        <div class="bento-goal-item">
+                            <div class="bento-goal-icon" style="background:var(--gold-ghost);color:var(--gold);">&#127891;</div>
+                            <div>
+                                <div class="bento-goal-label">目标</div>
+                                <div class="bento-goal-value" id="goal-school">未设置</div>
+                            </div>
+                        </div>
+                        <div class="bento-goal-item">
+                            <div class="bento-goal-icon" style="background:var(--primary-soft);color:var(--primary);">&#128218;</div>
+                            <div>
+                                <div class="bento-goal-label">专业</div>
+                                <div class="bento-goal-value" id="goal-major">--</div>
+                            </div>
+                        </div>
+                        <div class="bento-goal-item">
+                            <div class="bento-goal-icon" style="background:var(--accent-soft);color:var(--accent);">&#127919;</div>
+                            <div>
+                                <div class="bento-goal-label">目标分数</div>
+                                <div class="bento-goal-value" id="goal-score">--</div>
+                            </div>
+                        </div>
+                        <div class="bento-goal-item">
+                            <div class="bento-goal-icon" style="background:var(--mint-ghost);color:var(--mint);">&#128197;</div>
+                            <div>
+                                <div class="bento-goal-label">剩余天数</div>
+                                <div class="bento-goal-value" id="goal-days">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bento-goal-progress">
+                        <div class="bento-goal-progress-label">
+                            <span>今日进度</span>
+                            <span id="goal-percent">0%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" id="today-progress-bar" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 搭子切换入口 -->
+                <div class="bento-card bento-switch-card anim-card-hover" onclick="App.switchRole()" style="grid-area:switch;">
+                    <div class="bento-switch-avatars">
+                        <div class="bento-switch-av" style="background:linear-gradient(135deg,#FDE68A,#FCD34D);">&#128150;</div>
+                        <div class="bento-switch-av" style="background:linear-gradient(135deg,#FEE2E2,#FCA5A5);">&#128293;</div>
+                        <div class="bento-switch-av" style="background:linear-gradient(135deg,#E0E7FF,#A5B4FC);">&#128105;</div>
+                        <div class="bento-switch-av" style="background:linear-gradient(135deg,#CFFAFE,#67E8F9);">&#127769;</div>
+                    </div>
+                    <div class="bento-switch-info">
+                        <div class="bento-switch-title">切换学习搭子</div>
+                        <div class="bento-switch-sub">选择你喜欢的搭子风格</div>
+                    </div>
+                    <div class="bento-switch-arrow">&#8250;</div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ===== 搭话页 ===== -->
+        <div class="page" id="page-chat">
+            <div class="db-buddy-bar">
+                <div class="db-buddy-avatar" id="chat-buddy-avatar-2">&#128150;</div>
+                <div class="db-buddy-info">
+                    <div class="db-buddy-name" id="chat-buddy-name-2">小豆</div>
+                    <div class="db-buddy-emotion" id="chat-emotion-desc">随时待命</div>
+                    <div class="db-buddy-model" id="chat-model-badge"></div>
+                </div>
+            </div>
+
+            <div class="db-messages" id="chat-messages">
+                <div class="db-empty" id="chat-empty">
+                    <div class="db-empty-avatar" id="ds-empty-avatar">&#128150;</div>
+                    <div class="db-empty-name" id="ds-empty-name">小豆</div>
+                    <div class="db-empty-tagline">打个招呼吧，搭子一直在等你</div>
+                    <div class="db-empty-suggestions" id="chat-suggestions"></div>
+                </div>
+            </div>
+
+            <div class="db-input-area">
+                <div class="db-input-wrap">
+                    <textarea class="db-input" id="chat-input" placeholder="说点什么..." rows="1" autocomplete="off"></textarea>
+                    <button class="db-send-btn" id="btn-send" onclick="App.sendChat()">
+                        <svg class="db-send-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="19" x2="12" y2="5"></line>
+                            <polyline points="5 12 12 5 19 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 日记页 ===== -->
+        <div class="page" id="page-diary">
+            <div class="diary-page-header">
+                <div class="diary-date-label" id="diary-date">2026年6月11日</div>
+                <div class="page-actions">
+                    <div class="diary-checkin-badge" id="diary-checkin-badge" style="display:none;"></div>
+                    <button class="btn-icon-sm" onclick="App.navigate('settings')" title="设置">&#9881;</button>
+                </div>
+            </div>
+            <div class="diary-write-card">
+                <div class="diary-emotion-label" style="margin-bottom:14px;">今天心情怎么样？</div>
+                <div class="emotion-picker" id="emotion-picker">
+                    <button class="emotion-btn" data-level="1" title="很难受">&#128546;</button>
+                    <button class="emotion-btn" data-level="2" title="有点丧">&#128557;</button>
+                    <button class="emotion-btn" data-level="3" title="一般">&#128528;</button>
+                    <button class="emotion-btn" data-level="4" title="还好">&#128578;</button>
+                    <button class="emotion-btn" data-level="5" title="很开心">&#128513;</button>
+                </div>
+                <div class="input-group" style="margin-top:14px;">
+                    <label class="input-label" style="font-size:12px;color:var(--text-muted);">学习感受（选填）</label>
+                    <div class="feeling-tags" id="feeling-picker">
+                        <button class="feeling-tag" data-feeling="充实">&#128170; 充实</button>
+                        <button class="feeling-tag" data-feeling="疲惫">&#128555; 疲惫</button>
+                        <button class="feeling-tag" data-feeling="焦虑">&#128546; 焦虑</button>
+                        <button class="feeling-tag" data-feeling="麻木">&#128554; 麻木</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label class="input-label" style="font-size:12px;color:var(--text-muted);">今日大事（选填）</label>
+                    <input type="text" class="input" id="diary-biggest-event" placeholder="比如：完成了第三章复习" maxlength="100">
+                </div>
+                <div class="input-group">
+                    <textarea class="input" id="diary-content" rows="3" placeholder="今天发生了什么？有什么想记录的？"></textarea>
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label class="input-label" style="font-size:12px;color:var(--text-muted);">天气（选填）</label>
+                    <div class="weather-picker" id="weather-picker">
+                        <button class="weather-btn" data-weather="晴">&#9728; 晴</button>
+                        <button class="weather-btn" data-weather="多云">&#9925; 多云</button>
+                        <button class="weather-btn" data-weather="阴">&#9729; 阴</button>
+                        <button class="weather-btn" data-weather="雨">&#127783; 雨</button>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block" id="diary-save-btn">&#128190; <span id="diary-save-btn-text">保存日记</span></button>
+            </div>
+            <div id="emotion-chart-section"></div>
+            <div class="section-title" style="margin-top:20px;">&#128197; 过往日记</div>
+            <div id="diary-history">
+                <div class="empty-state">
+                    <div class="empty-icon">&#128214;</div>
+                    <div class="empty-title">还没有日记</div>
+                    <div class="empty-desc">记录每天的心情，搭子会帮你分析</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 任务页 ===== -->
+        <div class="page" id="page-tasks">
+            <div class="tasks-page-header">
+                <div class="page-title">&#9745; 待办事项</div>
+                <div class="page-actions">
+                    <button class="btn-icon-sm" onclick="App.navigate('settings')" title="设置">&#9881;</button>
+                </div>
+            </div>
+            <div class="task-filter-tabs" id="task-filter-tabs">
+                <button class="task-filter-tab active" data-filter="all">全部</button>
+                <button class="task-filter-tab" data-filter="pending">待完成</button>
+                <button class="task-filter-tab" data-filter="completed">已完成</button>
+            </div>
+            <div id="task-list"></div>
+            <button class="task-add-btn" onclick="App.showAddTask()">+ 添加新任务</button>
+        </div>
+
+        <!-- ===== 设置页 ===== -->
+        <div class="page" id="page-settings">
+            <div class="page-header">
+                <div class="page-title">&#9881; 设置</div>
+            </div>
+
+            <div class="settings-section" style="margin-top:4px;">
+                <div class="settings-section-title">个人</div>
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <div class="settings-avatar-wrapper">
+                            <div class="settings-row-icon" style="background:var(--primary-soft);font-size:20px;" id="settings-avatar">&#128100;</div>
+                            <button class="avatar-edit-btn-sm" onclick="App.editUserAvatar(event)" title="更换头像">&#9998;</button>
+                        </div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title" id="settings-name">学习战士</div>
+                            <div class="settings-row-desc" id="settings-email">user@example.com</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">学习目标</div>
+                <div class="settings-card">
+                    <div class="settings-row" onclick="App.showGoalForm()">
+                        <div class="settings-row-icon" style="background:var(--gold-ghost);">&#127891;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">学习目标</div>
+                            <div class="settings-row-desc" id="settings-goal-desc">设置你的学习目标</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                    <div class="settings-row" onclick="App.showHoursSlider()">
+                        <div class="settings-row-icon" style="background:var(--primary-soft);">&#9200;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">每日学习时长</div>
+                            <div class="settings-row-desc">每天 <span id="goal-hours-val">8</span> 小时</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                    <div class="settings-row" onclick="App.showExamDatePicker()">
+                        <div class="settings-row-icon" style="background:var(--accent-soft);">&#128197;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">目标日期</div>
+                            <div class="settings-row-desc" id="settings-exam-date">设置目标日期</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">学习搭子</div>
+                <div class="settings-card">
+                    <div class="settings-row" onclick="App.switchRole()">
+                        <div class="settings-row-icon" style="background:var(--rose-ghost);">&#128149;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">切换搭子</div>
+                            <div class="settings-row-desc" id="current-role-name">小豆</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                    <div class="settings-row" onclick="App.openBuddyDesigner()">
+                        <div class="settings-row-icon" style="background:var(--violet-ghost);">&#9998;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">自定义搭子</div>
+                            <div class="settings-row-desc">设计专属搭子的性格和提示词</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">AI 模型</div>
+                <div class="settings-card">
+                    <div class="settings-row" onclick="App.showModelConfig()">
+                        <div class="settings-row-icon" style="background:var(--sky-ghost);">&#129504;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">AI 模型配置</div>
+                            <div class="settings-row-desc" id="current-model-name">加载中...</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">数据统计</div>
+                <div class="settings-card">
+                    <div class="settings-row" onclick="App.navigate('insights')">
+                        <div class="settings-row-icon" style="background:var(--primary-soft);">&#128202;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">数据洞察</div>
+                            <div class="settings-row-desc">查看学习数据</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                    <div class="settings-row" onclick="App.navigate('achievements')">
+                        <div class="settings-row-icon" style="background:var(--gold-ghost);">&#127942;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">成就徽章</div>
+                            <div class="settings-row-desc">查看已解锁成就</div>
+                        </div>
+                        <div class="settings-row-arrow">&#8250;</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">外观</div>
+                <div class="settings-card">
+                    <div class="settings-row" onclick="App.toggleTheme()">
+                        <div class="settings-row-icon" style="background:var(--bg-elevated);" id="theme-toggle-icon">&#127769;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">深色模式</div>
+                            <div class="settings-row-desc" id="theme-desc">切换应用外观</div>
+                        </div>
+                        <div class="toggle-switch" id="theme-toggle-switch">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">关于</div>
+                <div class="settings-card">
+                    <div class="settings-row" style="cursor:default;">
+                        <div class="settings-row-icon" style="background:var(--bg-elevated);font-size:12px;font-weight:700;">v3.2</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title">StudyPal</div>
+                            <div class="settings-row-desc">版本 v3.2</div>
+                        </div>
+                    </div>
+                    <div class="settings-row" onclick="App.logout()" style="cursor:pointer;">
+                        <div class="settings-row-icon" style="background:var(--coral-ghost);color:var(--coral);">&#128682;</div>
+                        <div class="settings-row-content">
+                            <div class="settings-row-title" style="color:var(--coral);">退出登录</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 成就页 ===== -->
+        <div class="page" id="page-achievements">
+            <div class="ach-header">
+                <div class="ach-overview">
+                    <div>
+                        <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;">已解锁</div>
+                        <div style="font-size:var(--text-2xl);font-weight:800;color:var(--text-primary);"><span id="ach-unlocked">0</span> / <span style="color:var(--text-muted);font-size:var(--text-lg);" id="ach-total">0</span></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:var(--text-xs);color:var(--text-muted);font-weight:600;">成就点数</div>
+                        <div style="font-size:var(--text-2xl);font-weight:800;color:var(--gold);">&#11088; <span id="ach-points">0</span></div>
+                    </div>
+                </div>
+                <button class="btn-icon-sm" onclick="App.navigate('settings')" title="设置">&#9881;</button>
+            </div>
+            <div id="ach-list" class="ach-grid"></div>
+        </div>
+
+        <!-- ===== 数据洞察页 ===== -->
+        <div class="page" id="page-insights">
+            <div class="insights-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
+                <div class="page-title">&#128202; 数据洞察</div>
+                <button class="btn-icon-sm" onclick="App.navigate('settings')" title="设置">&#9881;</button>
+            </div>
+
+            <div class="insight-period-tabs" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-4);padding:4px;background:var(--bg-elevated);border-radius:var(--radius-xl);">
+                <button class="insight-period-tab active" data-days="7" onclick="App.switchInsightPeriod(7)" style="flex:1;padding:var(--space-2) var(--space-3);font-size:var(--text-sm);font-weight:600;color:var(--text-muted);border-radius:var(--radius-lg);transition:var(--transition-fast);border:none;background:transparent;cursor:pointer;">近7天</button>
+                <button class="insight-period-tab" data-days="30" onclick="App.switchInsightPeriod(30)" style="flex:1;padding:var(--space-2) var(--space-3);font-size:var(--text-sm);font-weight:600;color:var(--text-muted);border-radius:var(--radius-lg);transition:var(--transition-fast);border:none;background:transparent;cursor:pointer;">近30天</button>
+                <button class="insight-period-tab" data-days="90" onclick="App.switchInsightPeriod(90)" style="flex:1;padding:var(--space-2) var(--space-3);font-size:var(--text-sm);font-weight:600;color:var(--text-muted);border-radius:var(--radius-lg);transition:var(--transition-fast);border:none;background:transparent;cursor:pointer;">近90天</button>
+            </div>
+
+            <div class="insight-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-4);">
+                <div class="insight-stat-card" style="background:var(--bg-surface);border-radius:var(--radius-xl);padding:var(--space-4);border:1px solid var(--border);text-align:center;">
+                    <div class="insight-stat-val" id="insight-total-hours" style="font-size:var(--text-xl);font-weight:800;color:var(--primary);">0</div>
+                    <div class="insight-stat-label" style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:4px;">累计小时</div>
+                </div>
+                <div class="insight-stat-card" style="background:var(--bg-surface);border-radius:var(--radius-xl);padding:var(--space-4);border:1px solid var(--border);text-align:center;">
+                    <div class="insight-stat-val" id="insight-daily-avg" style="font-size:var(--text-xl);font-weight:800;color:var(--accent);">0</div>
+                    <div class="insight-stat-label" style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:4px;">日均小时</div>
+                </div>
+                <div class="insight-stat-card" style="background:var(--bg-surface);border-radius:var(--radius-xl);padding:var(--space-4);border:1px solid var(--border);text-align:center;">
+                    <div class="insight-stat-val" id="insight-total-sessions" style="font-size:var(--text-xl);font-weight:800;color:var(--mint);">0</div>
+                    <div class="insight-stat-label" style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:4px;">番茄数</div>
+                </div>
+                <div class="insight-stat-card" style="background:var(--bg-surface);border-radius:var(--radius-xl);padding:var(--space-4);border:1px solid var(--border);text-align:center;">
+                    <div class="insight-stat-val" id="insight-diary-count" style="font-size:var(--text-xl);font-weight:800;color:var(--gold);">0</div>
+                    <div class="insight-stat-label" style="font-size:var(--text-2xs);color:var(--text-muted);margin-top:4px;">日记篇</div>
+                </div>
+            </div>
+
+            <div style="background:var(--bg-surface);border-radius:var(--radius-2xl);padding:var(--space-5);border:1px solid var(--border);margin-bottom:var(--space-4);">
+                <div style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);">&#128200; 学习曲线</div>
+                <div id="study-chart-placeholder" style="text-align:center;padding:32px 0;color:var(--text-muted);font-size:var(--text-sm);">
+                    暂无学习数据
+                </div>
+                <canvas id="study-canvas" style="display:none;width:100%;height:120px;"></canvas>
+            </div>
+
+            <div style="background:var(--bg-surface);border-radius:var(--radius-2xl);padding:var(--space-5);border:1px solid var(--border);">
+                <div style="font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);">&#128218; 科目分布</div>
+                <div id="subject-list">
+                    <div class="empty-state" style="padding:var(--space-6) 0;color:var(--text-muted);font-size:var(--text-sm);">暂无数据</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 记忆页 ===== -->
+        <div class="page" id="page-memory">
+            <div class="page-header-with-action">
+                <div class="page-title">&#128161; 搭子记忆</div>
+                <button class="btn-icon-sm" onclick="App.navigate('settings')" title="设置">&#9881;</button>
+            </div>
+            <div style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-4);" id="memory-summary">搭子已记住 0 件事</div>
+            <div id="memory-list">
+                <div class="empty-state">
+                    <div class="empty-icon">&#128169;</div>
+                    <div class="empty-title">记忆空空</div>
+                    <div class="empty-desc">多和搭子聊天，它会记住关于你的一切</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 计划页 ===== -->
+        <div class="page" id="page-plans">
+            <div class="page-header-with-action">
+                <div class="page-title">&#128203; 学习计划</div>
+                <button class="btn-icon-sm" onclick="App.navigate('settings')" title="设置">&#9881;</button>
+            </div>
+            <div id="plan-list">
+                <div class="empty-state">
+                    <div class="empty-icon">&#128203;</div>
+                    <div class="empty-title">还没有学习计划</div>
+                    <div class="empty-desc">制定计划让复习更有条理</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===== 底部导航 ===== -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-page="home" onclick="App.navigate('home')">
+            <span class="nav-item-icon">&#127968;</span>
+            <span class="nav-item-label">首页</span>
+        </button>
+        <button class="nav-item" data-page="chat" onclick="App.navigate('chat')">
+            <span class="nav-item-icon">&#128172;</span>
+            <span class="nav-item-label">搭话</span>
+        </button>
+        <button class="nav-item" data-page="insights" onclick="App.navigate('insights')">
+            <span class="nav-item-icon">&#128202;</span>
+            <span class="nav-item-label">洞察</span>
+        </button>
+        <button class="nav-item" data-page="memory" onclick="App.navigate('memory')">
+            <span class="nav-item-icon">&#128161;</span>
+            <span class="nav-item-label">记忆</span>
+        </button>
+        <button class="nav-item" data-page="settings" onclick="App.navigate('settings')">
+            <span class="nav-item-icon">&#9881;</span>
+            <span class="nav-item-label">设置</span>
+        </button>
+    </nav>
+
+    <!-- ===== 加载脚本 ===== -->
+    <script src="/static/js/constants.js" defer></script>
+    <script src="/static/js/api.js" defer></script>
+    <script src="/static/js/state.js" defer></script>
+    <script src="/static/js/router.js" defer></script>
+    <script src="/static/js/app.js" defer></script>
+    <script src="/static/js/pages/home.js" defer></script>
+    <script src="/static/js/pages/chat.js" defer></script>
+    <script src="/static/js/pages/diary.js" defer></script>
+    <script src="/static/js/pages/tasks.js" defer></script>
+    <script src="/static/js/pages/settings.js" defer></script>
+    <script src="/static/js/pages/achievements.js" defer></script>
+    <script src="/static/js/pages/plans.js" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.App) {
+                App.init();
+            }
+        });
+    </script>
+
+</body>
+</html>

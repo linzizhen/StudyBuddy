@@ -1,0 +1,425 @@
+/**
+ * ================================================
+ * StudyPal Motion System v6.0
+ * 青春活力系 · 现代运动设计
+ * 基于 impeccable 设计原则
+ * ================================================
+ */
+
+/* ---- Timing Tokens ---- */
+:root {
+    --ease-out-quart:  cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-quint:  cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out-expo:   cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+
+    --dur-instant:  80ms;
+    --dur-fast:     150ms;
+    --dur-normal:   250ms;
+    --dur-slow:     350ms;
+    --dur-slower:   500ms;
+    --dur-entrance: 650ms;
+}
+
+/* ================================================
+ * ENTRANCE ANIMATIONS
+ * ================================================ */
+
+/* Fade up — primary entrance */
+@keyframes anim-fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Fade in */
+@keyframes anim-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Scale in (modals, cards) */
+@keyframes anim-scale-in {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* Slide from bottom */
+@keyframes anim-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+
+/* Slide in from right */
+@keyframes anim-slide-right {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Pop in (for toggles, badges) */
+@keyframes anim-pop {
+    0%   { transform: scale(0.8); opacity: 0; }
+    60%  { transform: scale(1.08); opacity: 1; }
+    80%  { transform: scale(0.96); }
+    100% { transform: scale(1); }
+}
+
+/* Gentle float — decorative elements */
+@keyframes anim-float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-8px); }
+}
+
+/* Pulse glow — active states */
+@keyframes anim-pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    50%       { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.12); }
+}
+
+/* Shimmer — skeleton loading */
+@keyframes anim-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+/* Spin */
+@keyframes anim-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Ripple */
+@keyframes anim-ripple {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* Blur in */
+@keyframes anim-blur-in {
+    from { opacity: 0; filter: blur(8px); }
+    to   { opacity: 1; filter: blur(0); }
+}
+
+/* Draw line (for charts/progress) */
+@keyframes anim-draw {
+    from { stroke-dashoffset: 1000; }
+    to   { stroke-dashoffset: 0; }
+}
+
+/* ================================================
+ * UTILITY CLASSES
+ * ================================================ */
+
+.anim-fade-up {
+    animation: anim-fade-up var(--dur-slower) var(--ease-out-quint) both;
+}
+
+.anim-fade-in {
+    animation: anim-fade-in var(--dur-slow) var(--ease-out-quart) both;
+}
+
+.anim-scale-in {
+    animation: anim-scale-in var(--dur-slow) var(--ease-out-expo) both;
+}
+
+.anim-slide-right {
+    animation: anim-slide-right var(--dur-slow) var(--ease-out-quint) both;
+}
+
+/* Stagger delays */
+.anim-delay-1 { animation-delay: 60ms; }
+.anim-delay-2 { animation-delay: 120ms; }
+.anim-delay-3 { animation-delay: 180ms; }
+.anim-delay-4 { animation-delay: 240ms; }
+.anim-delay-5 { animation-delay: 300ms; }
+.anim-delay-6 { animation-delay: 360ms; }
+.anim-delay-7 { animation-delay: 420ms; }
+.anim-delay-8 { animation-delay: 480ms; }
+
+/* ================================================
+ * MICRO-INTERACTIONS
+ * ================================================ */
+
+/* Card hover */
+.anim-card-hover {
+    transition:
+        box-shadow var(--dur-normal) var(--ease-out-quart),
+        transform  var(--dur-normal) var(--ease-out-quart);
+    cursor: pointer;
+}
+.anim-card-hover:hover {
+    box-shadow: var(--sh-hover);
+    transform: translateY(-3px);
+}
+.anim-card-hover:active {
+    transform: translateY(0) scale(0.985);
+}
+
+/* Button press */
+.anim-btn-press {
+    transition:
+        background-color var(--dur-fast) var(--ease-out-quart),
+        box-shadow       var(--dur-fast) var(--ease-out-quart),
+        transform        var(--dur-instant) var(--ease-out-quart);
+}
+.anim-btn-press:active {
+    transform: scale(0.95);
+}
+
+/* Button glow on hover */
+.anim-btn-glow {
+    transition:
+        box-shadow var(--dur-normal) var(--ease-out-quart),
+        transform  var(--dur-fast)   var(--ease-out-quart);
+}
+.anim-btn-glow:hover {
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+    transform: translateY(-2px);
+}
+.anim-btn-glow:active {
+    transform: scale(0.97) translateY(0);
+}
+
+/* Nav item hover */
+.anim-nav-item {
+    transition:
+        color var(--dur-fast) var(--ease-out-quart),
+        transform var(--dur-fast) var(--ease-out-quart);
+}
+.anim-nav-item:hover {
+    transform: translateY(-1px);
+}
+.anim-nav-item:active {
+    transform: scale(0.9);
+}
+
+/* Toggle switch */
+.anim-toggle {
+    transition: background-color var(--dur-slow) var(--ease-out-quart);
+}
+.anim-toggle::after {
+    transition: transform var(--dur-slow) var(--ease-out-expo);
+}
+
+/* Input focus */
+.anim-input-focus {
+    transition:
+        border-color var(--dur-normal) var(--ease-out-quart),
+        box-shadow   var(--dur-normal) var(--ease-out-quart);
+}
+.anim-input-focus:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* ================================================
+ * PAGE TRANSITIONS
+ * ================================================ */
+
+.page {
+    opacity: 0;
+    transform: translateY(10px);
+    transition:
+        opacity   var(--dur-normal) var(--ease-out-quart),
+        transform var(--dur-normal) var(--ease-out-quart);
+    pointer-events: none;
+}
+.page.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Modal entrance */
+.modal-overlay {
+    transition:
+        opacity   var(--dur-slow) var(--ease-out-quart),
+        visibility var(--dur-slow) var(--ease-out-quart);
+}
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+.modal-overlay.show .modal {
+    animation: anim-scale-in var(--dur-slow) var(--ease-out-expo) both;
+}
+
+/* Toast entrance */
+.toast {
+    transition:
+        opacity   var(--dur-normal) var(--ease-out-quart),
+        transform var(--dur-normal) var(--ease-out-quart);
+}
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.toast:not(.show) {
+    opacity: 0;
+    transform: translateY(-12px);
+}
+
+/* ================================================
+ * SCROLL ANIMATIONS (Intersection Observer)
+ * ================================================ */
+
+[data-anim="fade-up"] {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+        opacity   var(--dur-slower) var(--ease-out-quint),
+        transform var(--dur-slower) var(--ease-out-quint);
+}
+[data-anim="fade-up"].is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+[data-anim="fade-in"] {
+    opacity: 0;
+    transition: opacity var(--dur-slower) var(--ease-out-quart);
+}
+[data-anim="fade-in"].is-visible {
+    opacity: 1;
+}
+
+[data-anim="slide-right"] {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition:
+        opacity   var(--dur-slower) var(--ease-out-quint),
+        transform var(--dur-slower) var(--ease-out-quint);
+}
+[data-anim="slide-right"].is-visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+[data-anim="scale-in"] {
+    opacity: 0;
+    transform: scale(0.92);
+    transition:
+        opacity   var(--dur-slower) var(--ease-out-expo),
+        transform var(--dur-slower) var(--ease-out-expo);
+}
+[data-anim="scale-in"].is-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Stagger children */
+[data-anim-stagger] > * {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+        opacity   var(--dur-slow) var(--ease-out-quint),
+        transform var(--dur-slow) var(--ease-out-quint);
+}
+[data-anim-stagger].is-visible > * {
+    opacity: 1;
+    transform: translateY(0);
+}
+[data-anim-stagger].is-visible > *:nth-child(1) { transition-delay: 0ms; }
+[data-anim-stagger].is-visible > *:nth-child(2) { transition-delay: 60ms; }
+[data-anim-stagger].is-visible > *:nth-child(3) { transition-delay: 120ms; }
+[data-anim-stagger].is-visible > *:nth-child(4) { transition-delay: 180ms; }
+[data-anim-stagger].is-visible > *:nth-child(5) { transition-delay: 240ms; }
+[data-anim-stagger].is-visible > *:nth-child(6) { transition-delay: 300ms; }
+[data-anim-stagger].is-visible > *:nth-child(7) { transition-delay: 360ms; }
+[data-anim-stagger].is-visible > *:nth-child(8) { transition-delay: 420ms; }
+[data-anim-stagger].is-visible > *:nth-child(9) { transition-delay: 480ms; }
+[data-anim-stagger].is-visible > *:nth-child(10) { transition-delay: 540ms; }
+
+/* ================================================
+ * SPECIAL EFFECTS
+ * ================================================ */
+
+/* Bento card */
+[data-bento-anim] {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+    transition:
+        opacity   var(--dur-slower) var(--ease-out-quint),
+        transform var(--dur-slower) var(--ease-out-quint),
+        box-shadow var(--dur-normal) var(--ease-out-quart);
+}
+[data-bento-anim].is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+[data-bento-anim].is-visible:hover {
+    box-shadow: var(--sh-hover);
+    transform: translateY(-3px) scale(1);
+}
+
+/* Floating decorative */
+.anim-float {
+    animation: anim-float 4s ease-in-out infinite;
+}
+.anim-float-d1 { animation-delay: 0s; }
+.anim-float-d2 { animation-delay: 1.3s; }
+.anim-float-d3 { animation-delay: 2.6s; }
+
+/* Skeleton shimmer */
+.anim-shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--bg-elevated) 25%,
+        var(--bg-muted) 50%,
+        var(--bg-elevated) 75%
+    );
+    background-size: 400px 100%;
+    animation: anim-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Skeleton static */
+.anim-shimmer {
+    animation: none;
+    background: var(--bg-elevated);
+}
+.skeleton-loaded .anim-shimmer {
+    animation: none;
+}
+
+/* Active ring */
+.anim-pulse-active {
+    animation: anim-pulse-glow 2s ease-in-out infinite;
+}
+
+/* Ambient gradient shift */
+@keyframes anim-gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50%       { background-position: 100% 50%; }
+}
+
+/* ================================================
+ * REDUCED MOTION — Accessibility
+ * ================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    [data-anim="fade-up"],
+    [data-anim="fade-in"],
+    [data-anim="slide-right"],
+    [data-anim="scale-in"],
+    [data-anim-stagger] > *,
+    [data-bento-anim] {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    .anim-float,
+    .anim-pulse-active,
+    .anim-shimmer {
+        animation: none !important;
+    }
+
+    .page {
+        opacity: 1;
+        transform: none;
+    }
+}

@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyPal - 智能学习搭子</title>
+    <meta name="description" content="考研人的智能学习搭子，番茄钟专注、任务管理、AI陪伴，陪你一起上岸。">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2310B981'/%3E%3Cpath d='M9 16L14 21L23 12' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <script>
+        (function() {
+            var l = document.createElement('link');
+            l.rel = 'stylesheet';
+            l.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+SC:wght@400;500;700&display=swap';
+            var n = document.querySelector('link[rel="stylesheet"]');
+            n.parentNode.insertBefore(l, n);
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/css/bento.css">
+    <link rel="stylesheet" href="/static/css/animate.css">
+    <style>
+/* ================================================
+ * STUDYPal LANDING v4.0
+ * Taste-skill guided redesign
+ * ================================================ */
+
+/* ---- Reset & Base ---- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --brand: #10B981;
+    --brand-dark: #047857;
+    --brand-light: #D1FAE5;
+    --accent: #6366F1;
+    --accent-light: #EEF2FF;
+    --bg: #FAFAFA;
+    --bg-soft: #F4F4F5;
+    --bg-muted: #E4E4E7;
+    --bg-card: #FFFFFF;
+    --text: #18181B;
+    --text-2: #3F3F46;
+    --text-3: #71717A;
+    --text-4: #A1A1AA;
+    --text-5: #D4D4D8;
+    --sh-card: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --sh-hover: 0 8px 24px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-theme="dark"] {
+    --bg: #09090B;
+    --bg-soft: #18181B;
+    --bg-muted: #27272A;
+    --bg-card: #18181B;
+    --text: #FAFAFA;
+    --text-2: #E4E4E7;
+    --text-3: #A1A1AA;
+    --text-4: #71717A;
+    --text-5: #52525B;
+    --sh-card: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+    --sh-hover: 0 8px 24px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3);
+}
+html { scroll-behavior: smooth; }
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+/* ---- Utility ---- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ================================================
+ * NAVIGATION
+ * ================================================ */
+.lp-nav {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 8px 8px 20px;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.6);
+    border-radius: 999px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.03);
+    width: min(1100px, calc(100vw - 48px));
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+    transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out);
+}
+.lp-nav.loaded { opacity: 1; transform: translateX(-50%) translateY(0); }
+[data-theme="dark"] .lp-nav { background: rgba(24,24,27,0.88); border-color: rgba(255,255,255,0.1); }
+.lp-nav__logo { display: flex; align-items: center; gap: 10px; }
+.lp-nav__brand { font-size: 15px; font-weight: 800; letter-spacing: -0.4px; }
+.lp-nav__links { display: flex; align-items: center; gap: 4px; }
+.lp-nav__link { padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--text-3); transition: all 150ms; }
+.lp-nav__link:hover { color: var(--text); background: rgba(0,0,0,0.05); }
+[data-theme="dark"] .lp-nav__link:hover { background: rgba(255,255,255,0.06); }
+
+/* ---- Button styles ---- */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-weight: 600; border-radius: 999px; transition: all 150ms var(--ease-out);
+    white-space: nowrap;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+    background: var(--brand); color: #fff;
+    padding: 10px 22px; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(16,185,129,0.3);
+}
+.btn-primary:hover { background: var(--brand-dark); box-shadow: 0 4px 16px rgba(16,185,129,0.4); transform: translateY(-1px); }
+.btn-sm { padding: 7px 16px; font-size: 13px; }
+.btn-lg { padding: 14px 32px; font-size: 15px; border-radius: 16px; }
+.btn-ghost { background: transparent; color: var(--text-2); border: 1.5px solid rgba(0,0,0,0.08); padding: 10px 22px; font-size: 14px; }
+[data-theme="dark"] .btn-ghost { border-color: rgba(255,255,255,0.1); color: var(--text-2); }
+.btn-ghost:hover { background: rgba(0,0,0,0.04); }
+[data-theme="dark"] .btn-ghost:hover { background: rgba(255,255,255,0.06); }
+
+/* ================================================
+ * HERO SECTION
+ * ================================================ */
+.lp-hero {
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+    padding: 120px 60px 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+.lp-hero__content {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 700ms var(--ease-out) 100ms, transform 700ms var(--ease-out) 100ms;
+}
+.lp-hero__content.loaded { opacity: 1; transform: translateY(0); }
+
+.lp-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 10px;
+    background: var(--brand-light);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand-dark);
+    margin-bottom: 24px;
+    width: fit-content;
+}
+[data-theme="dark"] .lp-hero__eyebrow { background: rgba(16,185,129,0.15); color: #34D399; }
+.lp-hero__eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); animation: pulse-dot 2s ease-in-out infinite; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.lp-hero__title {
+    font-size: clamp(2.5rem, 5vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    margin-bottom: 20px;
+}
+.lp-hero__title em { font-style: normal; color: var(--brand); }
+.lp-hero__sub {
+    font-size: clamp(1rem, 1.5vw, 1.15rem);
+    line-height: 1.7;
+    color: var(--text-3);
+    max-width: 440px;
+    margin-bottom: 36px;
+}
+.lp-hero__ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.lp-hero__stats {
+    display: flex;
+    gap: 32px;
+    margin-top: 56px;
+    padding-top: 32px;
+    border-top: 1px solid var(--bg-muted);
+}
+.lp-stat { text-align: left; }
+.lp-stat__num { font-size: 1.6rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
+.lp-stat__label { font-size: 11px; color: var(--text-4); margin-top: 2px; font-weight: 500; }
+.lp-stat__sep { width: 1px; background: var(--bg-muted); align-self: stretch; }
+
+/* Hero visual - interactive app card */
+.lp-hero__visual {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 800ms var(--ease-out) 300ms, transform 800ms var(--ease-out) 300ms;
+}
+.lp-hero__visual.loaded { opacity: 1; transform: translateY(0); }
+
+.lp-hero-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.10), 0 4px 16px rgba(0,0,0,0.06);
+    border: 1px solid rgba(0,0,0,0.06);
+    overflow: hidden;
+    position: relative;
+}
+[data-theme="dark"] .lp-hero-card { box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.06); }
+
+.lp-hero-card__header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--bg-soft);
+}
+.lp-hero-card__buddy { display: flex; align-items: center; gap: 10px; }
+.lp-hero-card__buddy-avatar {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg,#FDE68A,#FCD34D);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: transform 300ms var(--ease-out);
+}
+.lp-hero-card:hover .lp-hero-card__buddy-avatar { transform: scale(1.05) rotate(-3deg); }
+.lp-hero-card__buddy-info { }
+.lp-hero-card__buddy-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.lp-hero-card__buddy-status { font-size: 11px; color: var(--brand); font-weight: 500; }
+.lp-hero-card__badge {
+    font-size: 10px; font-weight: 600;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--accent-light); color: var(--accent);
+}
+.lp-hero-card__body { padding: 20px; }
+.lp-hero-card__msg {
+    font-size: 13px; color: var(--text-2);
+    background: var(--bg-soft);
+    border-radius: 12px 12px 12px 4px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+.lp-hero-card__stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;
+}
+.lp-hero-card__stat {
+    background: var(--bg-soft); border-radius: 10px;
+    padding: 10px 8px; text-align: center;
+}
+.lp-hero-card__stat-val { font-size: 18px; font-weight: 800; color: var(--text); }
+.lp-hero-card__stat-val.accent { color: var(--brand); }
+.lp-hero-card__stat-val.coral { color: #F97316; }
+.lp-hero-card__stat-label { font-size: 9px; color: var(--text-4); margin-top: 2px; font-weight: 500; }
+.lp-hero-card__progress {
+    background: var(--bg-soft); border-radius: 10px; padding: 12px;
+    margin-bottom: 14px;
+}
+.lp-hero-card__progress-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.lp-hero-card__progress-label { font-size: 11px; font-weight: 600; color: var(--text); }
+.lp-hero-card__progress-pct { font-size: 12px; font-weight: 700; color: var(--brand); }
+.lp-hero-card__progress-bar { height: 5px; background: var(--bg-muted); border-radius: 999px; overflow: hidden; }
+.lp-hero-card__progress-fill { height: 100%; width: 62%; background: var(--brand); border-radius: 999px; transition: width 1s var(--ease-out); }
+.lp-hero-card__actions { display: flex; gap: 8px; }
+.lp-hero-card__action {
+    flex: 1; border-radius: 10px; padding: 10px;
+    font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 150ms var(--ease-out);
+}
+.lp-hero-card__action--chat { background: var(--bg-soft); color: var(--text-2); }
+.lp-hero-card__action--study { background: var(--brand); color: #fff; box-shadow: 0 2px 8px rgba(16,185,129,0.3); }
+.lp-hero-card__action:hover { transform: translateY(-1px); }
+.lp-hero-card__action--study:hover { box-shadow: 0 4px 14px rgba(16,185,129,0.4); }
+
+/* Floating decoration */
+.lp-hero__deco {
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+}
+.lp-hero__deco--1 { top: -100px; right: -100px; }
+.lp-hero__deco--2 { bottom: 0; left: -150px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%); }
+
+/* ================================================
+ * SECTION COMMON
+ * ================================================ */
+.lp-section { max-width: 1100px; margin: 0 auto; padding: 100px 24px; }
+.lp-section--sm { padding: 60px 24px; }
+
+/* Section header - no eyebrow, just clean headline */
+.lp-sh { text-align: center; margin-bottom: 52px; }
+.lp-sh__title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 800; letter-spacing: -0.03em; color: var(--text);
+    margin-bottom: 12px;
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.lp-sh__title.loaded { opacity: 1; transform: translateY(0); }
+.lp-sh__sub {
+    font-size: 1rem; color: var(--text-3);
+    max-width: 460px; margin: 0 auto; line-height: 1.6;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 500ms var(--ease-out) 100ms, transform 500ms var(--ease-out) 100ms;
+}
+.lp-sh__sub.loaded { opacity: 1; transform: translateY(0); }
+
+/* ================================================
+ * FEATURES BENTO GRID
+ * ================================================ */
+.lp-feat-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(100px, auto);
+    gap: 16px;
+}
+.lp-feat-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--sh-card);
+    border: 1px solid rgba(0,0,0,0.04);
+    display: flex; flex-direction: column;
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out), box-shadow 200ms;
+    overflow: hidden; position: relative;
+}
+.lp-feat-card.is-visible { opacity: 1; transform: translateY(0); }
+.lp-feat-card:hover { box-shadow: var(--sh-hover); }
+
+.lp-feat-card__icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px; flex-shrink: 0;
+}
+.lp-feat-card__title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.lp-feat-card__desc { font-size: 0.825rem; line-height: 1.6; color: var(--text-3); flex: 1; }
+.lp-feat-card__link {
+    margin-top: 14px; font-size: 12px; font-weight: 600;
+    color: var(--brand); display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer;
+}
+.lp-feat-card__link:hover { color: var(--brand-dark); }
+
+/* Grid placements */
+.lp-feat--hero { grid-column: span 7; grid-row: span 3; padding: 28px; }
+.lp-feat--sm1 { grid-column: span 5; }
+.lp-feat--sm2 { grid-column: span 5; }
+.lp-feat--wide { grid-column: span 12; flex-direction: row; align-items: center; gap: 24px; }
+.lp-feat--wide .lp-feat-card__desc { max-width: 480px; }
+
+/* Hero feature gradient bg */
+.lp-feat--hero::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; width: 38%;
+    background: linear-gradient(135deg, rgba(16,185,129,0.06), rgba(16,185,129,0.01));
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    pointer-events: none;
+}
+
+/* ================================================
+ * BUDDY SHOWCASE
+ * ================================================ */
+.lp-buddy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 16px;
+}
+.lp-buddy-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px 16px;
+    text-align: center;
+    box-shadow: var(--sh-card);
+    border: 2px solid transparent;
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 500ms var(--ease-out), transform 500ms var(--ease-out), box-shadow 200ms, border-color 200ms;
+    cursor: pointer;
+}
+.lp-buddy-card.is-visible { opacity: 1; transform: translateY(0); }
+.lp-buddy-card:hover { box-shadow: var(--sh-hover); transform: translateY(-4px); border-color: var(--brand); }
+.lp-buddy-card:active { transform: scale(0.97); }
+.lp-buddy-card.selected { border-color: var(--brand); background: var(--brand-light); }
+[data-theme="dark"] .lp-buddy-card.selected { background: rgba(16,185,129,0.1); }
+
+.lp-buddy-card__avatar {
+    width: 64px; height: 64px;
+    border-radius: 18px;
+    margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    transition: transform 300ms var(--ease-out);
+}
+.lp-buddy-card:hover .lp-buddy-card__avatar { transform: translateY(-4px) scale(1.05); }
+.lp-buddy-card__name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.lp-buddy-card__role { font-size: 10px; color: var(--text-4); margin-top: 3px; }
+.lp-buddy-card__mood {
+    display: inline-block; margin-top: 8px;
+    font-size: 10px; font-weight: 500;
+    padding: 3px 10px; border-radius: 999px;
+    background: var(--bg-soft); color: var(--text-3);
+}
+.lp-buddy-card.selected .lp-buddy-card__mood { background: rgba(16,185,129,0.15); color: var(--brand-dark); }
+
+/* ================================================
+ * TESTIMONIALS
+ * ================================================ */
+.lp-testimonials {
+    background: var(--bg-soft);
+    border-top: 1px solid var(--bg-muted);
+    border-bottom: 1px solid var(--bg-muted);
+    padding: 64px 0;
+    overflow: hidden;
+}
+.lp-testimonials .lp-sh { margin-bottom: 40px; }
+.lp-marquee-wrap { position: relative; }
+.lp-marquee-wrap::before,
+.lp-marquee-wrap::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 80px; z-index: 2; pointer-events: none;
+}
+.lp-marquee-wrap::before { left: 0; background: linear-gradient(to right, var(--bg-soft), transparent); }
+.lp-marquee-wrap::after { right: 0; background: linear-gradient(to left, var(--bg-soft), transparent); }
+.lp-marquee {
+    display: flex; gap: 20px;
+    animation: marquee 30s linear infinite;
+    width: max-content;
+}
+.lp-marquee:hover { animation-play-state: paused; }
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+.lp-review {
+    flex-shrink: 0; width: 300px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    box-shadow: var(--sh-card);
+}
+.lp-review__stars { color: #F59E0B; font-size: 11px; margin-bottom: 8px; letter-spacing: 2px; }
+.lp-review__text { font-size: 13px; line-height: 1.6; color: var(--text-2); margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.lp-review__author { font-size: 11px; font-weight: 600; color: var(--text-4); display: flex; align-items: center; gap: 6px; }
+.lp-review__tag {
+    font-size: 9px; padding: 2px 8px; border-radius: 999px;
+    background: var(--brand-light); color: var(--brand-dark); font-weight: 600;
+}
+[data-theme="dark"] .lp-review__tag { background: rgba(16,185,129,0.15); color: #34D399; }
+
+/* ================================================
+ * TRUST BADGES
+ * ================================================ */
+.lp-trust {
+    display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-top: 40px;
+}
+.lp-trust__item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-3); font-weight: 500; }
+.lp-trust__icon { width: 18px; height: 18px; border-radius: 50%; background: var(--brand-light); color: var(--brand); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+[data-theme="dark"] .lp-trust__icon { background: rgba(16,185,129,0.15); color: #34D399; }
+
+/* ================================================
+ * CTA SECTION
+ * ================================================ */
+.lp-cta {
+    text-align: center; padding: 100px 24px; position: relative; overflow: hidden;
+}
+.lp-cta__bg {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #059669 0%, #10B981 50%, #34D399 100%);
+    z-index: 0;
+}
+.lp-cta__bg::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.12) 0%, transparent 60%);
+}
+.lp-cta__bg::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.lp-cta__content { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; }
+.lp-cta__title {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 900; color: #fff;
+    letter-spacing: -0.03em; line-height: 1.15;
+    margin-bottom: 14px;
+    opacity: 0; transform: translateY(20px);
+    transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out);
+}
+.lp-cta__title.loaded { opacity: 1; transform: translateY(0); }
+.lp-cta__sub {
+    font-size: 1.05rem; color: rgba(255,255,255,0.78);
+    margin-bottom: 32px; line-height: 1.6;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 600ms var(--ease-out) 100ms, transform 600ms var(--ease-out) 100ms;
+}
+.lp-cta__sub.loaded { opacity: 1; transform: translateY(0); }
+.lp-cta__btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 16px 36px;
+    background: #fff; color: var(--brand-dark);
+    border-radius: 16px; font-size: 1rem; font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    opacity: 0; transform: translateY(16px);
+    transition: background 150ms, transform 150ms, box-shadow 200ms, opacity 600ms var(--ease-out) 200ms;
+}
+.lp-cta__btn.loaded { opacity: 1; transform: translateY(0); }
+.lp-cta__btn:hover { background: #f0fdf4; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
+.lp-cta__btn:active { transform: scale(0.97); }
+
+/* ================================================
+ * FOOTER
+ * ================================================ */
+.lp-footer {
+    border-top: 1px solid var(--bg-muted);
+    padding: 48px 24px 64px;
+}
+.lp-footer__inner {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; align-items: start;
+}
+.lp-footer__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.lp-footer__logo { width: 30px; height: 30px; border-radius: 8px; background: var(--brand); display: flex; align-items: center; justify-content: center; }
+.lp-footer__name { font-size: 15px; font-weight: 700; }
+.lp-footer__desc { font-size: 13px; color: var(--text-4); line-height: 1.6; max-width: 280px; }
+.lp-footer__col-title { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 14px; }
+.lp-footer__links { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.lp-footer__links a { font-size: 13px; color: var(--text-3); transition: color 150ms; }
+.lp-footer__links a:hover { color: var(--text); }
+.lp-footer__bottom {
+    max-width: 1100px; margin: 32px auto 0;
+    padding-top: 24px; border-top: 1px solid var(--bg-soft);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--text-4); flex-wrap: wrap; gap: 8px;
+}
+
+/* ================================================
+ * RESPONSIVE
+ * ================================================ */
+@media (max-width: 900px) {
+    .lp-hero { grid-template-columns: 1fr; gap: 40px; padding: 100px 24px 60px; text-align: center; }
+    .lp-hero__content { order: 1; }
+    .lp-hero__visual { order: 0; }
+    .lp-hero__eyebrow { margin: 0 auto 20px; }
+    .lp-hero__sub { margin: 0 auto 32px; }
+    .lp-hero__ctas { justify-content: center; }
+    .lp-hero__stats { justify-content: center; margin-top: 40px; }
+    .lp-feat--hero { grid-column: span 12; }
+    .lp-feat--sm1, .lp-feat--sm2 { grid-column: span 6; }
+    .lp-feat--wide { grid-column: span 12; flex-direction: column; }
+    .lp-footer__inner { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+    .lp-nav { top: 12px; }
+    .lp-nav__links .lp-nav__link { display: none; }
+    .lp-nav__links .lp-nav__link:last-child { display: flex; }
+    .lp-hero { padding: 80px 16px 48px; }
+    .lp-hero__title { font-size: 2.2rem; }
+    .lp-hero__stats { gap: 20px; }
+    .lp-stat__num { font-size: 1.3rem; }
+    .lp-feat--hero, .lp-feat--sm1, .lp-feat--sm2, .lp-feat--wide { grid-column: span 12; grid-row: span 1; }
+    .lp-feat-grid { grid-auto-rows: auto; }
+    .lp-buddy-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .lp-buddy-card__avatar { width: 48px; height: 48px; font-size: 24px; border-radius: 14px; }
+    .lp-footer__inner { grid-template-columns: 1fr; gap: 28px; }
+    .lp-footer__bottom { flex-direction: column; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .lp-marquee { animation: none; }
+    .lp-hero__*, .lp-sh__*, .lp-feat-card, .lp-buddy-card, .lp-cta__* { transition: none; opacity: 1; transform: none; }
+    .lp-hero-card__progress-fill { transition: none; }
+}
+
+/* ================================================
+ * DARK MODE SPECIFIC OVERRIDES
+ * ================================================ */
+[data-theme="dark"] .lp-hero-card { background: #18181B; }
+[data-theme="dark"] .lp-hero-card__header { border-color: #27272A; }
+[data-theme="dark"] .lp-hero-card__msg, [data-theme="dark"] .lp-hero-card__stat, [data-theme="dark"] .lp-hero-card__progress { background: #27272A; }
+[data-theme="dark"] .lp-feat-card { background: #18181B; border-color: #27272A; }
+[data-theme="dark"] .lp-buddy-card { background: #18181B; border-color: #27272A; }
+[data-theme="dark"] .lp-review { background: #18181B; border: 1px solid #27272A; }
+[data-theme="dark"] .lp-testimonials { background: #09090B; }
+[data-theme="dark"] .lp-testimonials .lp-marquee-wrap::before { background: linear-gradient(to right, #09090B, transparent); }
+[data-theme="dark"] .lp-testimonials .lp-marquee-wrap::after { background: linear-gradient(to left, #09090B, transparent); }
+[data-theme="dark"] .lp-footer { border-color: #27272A; }
+[data-theme="dark"] .lp-footer__bottom { border-color: #27272A; }
+[data-theme="dark"] .btn-ghost { border-color: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="lp-nav" id="lp-nav">
+    <a href="/" class="lp-nav__logo">
+        <div style="width:30px;height:30px;border-radius:8px;background:var(--brand);display:flex;align-items:center;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8L6.5 11.5L13 5"/></svg>
+        </div>
+        <span class="lp-nav__brand">StudyPal</span>
+    </a>
+    <div class="lp-nav__links">
+        <a href="#features" class="lp-nav__link">功能</a>
+        <a href="#buddies" class="lp-nav__link">搭子</a>
+        <a href="#reviews" class="lp-nav__link">口碑</a>
+        <a href="/login" class="lp-nav__link">登录</a>
+        <a href="/splash" class="btn btn-primary btn-sm" style="margin-left:4px;">开始使用</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="lp-hero">
+    <div class="lp-hero__content" id="hero-content">
+        <div class="lp-hero__eyebrow">
+            <span class="lp-hero__eyebrow-dot"></span>
+            专为学习者打造
+        </div>
+        <h1 class="lp-hero__title">
+            让每一次<br><em>学习</em> 都有人陪
+        </h1>
+        <p class="lp-hero__sub">
+            AI 情绪搭子实时感知你的心情，番茄钟帮你保持专注。
+            考研、考证、考公——你从来不是一个人。
+        </p>
+        <div class="lp-hero__ctas">
+            <a href="/splash" class="btn btn-primary btn-lg">
+                免费开始使用
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8H13M9 4L13 8L9 12"/></svg>
+            </a>
+            <a href="#features" class="btn btn-ghost btn-lg">查看功能</a>
+        </div>
+        <div class="lp-hero__stats">
+            <div class="lp-stat">
+                <div class="lp-stat__num">12,000+</div>
+                <div class="lp-stat__label">学习者</div>
+            </div>
+            <div class="lp-stat__sep"></div>
+            <div class="lp-stat">
+                <div class="lp-stat__num">4.9</div>
+                <div class="lp-stat__label">用户评分</div>
+            </div>
+            <div class="lp-stat__sep"></div>
+            <div class="lp-stat">
+                <div class="lp-stat__num">32</div>
+                <div class="lp-stat__label">成就徽章</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="lp-hero__visual" id="hero-visual">
+        <div class="lp-hero__deco lp-hero__deco--1"></div>
+        <div class="lp-hero-card">
+            <div class="lp-hero-card__header">
+                <div class="lp-hero-card__buddy">
+                    <div class="lp-hero-card__buddy-avatar" id="hero-buddy-avatar">&#128150;</div>
+                    <div class="lp-hero-card__buddy-info">
+                        <div class="lp-hero-card__buddy-name" id="hero-buddy-name">小豆</div>
+                        <div class="lp-hero-card__buddy-status">心情不错~</div>
+                    </div>
+                </div>
+                <div class="lp-hero-card__badge">&#128149; 温柔陪伴</div>
+            </div>
+            <div class="lp-hero-card__body">
+                <div class="lp-hero-card__msg" id="hero-buddy-msg">
+                    今天感觉怎么样？有什么想聊的吗？
+                </div>
+                <div class="lp-hero-card__stats">
+                    <div class="lp-hero-card__stat">
+                        <div class="lp-hero-card__stat-val">3.2h</div>
+                        <div class="lp-hero-card__stat-label">今日学习</div>
+                    </div>
+                    <div class="lp-hero-card__stat">
+                        <div class="lp-hero-card__stat-val accent">7</div>
+                        <div class="lp-hero-card__stat-label">番茄数</div>
+                    </div>
+                    <div class="lp-hero-card__stat">
+                        <div class="lp-hero-card__stat-val coral">5</div>
+                        <div class="lp-hero-card__stat-label">连续天数</div>
+                    </div>
+                </div>
+                <div class="lp-hero-card__progress">
+                    <div class="lp-hero-card__progress-head">
+                        <span class="lp-hero-card__progress-label">今日目标</span>
+                        <span class="lp-hero-card__progress-pct">62%</span>
+                    </div>
+                    <div class="lp-hero-card__progress-bar">
+                        <div class="lp-hero-card__progress-fill"></div>
+                    </div>
+                </div>
+                <div class="lp-hero-card__actions">
+                    <div class="lp-hero-card__action lp-hero-card__action--chat">&#128172; 和搭子聊聊</div>
+                    <div class="lp-hero-card__action lp-hero-card__action--study">&#9654; 开始学习</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="lp-section" id="features">
+    <div class="lp-sh">
+        <h2 class="lp-sh__title">学习路上的全方位助力</h2>
+        <p class="lp-sh__sub">从情绪陪伴到学习追踪，从任务管理到成就激励，每一个功能都经过精心设计</p>
+    </div>
+
+    <div class="lp-feat-grid">
+
+        <!-- Feature hero: 搭子系统 -->
+        <div class="lp-feat-card lp-feat--hero" data-feat>
+            <div class="lp-feat-card__icon" style="background:var(--brand-light);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a9 9 0 0 0-12.73 0L11 11.67l-1.06-1.06a9 9 0 0 0-12.73 12.73l1.06 1.06L11 22.73l7.78-7.78 1.06-1.06a9 9 0 0 0 0-12.73z"/></svg>
+            </div>
+            <div class="lp-feat-card__title">情绪感知搭子</div>
+            <div class="lp-feat-card__desc">10种情绪状态实时感知，搭子会根据你的学习状态动态调整语气和情绪。疲惫时温柔鼓励，焦虑时理性安抚。6位性格迥异的搭子，总有一款懂你。</div>
+            <div class="lp-feat-card__link" onclick="previewBuddy('xiaodou')">体验搭子切换</div>
+        </div>
+
+        <!-- Feature 2: 番茄钟 -->
+        <div class="lp-feat-card lp-feat--sm1" data-feat>
+            <div class="lp-feat-card__icon" style="background:rgba(99,102,241,0.1);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="lp-feat-card__title">番茄钟专注</div>
+            <div class="lp-feat-card__desc">25分钟沉浸式专注，自选科目，告别手机干扰。完成后自动记录学习时长，生成统计报表。</div>
+        </div>
+
+        <!-- Feature 3: 任务 -->
+        <div class="lp-feat-card lp-feat--sm2" data-feat>
+            <div class="lp-feat-card__icon" style="background:#D1FAE5;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div class="lp-feat-card__title">任务管理</div>
+            <div class="lp-feat-card__desc">按优先级排列，设置截止时间，未完成的会自动延期提醒。学习计划一目了然。</div>
+        </div>
+
+        <!-- Feature wide: 成就+统计 -->
+        <div class="lp-feat-card lp-feat--wide" data-feat>
+            <div style="flex-shrink:0;">
+                <div class="lp-feat-card__icon" style="background:#FEE2E2;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+            </div>
+            <div>
+                <div class="lp-feat-card__title">成就系统 & 数据洞察</div>
+                <div class="lp-feat-card__desc">32个成就徽章等你解锁，10个等级记录成长轨迹。学习时长、情绪曲线、科目分布，全部可视化呈现。</div>
+                <div style="display:flex;gap:10px;margin-top:12px;">
+                    <div style="background:var(--bg-soft);border-radius:8px;padding:8px 14px;text-align:center;flex:1;">
+                        <div style="font-size:16px;font-weight:800;color:var(--text);">32</div>
+                        <div style="font-size:9px;color:var(--text-4);font-weight:500;">成就</div>
+                    </div>
+                    <div style="background:var(--bg-soft);border-radius:8px;padding:8px 14px;text-align:center;flex:1;">
+                        <div style="font-size:16px;font-weight:800;color:var(--brand);">10</div>
+                        <div style="font-size:9px;color:var(--text-4);font-weight:500;">等级</div>
+                    </div>
+                    <div style="background:var(--bg-soft);border-radius:8px;padding:8px 14px;text-align:center;flex:1;">
+                        <div style="font-size:16px;font-weight:800;color:#F97316;">7</div>
+                        <div style="font-size:9px;color:var(--text-4);font-weight:500;">连续天数</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- BUDDIES -->
+<section class="lp-section" id="buddies" style="background:var(--bg-soft);border-radius:0;border-left:0;border-right:0;">
+    <div class="lp-sh">
+        <h2 class="lp-sh__title">总有一款懂你</h2>
+        <p class="lp-sh__sub">6位性格迥异的 AI 搭子，能感知你的情绪，陪你度过每一个学习的日夜</p>
+    </div>
+
+    <div class="lp-buddy-grid" id="buddy-grid">
+        <div class="lp-buddy-card selected" data-buddy="xiaodou" onclick="selectBuddy(this)">
+            <div class="lp-buddy-card__avatar" style="background:linear-gradient(135deg,#FDE68A,#FCD34D);">&#128150;</div>
+            <div class="lp-buddy-card__name">小豆</div>
+            <div class="lp-buddy-card__role">温柔闺蜜</div>
+            <div class="lp-buddy-card__mood">善解人意</div>
+        </div>
+        <div class="lp-buddy-card" data-buddy="aruan" onclick="selectBuddy(this)">
+            <div class="lp-buddy-card__avatar" style="background:linear-gradient(135deg,#FEE2E2,#FCA5A5);">&#128293;</div>
+            <div class="lp-buddy-card__name">阿燃</div>
+            <div class="lp-buddy-card__role">热血兄弟</div>
+            <div class="lp-buddy-card__mood">专治摆烂</div>
+        </div>
+        <div class="lp-buddy-card" data-buddy="senior" onclick="selectBuddy(this)">
+            <div class="lp-buddy-card__avatar" style="background:linear-gradient(135deg,#E0E7FF,#A5B4FC);">&#128105;</div>
+            <div class="lp-buddy-card__name">学姐</div>
+            <div class="lp-buddy-card__role">过来人</div>
+            <div class="lp-buddy-card__mood">经验丰富</div>
+        </div>
+        <div class="lp-buddy-card" data-buddy="xiaoye" onclick="selectBuddy(this)">
+            <div class="lp-buddy-card__avatar" style="background:linear-gradient(135deg,#CFFAFE,#67E8F9);">&#127769;</div>
+            <div class="lp-buddy-card__name">小夜</div>
+            <div class="lp-buddy-card__role">深夜电台</div>
+            <div class="lp-buddy-card__mood">治愈陪伴</div>
+        </div>
+        <div class="lp-buddy-card" data-buddy="xijing" onclick="selectBuddy(this)">
+            <div class="lp-buddy-card__avatar" style="background:linear-gradient(135deg,#F3E8FF,#D8B4FE);">&#127814;</div>
+            <div class="lp-buddy-card__name">戏精</div>
+            <div class="lp-buddy-card__role">段子手</div>
+            <div class="lp-buddy-card__mood">快乐源泉</div>
+        </div>
+        <div class="lp-buddy-card" data-buddy="azheng" onclick="selectBuddy(this)">
+            <div class="lp-buddy-card__avatar" style="background:linear-gradient(135deg,#D1FAE5,#6EE7B7);">&#129302;</div>
+            <div class="lp-buddy-card__name">阿正</div>
+            <div class="lp-buddy-card__role">理性派</div>
+            <div class="lp-buddy-card__mood">数据说话</div>
+        </div>
+    </div>
+
+    <div class="lp-trust">
+        <div class="lp-trust__item"><div class="lp-trust__icon">&#10003;</div> 完全免费</div>
+        <div class="lp-trust__item"><div class="lp-trust__icon">&#10003;</div> 无需注册</div>
+        <div class="lp-trust__item"><div class="lp-trust__icon">&#10003;</div> 隐私保护</div>
+        <div class="lp-trust__item"><div class="lp-trust__icon">&#10003;</div> 随时取消</div>
+    </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="lp-testimonials" id="reviews">
+    <div class="lp-sh">
+        <h2 class="lp-sh__title">用户怎么说</h2>
+        <p class="lp-sh__sub">来自真实用户的学习体验</p>
+    </div>
+    <div class="lp-marquee-wrap">
+        <div class="lp-marquee" id="marquee">
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">小豆真的好温柔，每次学不进去的时候和她聊几句就又有动力了。考研这一年她陪了我好久。</div><div class="lp-review__author">上岸学姐 · 北师大 <span class="lp-review__tag">已上岸</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">番茄钟功能超好用，专注25分钟真的效率很高。阿燃会在我懈怠的时候热血激励我。</div><div class="lp-review__author">阿杰 · 浙大CS <span class="lp-review__tag">已上岸</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">学姐给的复习建议特别实用，她真的懂考研的痛苦。现在每天打卡，已经坚持47天了。</div><div class="lp-review__author">小张 · 复旦 <span class="lp-review__tag">二战</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">情绪日记功能让我学会记录自己的心情，复习效率比之前高多了。搭子会根据我的状态调整聊天方式。</div><div class="lp-review__author">Lily · 北大 <span class="lp-review__tag">备考中</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">每天看着成就徽章一点点增加，超级有成就感！32个成就我已经解锁了28个。</div><div class="lp-review__author">阿伟 · 中科院 <span class="lp-review__tag">已上岸</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">小夜最适合深夜学习了，焦虑睡不着的时候和她聊聊心情会好很多。考研人真的太需要这种陪伴了。</div><div class="lp-review__author">KK · 上交 <span class="lp-review__tag">备考中</span></div></div>
+            <!-- Duplicate for seamless loop -->
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">小豆真的好温柔，每次学不进去的时候和她聊几句就又有动力了。考研这一年她陪了我好久。</div><div class="lp-review__author">上岸学姐 · 北师大 <span class="lp-review__tag">已上岸</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">番茄钟功能超好用，专注25分钟真的效率很高。阿燃会在我懈怠的时候热血激励我。</div><div class="lp-review__author">阿杰 · 浙大CS <span class="lp-review__tag">已上岸</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">学姐给的复习建议特别实用，她真的懂考研的痛苦。现在每天打卡，已经坚持47天了。</div><div class="lp-review__author">小张 · 复旦 <span class="lp-review__tag">二战</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">情绪日记功能让我学会记录自己的心情，复习效率比之前高多了。搭子会根据我的状态调整聊天方式。</div><div class="lp-review__author">Lily · 北大 <span class="lp-review__tag">备考中</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">每天看着成就徽章一点点增加，超级有成就感！32个成就我已经解锁了28个。</div><div class="lp-review__author">阿伟 · 中科院 <span class="lp-review__tag">已上岸</span></div></div>
+            <div class="lp-review"><div class="lp-review__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><div class="lp-review__text">小夜最适合深夜学习了，焦虑睡不着的时候和她聊聊心情会好很多。考研人真的太需要这种陪伴了。</div><div class="lp-review__author">KK · 上交 <span class="lp-review__tag">备考中</span></div></div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="lp-cta" id="cta">
+    <div class="lp-cta__bg"></div>
+    <div class="lp-cta__content">
+        <h2 class="lp-cta__title" id="cta-title">准备好和搭子一起学习了吗?</h2>
+        <p class="lp-cta__sub" id="cta-sub">免费使用，无需注册。让 StudyPal 成为你学习路上的温暖陪伴。</p>
+        <a href="/splash" class="lp-cta__btn" id="cta-btn">
+            立即免费开始
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8H13M9 4L13 8L9 12"/></svg>
+        </a>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="lp-footer">
+    <div class="lp-footer__inner">
+        <div>
+            <div class="lp-footer__brand">
+                <div class="lp-footer__logo">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8L6.5 11.5L13 5"/></svg>
+                </div>
+                <span class="lp-footer__name">StudyPal</span>
+            </div>
+            <p class="lp-footer__desc">智能学习搭子，让学习之路不再孤单。已有 12,000+ 学习者正在使用。</p>
+        </div>
+        <div>
+            <div class="lp-footer__col-title">产品</div>
+            <ul class="lp-footer__links">
+                <li><a href="#features">核心功能</a></li>
+                <li><a href="#buddies">学习搭子</a></li>
+                <li><a href="/app">开始使用</a></li>
+                <li><a href="#reviews">用户口碑</a></li>
+            </ul>
+        </div>
+        <div>
+            <div class="lp-footer__col-title">资源</div>
+            <ul class="lp-footer__links">
+                <li><a href="https://github.com/linzizhen/StudyBuddy" target="_blank" rel="noopener">GitHub</a></li>
+                <li><a href="https://github.com/linzizhen/StudyBuddy/issues" target="_blank" rel="noopener">反馈问题</a></li>
+                <li><a href="#">隐私政策</a></li>
+                <li><a href="#">使用条款</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="lp-footer__bottom">
+        <span>2026 StudyPal - MIT License</span>
+        <span>Made with care for 学习者</span>
+        <span style="display:flex;align-items:center;gap:4px;">
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10B981;"></span>
+            服务运行中
+        </span>
+    </div>
+</footer>
+
+<script>
+/* ================================================
+ * LANDING PAGE INTERACTIONS
+ * ================================================ */
+
+// ---- Buddy data ----
+const BUDDY_DATA = {
+    xiaodou:  { emoji: '&#128150;', name: '小豆', mood: '心情不错~', badge: '&#128149; 温柔陪伴', msg: '今天感觉怎么样？有什么想聊的吗？' },
+    aruan:    { emoji: '&#128293;', name: '阿燃', mood: '热血满满!', badge: '&#128148; 热血激励', msg: '冲！今天也要全力以赴！' },
+    senior:   { emoji: '&#128105;', name: '学姐', mood: '稳稳的', badge: '&#128218; 过来人', msg: '复习进度怎么样了？有不懂的吗？' },
+    xiaoye:   { emoji: '&#127769;', name: '小夜', mood: '宁静陪伴', badge: '&#127747; 治愈系', msg: '夜深了，注意休息哦。' },
+    xijing:   { emoji: '&#127814;', name: '戏精', mood: '今日份快乐', badge: '&#127916; 段子手', msg: '哈哈哈哈哈！今天有什么有趣的事吗？' },
+    azheng:   { emoji: '&#129302;', name: '阿正', mood: '理性分析中', badge: '&#128200; 数据派', msg: '今天的番茄钟数据出来了，要看看吗？' },
+};
+
+function selectBuddy(el) {
+    var buddyId = el.dataset.buddy;
+    var data = BUDDY_DATA[buddyId];
+    if (!data) return;
+
+    // Update card selection
+    document.querySelectorAll('.lp-buddy-card').forEach(function(c) { c.classList.remove('selected'); });
+    el.classList.add('selected');
+
+    // Animate hero card update
+    var avatar = document.getElementById('hero-buddy-avatar');
+    var name = document.getElementById('hero-buddy-name');
+    var mood = avatar ? avatar.nextElementSibling.querySelector('.lp-hero-card__buddy-status') : null;
+    var badge = document.querySelector('.lp-hero-card__badge');
+    var msg = document.getElementById('hero-buddy-msg');
+
+    if (avatar) {
+        avatar.style.opacity = '0';
+        avatar.style.transform = 'scale(0.8)';
+        setTimeout(function() {
+            avatar.innerHTML = data.emoji;
+            avatar.style.opacity = '1';
+            avatar.style.transform = 'scale(1)';
+        }, 150);
+    }
+    if (name) name.textContent = data.name;
+    if (mood) mood.textContent = data.mood;
+    if (badge) badge.innerHTML = data.badge;
+    if (msg) {
+        msg.style.opacity = '0';
+        setTimeout(function() {
+            msg.textContent = data.msg;
+            msg.style.opacity = '1';
+        }, 150);
+    }
+}
+
+function previewBuddy(buddyId) {
+    var el = document.querySelector('[data-buddy="' + buddyId + '"]');
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function() { el.click(); }, 400);
+    }
+}
+
+// ---- Entrance animations ----
+(function() {
+    var nav = document.getElementById('lp-nav');
+    var heroContent = document.getElementById('hero-content');
+    var heroVisual = document.getElementById('hero-visual');
+    var ctaTitle = document.getElementById('cta-title');
+    var ctaSub = document.getElementById('cta-sub');
+    var ctaBtn = document.getElementById('cta-btn');
+
+    window.addEventListener('load', function() {
+        setTimeout(function() { if (nav) nav.classList.add('loaded'); }, 80);
+        setTimeout(function() { if (heroContent) heroContent.classList.add('loaded'); }, 150);
+        setTimeout(function() { if (heroVisual) heroVisual.classList.add('loaded'); }, 300);
+
+        // Section headers
+        document.querySelectorAll('.lp-sh__title').forEach(function(el, i) {
+            setTimeout(function() { el.classList.add('loaded'); }, 400 + i * 80);
+        });
+        document.querySelectorAll('.lp-sh__sub').forEach(function(el, i) {
+            setTimeout(function() { el.classList.add('loaded'); }, 500 + i * 80);
+        });
+    });
+
+    // Intersection Observer for cards
+    var io = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                var delay = entry.target.dataset.delay || 0;
+                setTimeout(function() { entry.target.classList.add('is-visible'); }, delay);
+                io.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+
+    document.querySelectorAll('.lp-feat-card[data-feat]').forEach(function(el, i) {
+        el.dataset.delay = i * 80;
+        io.observe(el);
+    });
+
+    document.querySelectorAll('.lp-buddy-card').forEach(function(el, i) {
+        el.dataset.delay = i * 70;
+        io.observe(el);
+    });
+
+    // CTA section
+    var ctaSection = document.getElementById('cta');
+    var ctaIo = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                setTimeout(function() { if (ctaTitle) ctaTitle.classList.add('loaded'); }, 100);
+                setTimeout(function() { if (ctaSub) ctaSub.classList.add('loaded'); }, 200);
+                setTimeout(function() { if (ctaBtn) ctaBtn.classList.add('loaded'); }, 300);
+                ctaIo.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.3 });
+    if (ctaSection) ctaIo.observe(ctaSection);
+
+    // Smooth scroll
+    document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+        a.addEventListener('click', function(e) {
+            var target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+})();
+</script>
+
+</body>
+</html>
