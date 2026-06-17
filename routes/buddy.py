@@ -221,3 +221,80 @@ def trigger_achievement():
         'message': '太棒了！你真厉害！',
         'type': 'achievement'
     })
+
+
+# ==================== 搭子系统测试（内部使用）====================
+
+@buddy_bp.route('/test', methods=['POST'])
+def test_buddy_system():
+    """
+    内部测试端点：验证搭子系统是否可用。
+    使用当前 active 学习搭子角色，绑定用户配置的模型，
+    发送固定测试问题，返回真实 AI 响应。
+    """
+    data = request.json or {}
+    # 可选：外部传入模型配置（来自 localStorage）
+    model_override = data.get('model')
+
+    TEST_QUESTION = "我今天不想学习，怎么办？"
+
+    try:
+        # 获取当前搭子角色
+        from src.buddy.buddy_profile import get_buddy_profile
+        from src.buddy.buddy_roles import BuddyRoles
+        from src.ai.ai_helper import StudyPalAI
+        from src.buddy.buddy_memory import get_buddy_memory
+        from src.ai.prompt_templates import get_prompt_templates
+
+        profile = get_buddy_profile()
+        buddy_info = profile.get_buddy_info()
+        role_key = buddy_info.get('role_key', 'xiaodou')
+        role_name = buddy_info.get('name', '小豆')
+
+        # 获取角色风格规则（核心人格设定）
+        role_style_rules = BuddyRoles.get_role_style_rules(role_key)
+
+        # 构建系统提示词
+        prompts = get_prompt_templates()
+        memory_context = get_buddy_memory().build_context_for_ai()
+        current_phase = profile.get_current_phase()
+        user_profile = profile.get_user()
+        study_summary = profile.get_study_summary()
+
+        system_prompt = prompts.get_system_prompt(
+            buddy_name=role_name,
+            user_name=user_profile.get('name', ''),
+            study_summary=study_summary,
+            memory_context=memory_context,
+            current_phase=current_phase
+        )
+        # 拼接角色风格规则
+        if role_style_rules:
+            system_prompt += "\n\n" + role_style_rules
+
+        # 使用模型（优先外部配置，否则用 config.py 默认）
+        ai = StudyPalAI(model_override=model_override)
+
+        # 调用 AI
+        result = ai.ask(
+            question=TEST_QUESTION,
+            use_history=False,
+            save_to_history=False,
+            system_prompt=system_prompt
+        )
+
+        return jsonify({
+            'success': True,
+            'role_key': role_key,
+            'role_name': role_name,
+            'model_used': ai.model_name,
+            'question': TEST_QUESTION,
+            'reply': result.get('answer', ''),
+            'conversation_id': result.get('conversation_id', ''),
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

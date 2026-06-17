@@ -876,6 +876,115 @@
         setText('rs-buddy-level', 'Lv.' + (b.level || 1));
         const avLg = document.getElementById('rs-buddy-page-avatar-lg');
         if (avLg) avLg.textContent = b.emoji || '💪';
+
+        // 双击搭子名触发系统测试（内部验证用）
+        const nameEl = document.getElementById('buddy-page-name');
+        if (nameEl) {
+            nameEl.style.cursor = 'pointer';
+            nameEl.title = '双击测试搭子系统';
+            nameEl.ondblclick = triggerBuddyTest;
+        }
+    }
+
+    // ========== 搭子系统测试（内部验证）===========
+    // 测试流程：保存状态 → 调用 /api/buddy/test → 展示结果 → 自动 cleanup
+
+    async function triggerBuddyTest() {
+        const activeModel = getActiveModel();
+        if (!activeModel) {
+            alert('请先在「AI模型配置」中添加并启用一个模型');
+            return;
+        }
+        if (!confirm('将使用当前搭子「' + (State.buddyProfile?.name || '小豆') + '」执行系统测试。\n\n模型：' + activeModel.name + '\n问题：我今天不想学习，怎么办？\n\n是否继续？')) return;
+
+        // 1. 保存当前状态用于恢复
+        const savedConversationId = State.conversationId || null;
+        const savedHistory = State.chatHistory ? State.chatHistory.slice() : [];
+        const chatWrap = document.getElementById('chat-messages');
+        const savedMessagesHTML = chatWrap ? chatWrap.innerHTML : '';
+
+        // 2. 显示测试状态
+        if (chatWrap) {
+            chatWrap.innerHTML = '<div class="chat-bubble assistant"><div class="chat-avatar">🔧</div><div class="chat-content">搭子系统测试中，请稍候...</div></div>';
+            chatWrap.scrollTop = chatWrap.scrollHeight;
+        }
+
+        try {
+            const modelPayload = {
+                apiUrl: activeModel.apiUrl,
+                apiKey: activeModel.apiKey,
+                modelName: activeModel.modelName,
+            };
+            const res = await fetch('/api/buddy/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: modelPayload }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                // 展示测试结果
+                showBuddyTestResult({
+                    roleKey: data.role_key,
+                    roleName: data.role_name,
+                    modelUsed: data.model_used,
+                    question: data.question,
+                    reply: data.reply,
+                });
+            } else {
+                alert('测试失败：' + (data.error || '未知错误'));
+            }
+        } catch (e) {
+            alert('测试请求失败：' + (e.message || String(e)));
+        } finally {
+            // 3. 自动 cleanup：恢复测试前状态
+            State.conversationId = savedConversationId;
+            State.chatHistory = savedHistory;
+            if (chatWrap) chatWrap.innerHTML = savedMessagesHTML;
+        }
+    }
+
+    function showBuddyTestResult(result) {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'align-items:center;justify-content:center;z-index:10000;';
+        overlay.innerHTML = `
+            <div class="modal-card" style="max-width:560px;width:95vw;">
+                <div class="modal-header">
+                    <h3>搭子系统测试结果</h3>
+                    <button class="modal-close" id="test-result-close" aria-label="关闭">✕</button>
+                </div>
+                <div class="modal-body" style="padding:20px;">
+                    <div style="display:grid;gap:10px;margin-bottom:16px;">
+                        <div style="display:flex;gap:8px;font-size:13px;">
+                            <span style="color:var(--color-slate-500);width:70px;">搭子角色</span>
+                            <span style="font-weight:600;">${escapeHtml(result.roleName)}</span>
+                        </div>
+                        <div style="display:flex;gap:8px;font-size:13px;">
+                            <span style="color:var(--color-slate-500);width:70px;">模型</span>
+                            <span>${escapeHtml(result.modelUsed)}</span>
+                        </div>
+                        <div style="display:flex;gap:8px;font-size:13px;">
+                            <span style="color:var(--color-slate-500);width:70px;">状态</span>
+                            <span style="color:var(--color-emerald-600);font-weight:600;">✅ 正常</span>
+                        </div>
+                    </div>
+                    <div style="background:var(--color-slate-50);border-radius:8px;padding:14px;margin-bottom:16px;">
+                        <p style="font-size:12px;color:var(--color-slate-500);margin:0 0 6px;">搭子回复</p>
+                        <p style="font-size:14px;line-height:1.7;color:var(--color-slate-700);margin:0;white-space:pre-wrap;">${escapeHtml(result.reply || '')}</p>
+                    </div>
+                    <p style="font-size:11px;color:var(--color-slate-400);margin:0;">测试问题：「${escapeHtml(result.question)}」</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-primary" id="test-result-ok">确定</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        renderIcons();
+        overlay.querySelector('#test-result-close').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('#test-result-ok').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     }
 
     function appendChat(role, content) {
@@ -906,23 +1015,82 @@
         State.chatHistory = [];
     }
 
+    // ==================== 搭子对话 ====================
+    let personaChatHistory = []; // 自定义搭子对话历史（{role, content}）
+
     async function sendChat() {
         const input = document.getElementById('chat-input');
         if (!input) return;
         const msg = input.value.trim();
         if (!msg) return;
         input.value = '';
+
+        const activePersona = getActivePersona();
         appendChat('user', msg);
+
         const sendBtn = document.getElementById('btn-chat-send');
         if (sendBtn) sendBtn.disabled = true;
+
         try {
-            const res = await API.buddyChat(msg, State.conversationId || undefined);
-            if (res && res.success) {
-                if (res.conversation_id) State.conversationId = res.conversation_id;
-                appendChat('assistant', res.reply || '我遇到了一些问题，请稍后再试~');
-                loadBuddy();
+            if (activePersona && activePersona.modelId) {
+                // 路径A：使用 ai_personas 自定义搭子
+                const model = getModelConfigById(activePersona.modelId);
+                if (!model || !model.apiUrl || !model.apiKey || !model.modelName) {
+                    appendChat('assistant', '当前搭子未绑定有效模型，请在搭子设计器中检查模型配置~');
+                    return;
+                }
+
+                // 追加用户消息到本地历史
+                personaChatHistory.push({ role: 'user', content: msg });
+                const assistantBubble = appendChat('assistant', '思考中...');
+
+                try {
+                    const res = await fetch('/api/persona/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            systemPrompt: activePersona.systemPrompt || '',
+                            modelConfig: {
+                                apiUrl: model.apiUrl,
+                                apiKey: model.apiKey,
+                                modelName: model.modelName,
+                            },
+                            messages: personaChatHistory.slice(0, -1), // 不含当前用户消息（已放在 system 后面）
+                        }),
+                    });
+                    const data = await res.json();
+
+                    if (data && data.success) {
+                        // 更新气泡内容
+                        if (assistantBubble) {
+                            const contentEl = assistantBubble.querySelector('.chat-content');
+                            if (contentEl) contentEl.textContent = data.reply || '...';
+                        }
+                        personaChatHistory.push({ role: 'assistant', content: data.reply || '' });
+                        // 更新搭子页面显示
+                        updateBuddyDisplay(activePersona);
+                    } else {
+                        if (assistantBubble) {
+                            const contentEl = assistantBubble.querySelector('.chat-content');
+                            if (contentEl) contentEl.textContent = '请求失败：' + (data?.error || '未知错误');
+                        }
+                    }
+                } catch (e) {
+                    if (assistantBubble) {
+                        const contentEl = assistantBubble.querySelector('.chat-content');
+                        if (contentEl) contentEl.textContent = '网络异常：' + (e.message || String(e));
+                    }
+                }
             } else {
-                appendChat('assistant', '抱歉，我遇到了一些问题。');
+                // 路径B：使用内置搭子系统（fallback）
+                const res = await API.buddyChat(msg, State.conversationId || undefined);
+                if (res && res.success) {
+                    if (res.conversation_id) State.conversationId = res.conversation_id;
+                    appendChat('assistant', res.reply || '我遇到了一些问题，请稍后再试~');
+                    loadBuddy();
+                } else {
+                    appendChat('assistant', '抱歉，我遇到了一些问题。');
+                }
             }
         } catch (err) {
             console.error('Chat error:', err);
@@ -931,6 +1099,35 @@
             if (sendBtn) sendBtn.disabled = false;
             input.focus();
         }
+    }
+
+    // 根据自定义搭子更新页面搭子显示（名字/emoji/trait）
+    function updateBuddyDisplay(persona) {
+        if (!persona) return;
+        const name = persona.name || '自定义搭子';
+        const emoji = persona.emoji || '🤖';
+        const trait = (persona.description || '自定义学习搭子') + ' · Lv.1';
+        const fields = [
+            ['buddy-page-name', name],
+            ['buddy-page-trait', trait],
+            ['rs-buddy-page-name', name],
+            ['rs-buddy-page-trait', persona.description || '自定义学习搭子'],
+            ['rs-buddy-level', 'Lv.1'],
+        ];
+        fields.forEach(([id, val]) => setText(id, val));
+        const avEl = document.getElementById('buddy-page-avatar');
+        if (avEl) avEl.textContent = emoji;
+        const avLg = document.getElementById('rs-buddy-page-avatar-lg');
+        if (avLg) avLg.textContent = emoji;
+        const rsAvatar = document.getElementById('rs-buddy-avatar');
+        if (rsAvatar) rsAvatar.textContent = emoji;
+    }
+
+    // 切换搭子时重置对话历史
+    function resetBuddyChatHistory() {
+        personaChatHistory = [];
+        State.conversationId = null;
+        State.chatHistory = [];
     }
 
     // ==================== 统计页 ====================
@@ -1139,17 +1336,561 @@
         }
     }
 
-    function openBuddyDesigner() {
-        alert('搭子设计器功能开发中...');
+    // ==================== 学习搭子设计器 ====================
+
+    // 数据层
+    const PERSONA_STORAGE_KEY = 'ai_personas';
+
+    function getStoredPersonas() {
+        try { return JSON.parse(localStorage.getItem(PERSONA_STORAGE_KEY) || '[]'); }
+        catch { return []; }
     }
 
-    function showModelConfig() {
-        const modal = ensureModelConfigModal();
+    function saveStoredPersonas(personas) {
+        localStorage.setItem(PERSONA_STORAGE_KEY, JSON.stringify(personas));
+    }
+
+    function genPersonaId() {
+        return 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    function getActivePersona() {
+        return getStoredPersonas().find(p => p.active) || null;
+    }
+
+    function setActivePersona(personaId) {
+        const personas = getStoredPersonas();
+        personas.forEach(p => { p.active = (p.id === personaId); });
+        saveStoredPersonas(personas);
+        // 重置对话历史
+        personaChatHistory = [];
+        // 更新页面搭子显示
+        const active = personas.find(p => p.id === personaId);
+        if (active) updateBuddyDisplay(active);
+        // 同步后端搭子系统（仅对有 roleKey 的内置角色有效）
+        const persona = personas.find(p => p.id === personaId);
+        if (persona && persona.roleKey) {
+            API.switchBuddyRole(persona.roleKey).catch(() => {});
+        }
+    }
+
+    function addPersona(data) {
+        const personas = getStoredPersonas();
+        const newPersona = { id: genPersonaId(), active: false, ...data };
+        personas.push(newPersona);
+        saveStoredPersonas(personas);
+        return personas;
+    }
+
+    function updatePersona(personaId, updates) {
+        const personas = getStoredPersonas();
+        const idx = personas.findIndex(p => p.id === personaId);
+        if (idx !== -1) {
+            personas[idx] = { ...personas[idx], ...updates };
+            saveStoredPersonas(personas);
+        }
+        return personas;
+    }
+
+    function deletePersona(personaId) {
+        let personas = getStoredPersonas();
+        const wasActive = personas.find(p => p.id === personaId)?.active;
+        personas = personas.filter(p => p.id !== personaId);
+        if (wasActive && personas.length > 0) { personas[0].active = true; }
+        saveStoredPersonas(personas);
+        return personas;
+    }
+
+    function getModelConfigById(modelId) {
+        const models = getStoredModels();
+        return models.find(m => m.id === modelId) || null;
+    }
+
+    // UI 状态
+    let personaDesignerModal = null;
+    let personaEditId = null; // null=创建，string=编辑
+    let personaView = 'list'; // 'list' | 'form' | 'test'
+    let personaTestHistory = []; // 当前测试对话历史
+
+    function openBuddyDesigner() {
+        personaEditId = null;
+        personaView = 'list';
+        personaTestHistory = [];
+        const modal = ensureBuddyDesignerModal();
         modal.classList.remove('hidden');
-        loadModelConfig();
+        renderPersonaView();
+    }
+
+    function ensureBuddyDesignerModal() {
+        if (personaDesignerModal) return personaDesignerModal;
+        const wrap = document.createElement('div');
+        wrap.id = 'persona-designer-modal';
+        wrap.className = 'modal-overlay hidden';
+        wrap.style.cssText = 'align-items:center;justify-content:center;z-index:2000;';
+        wrap.innerHTML = `
+            <div class="modal-card" id="persona-modal-content" style="max-width:760px;width:95vw;max-height:88vh;display:flex;flex-direction:column;"></div>
+        `;
+        document.body.appendChild(wrap);
+        personaDesignerModal = wrap;
+
+        wrap.addEventListener('click', e => {
+            if (e.target === wrap) closeBuddyDesigner();
+        });
+        return wrap;
+    }
+
+    function closeBuddyDesigner() {
+        personaDesignerModal?.classList.add('hidden');
+        personaView = 'list';
+        personaEditId = null;
+        personaTestHistory = [];
+    }
+
+    function renderPersonaView() {
+        const content = document.getElementById('persona-modal-content');
+        if (!content) return;
+        if (personaView === 'list') renderPersonaList(content);
+        else if (personaView === 'form') renderPersonaForm(content);
+        else if (personaView === 'test') renderPersonaTest(content);
+    }
+
+    // 列表视图
+    function renderPersonaList(content) {
+        const personas = getStoredPersonas();
+        const activeModel = getActiveModel();
+
+        content.innerHTML = `
+            <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;">学习搭子设计器</h3>
+                <button class="modal-close" id="persona-close" aria-label="关闭">✕</button>
+            </div>
+            <div class="modal-body" style="flex:1;overflow-y:auto;padding:16px;">
+                ${activeModel ? `
+                <div style="margin-bottom:16px;padding:10px 14px;background:var(--color-slate-50);border-radius:8px;font-size:12px;color:var(--color-slate-500);">
+                    当前绑定模型：<strong style="color:var(--color-slate-700);">${escapeHtml(activeModel.name)}</strong>
+                    &nbsp;·&nbsp;${escapeHtml(activeModel.modelName)}
+                </div>` : `
+                <div style="margin-bottom:16px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:12px;color:#92400e;">
+                    请先在「AI模型配置」中添加并启用一个模型，才能创建搭子
+                </div>`}
+                <div id="persona-list-items" style="display:grid;gap:8px;"></div>
+            </div>
+            <div class="modal-footer" style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--color-slate-100);display:flex;justify-content:flex-end;gap:8px;">
+                <button class="btn-ghost" id="persona-cancel-btn">取消</button>
+                <button class="btn-primary" id="persona-add-btn" ${activeModel ? '' : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
+                    + 新建搭子
+                </button>
+            </div>
+        `;
+
+        renderIcons();
+        document.getElementById('persona-close').addEventListener('click', closeBuddyDesigner);
+        document.getElementById('persona-cancel-btn').addEventListener('click', closeBuddyDesigner);
+        document.getElementById('persona-add-btn').addEventListener('click', () => {
+            personaEditId = null;
+            personaView = 'form';
+            renderPersonaView();
+        });
+
+        const listEl = document.getElementById('persona-list-items');
+        if (personas.length === 0) {
+            listEl.innerHTML = `<div style="text-align:center;padding:32px 0;color:var(--color-slate-400);font-size:13px;">暂无自定义搭子，点击上方按钮创建</div>`;
+            return;
+        }
+
+        personas.forEach(p => {
+            const model = getModelConfigById(p.modelId);
+            const card = document.createElement('div');
+            card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;border-radius:8px;background:var(--color-slate-50);border:1.5px solid ' + (p.active ? 'var(--color-emerald-400)' : 'transparent') + ';transition:all .15s;cursor:pointer;position:relative;';
+            card.innerHTML = `
+                <div style="width:40px;height:40px;border-radius:50%;background:${p.color || '#6366f1'};display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;flex-shrink:0;">${p.emoji || '🤖'}</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                        <span style="font-size:13px;font-weight:600;color:var(--color-slate-800);">${escapeHtml(p.name || '')}</span>
+                        ${p.active ? '<span style="font-size:10px;padding:1px 6px;border-radius:20px;background:var(--color-emerald-500);color:#fff;">当前搭子</span>' : ''}
+                    </div>
+                    <div style="font-size:11px;color:var(--color-slate-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.description || '暂无描述')}</div>
+                    <div style="font-size:11px;color:var(--color-slate-400);margin-top:2px;">模型：${model ? escapeHtml(model.name) : '<span style="color:#ef4444;">未绑定</span>'}</div>
+                </div>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                    <button class="btn-ghost btn-sm persona-test-btn" data-id="${p.id}" style="font-size:11px;padding:4px 8px;">测试</button>
+                    <button class="btn-ghost btn-sm persona-chat-btn" data-id="${p.id}" style="font-size:11px;padding:4px 8px;">对话</button>
+                    <button class="btn-ghost btn-sm persona-edit-btn" data-id="${p.id}" style="font-size:11px;padding:4px 8px;">编辑</button>
+                    <button class="btn-ghost btn-sm persona-del-btn" data-id="${p.id}" style="font-size:11px;padding:4px 8px;color:#ef4444;">删除</button>
+                </div>
+            `;
+
+            // 行点击 → 设为 active
+            card.addEventListener('click', e => {
+                if (e.target.closest('button')) return;
+                if (!p.active) {
+                    setActivePersona(p.id);
+                    renderPersonaView();
+                }
+            });
+
+            card.addEventListener('mouseenter', () => { if (!p.active) card.style.background = 'var(--color-slate-100)'; });
+            card.addEventListener('mouseleave', () => { if (!p.active) card.style.background = 'var(--color-slate-50)'; card.style.borderColor = 'transparent'; });
+
+            listEl.appendChild(card);
+        });
+
+        // 绑定按钮事件
+        listEl.querySelectorAll('.persona-test-btn').forEach(btn => {
+            btn.addEventListener('click', e => { e.stopPropagation(); personaEditId = btn.dataset.id; personaView = 'test'; personaTestHistory = []; renderPersonaView(); });
+        });
+        listEl.querySelectorAll('.persona-chat-btn').forEach(btn => {
+            btn.addEventListener('click', e => { e.stopPropagation(); personaEditId = btn.dataset.id; personaView = 'test'; personaTestHistory = [{ role: 'assistant', content: '我是' + (getStoredPersonas().find(p => p.id === btn.dataset.id)?.name || '') + '，有什么想聊的？' }]; renderPersonaView(); });
+        });
+        listEl.querySelectorAll('.persona-edit-btn').forEach(btn => {
+            btn.addEventListener('click', e => { e.stopPropagation(); personaEditId = btn.dataset.id; personaView = 'form'; renderPersonaView(); });
+        });
+        listEl.querySelectorAll('.persona-del-btn').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const p = getStoredPersonas().find(x => x.id === btn.dataset.id);
+                if (!confirm('确定删除搭子「' + (p?.name || '') + '」？')) return;
+                deletePersona(btn.dataset.id);
+                renderPersonaView();
+            });
+        });
+    }
+
+    // 表单视图（创建/编辑）
+    function renderPersonaForm(content) {
+        const personas = getStoredPersonas();
+        const editData = personaEditId ? personas.find(p => p.id === personaEditId) : null;
+        const isEdit = !!editData;
+        const models = getStoredModels();
+
+        content.innerHTML = `
+            <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;">${isEdit ? '编辑学习搭子' : '新建学习搭子'}</h3>
+                <button class="modal-close" id="persona-close" aria-label="关闭">✕</button>
+            </div>
+            <div class="modal-body" style="flex:1;overflow-y:auto;padding:16px;">
+                <div style="display:grid;gap:14px;">
+                    <div class="form-row">
+                        <label class="form-label">搭子名称 <span style="color:#ef4444;">*</span></label>
+                        <input type="text" class="form-input" id="pf-name" placeholder="如：我的学霸搭子" value="${isEdit ? escapeHtml(editData.name || '') : ''}">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="form-row">
+                            <label class="form-label">图标 emoji</label>
+                            <input type="text" class="form-input" id="pf-emoji" placeholder="🤖" value="${isEdit ? escapeHtml(editData.emoji || '') : ''}" maxlength="4" style="text-align:center;font-size:20px;">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">主题色</label>
+                            <input type="color" id="pf-color" value="${isEdit ? (editData.color || '#6366f1') : '#6366f1'}" style="width:100%;height:38px;border-radius:6px;border:1px solid var(--color-slate-200);cursor:pointer;">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">描述</label>
+                        <input type="text" class="form-input" id="pf-desc" placeholder="一句话介绍这个搭子的特点" value="${isEdit ? escapeHtml(editData.description || '') : ''}">
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">绑定模型 <span style="color:#ef4444;">*</span></label>
+                        <select class="form-input" id="pf-model" style="cursor:pointer;">
+                            <option value="">— 选择模型 —</option>
+                            ${models.map(m => `<option value="${m.id}" ${editData?.modelId === m.id ? 'selected' : ''}>${escapeHtml(m.name)} · ${escapeHtml(m.modelName)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">人格设定（systemPrompt） <span style="color:#ef4444;">*</span></label>
+                        <textarea class="form-input" id="pf-system-prompt" rows="8" placeholder="定义这个搭子的性格、语气、回复风格。例如：
+你是我的学习搭子，性格温柔但有原则。
+- 语气亲切自然，像朋友聊天
+- 用'呀''呢''哦'结尾
+- 允许我偶尔偷懒，但会温柔督促
+- 回复不要太长，2-4句话就好" style="resize:vertical;font-size:12px;line-height:1.6;">${isEdit ? escapeHtml(editData.systemPrompt || '') : ''}</textarea>
+                        <div style="font-size:11px;color:var(--color-slate-400);margin-top:4px;">定义搭子的性格、语气和回复风格，会作为 systemPrompt 传入 AI</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--color-slate-100);display:flex;justify-content:space-between;gap:8px;">
+                <button class="btn-ghost" id="pf-back-btn" style="color:var(--color-slate-500);">← 返回列表</button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-ghost" id="pf-test-btn" style="font-size:13px;">预览人格</button>
+                    <button class="btn-primary" id="pf-save-btn">保存搭子</button>
+                </div>
+            </div>
+        `;
+
+        renderIcons();
+        document.getElementById('persona-close').addEventListener('click', closeBuddyDesigner);
+        document.getElementById('pf-back-btn').addEventListener('click', () => { personaView = 'list'; renderPersonaView(); });
+        document.getElementById('pf-test-btn').addEventListener('click', () => {
+            // 先预览 systemPrompt 效果：切换到测试视图
+            const name = document.getElementById('pf-name')?.value.trim();
+            const systemPrompt = document.getElementById('pf-system-prompt')?.value.trim();
+            const emoji = document.getElementById('pf-emoji')?.value.trim() || '🤖';
+            const color = document.getElementById('pf-color')?.value || '#6366f1';
+            const modelId = document.getElementById('pf-model')?.value;
+            if (!systemPrompt) { alert('请先填写人格设定'); return; }
+            // 保存临时数据（不上 localStorage，仅用于预览）
+            personaTestHistory = [];
+            personaTestPersona = { name: name || '未命名搭子', emoji, color, systemPrompt, modelId, id: personaEditId || '__preview__' };
+            personaView = 'test';
+            personaTestHistory = [{ role: 'assistant', content: '你好！我是' + (name || '这个搭子') + '～' }];
+            renderPersonaView();
+        });
+        document.getElementById('pf-save-btn').addEventListener('click', () => {
+            const name = document.getElementById('pf-name')?.value.trim();
+            const emoji = document.getElementById('pf-emoji')?.value.trim();
+            const color = document.getElementById('pf-color')?.value;
+            const description = document.getElementById('pf-desc')?.value.trim();
+            const modelId = document.getElementById('pf-model')?.value;
+            const systemPrompt = document.getElementById('pf-system-prompt')?.value.trim();
+
+            if (!name) { alert('请填写搭子名称'); return; }
+            if (!modelId) { alert('请选择绑定模型'); return; }
+            if (!systemPrompt) { alert('请填写人格设定'); return; }
+
+            if (isEdit) {
+                updatePersona(personaEditId, { name, emoji, color, description, modelId, systemPrompt });
+            } else {
+                addPersona({ name, emoji, color, description, modelId, systemPrompt });
+            }
+            personaView = 'list';
+            renderPersonaView();
+        });
+    }
+
+    // 测试/对话视图
+    let personaTestPersona = null; // 当前测试中的搭子数据
+
+    function renderPersonaTest(content) {
+        const personas = getStoredPersonas();
+        const persona = personaTestPersona || personas.find(p => p.id === personaEditId);
+        if (!persona) { personaView = 'list'; renderPersonaView(); return; }
+        personaTestPersona = persona;
+
+        const model = getModelConfigById(persona.modelId);
+        const modelName = model ? model.name + ' · ' + model.modelName : '<span style="color:#ef4444;">未绑定模型</span>';
+
+        content.innerHTML = `
+            <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+                    <span style="width:28px;height:28px;border-radius:50%;background:${persona.color || '#6366f1'};display:inline-flex;align-items:center;justify-content:center;font-size:14px;color:#fff;">${persona.emoji || '🤖'}</span>
+                    <span>${escapeHtml(persona.name || '')} · 对话测试</span>
+                </h3>
+                <button class="modal-close" id="persona-close" aria-label="关闭">✕</button>
+            </div>
+            <div class="modal-body" style="flex:1;overflow-y:auto;padding:0;display:flex;flex-direction:column;">
+                <div style="padding:8px 16px 8px;border-bottom:1px solid var(--color-slate-100);font-size:11px;color:var(--color-slate-400);">
+                    人格：${escapeHtml((persona.systemPrompt || '').slice(0, 60))}${persona.systemPrompt?.length > 60 ? '...' : ''}
+                    &nbsp;·&nbsp;模型：${modelName}
+                </div>
+                <div id="persona-test-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:360px;"></div>
+                <div style="padding:12px 16px;border-top:1px solid var(--color-slate-100);display:flex;gap:8px;align-items:flex-end;">
+                    <textarea class="form-input" id="persona-test-input" rows="2" placeholder="输入问题，测试搭子人格效果..." style="flex:1;resize:none;font-size:13px;"></textarea>
+                    <button class="btn-primary" id="persona-test-send" style="flex-shrink:0;padding:8px 16px;">发送</button>
+                </div>
+            </div>
+            <div class="modal-footer" style="flex-shrink:0;padding:10px 16px;border-top:1px solid var(--color-slate-100);display:flex;justify-content:space-between;gap:8px;">
+                <button class="btn-ghost" id="pf-test-back-btn" style="font-size:12px;color:var(--color-slate-500);">← 返回</button>
+                <div style="font-size:11px;color:var(--color-slate-400);">测试消息不会保存</div>
+            </div>
+        `;
+
+        renderIcons();
+        document.getElementById('persona-close').addEventListener('click', closeBuddyDesigner);
+        document.getElementById('pf-test-back-btn').addEventListener('click', () => { personaView = 'list'; personaTestPersona = null; renderPersonaView(); });
+
+        const msgWrap = document.getElementById('persona-test-messages');
+        function appendMsg(role, content) {
+            const div = document.createElement('div');
+            div.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+            const avatar = role === 'user' ? '👤' : (persona.emoji || '🤖');
+            const bg = role === 'user' ? 'var(--color-indigo-50);border-color:var(--color-indigo-200)' : 'var(--color-slate-50);border-color:var(--color-slate-200)';
+            div.innerHTML = `
+                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${role === 'user' ? 'var(--color-indigo-100)' : (persona.color || '#6366f1')};color:${role === 'user' ? 'var(--color-indigo-600)' : '#fff'};">${avatar}</div>
+                <div style="flex:1;background:${bg};border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.6;color:var(--color-slate-700);white-space:pre-wrap;word-break:break-all;border:1px solid transparent;">${escapeHtml(content)}</div>
+            `;
+            msgWrap.appendChild(div);
+            msgWrap.scrollTop = msgWrap.scrollHeight;
+        }
+
+        // 渲染历史
+        personaTestHistory.forEach(msg => appendMsg(msg.role, msg.content));
+
+        async function sendTestMsg() {
+            const input = document.getElementById('persona-test-input');
+            const sendBtn = document.getElementById('persona-test-send');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            appendMsg('user', msg);
+            personaTestHistory.push({ role: 'user', content: msg });
+            sendBtn.disabled = true;
+            sendBtn.textContent = '思考中...';
+
+            // 临时 thinking 气泡
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+            thinkingDiv.innerHTML = `
+                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${persona.color || '#6366f1'};color:#fff;">${persona.emoji || '🤖'}</div>
+                <div style="flex:1;background:var(--color-slate-50);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--color-slate-400);">思考中...</div>
+            `;
+            msgWrap.appendChild(thinkingDiv);
+            msgWrap.scrollTop = msgWrap.scrollHeight;
+
+            try {
+                if (!model) throw new Error('请先在表单中选择绑定模型');
+
+                // 构造 messages：systemPrompt + 对话历史
+                const messages = [{ role: 'system', content: persona.systemPrompt }];
+                personaTestHistory.forEach(h => { if (h.role !== 'system') messages.push({ role: h.role, content: h.content }); });
+
+                const headers = { 'Content-Type': 'application/json' };
+                if (model.apiKey) headers['Authorization'] = 'Bearer ' + model.apiKey;
+
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 30000);
+                const resp = await fetch(model.apiUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        model: model.modelName,
+                        messages,
+                        max_tokens: 300,
+                    }),
+                    signal: controller.signal,
+                });
+                clearTimeout(timer);
+
+                if (!resp.ok) {
+                    const errTxt = await resp.text();
+                    throw new Error('API 错误 ' + resp.status + ': ' + errTxt.slice(0, 100));
+                }
+                const data = await resp.json();
+                const reply = data?.choices?.[0]?.message?.content || '（未获取到回复内容）';
+
+                thinkingDiv.remove();
+                appendMsg('assistant', reply);
+                personaTestHistory.push({ role: 'assistant', content: reply });
+            } catch (e) {
+                thinkingDiv.remove();
+                appendMsg('assistant', '请求失败：' + (e.name === 'AbortError' ? '请求超时（30秒）' : e.message));
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '发送';
+            }
+        }
+
+        document.getElementById('persona-test-send').addEventListener('click', sendTestMsg);
+        document.getElementById('persona-test-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTestMsg(); }
+        });
+    }
+
+    // ==================== AI模型配置（localStorage持久化）====================
+    const MODEL_STORAGE_KEY = 'studypal-ai-models';
+
+    // 从localStorage读取模型列表
+    function getStoredModels() {
+        try {
+            return JSON.parse(localStorage.getItem(MODEL_STORAGE_KEY) || '[]');
+        } catch { return []; }
+    }
+
+    // 保存模型列表到localStorage
+    function saveStoredModels(models) {
+        localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(models));
+    }
+
+    // 生成唯一ID
+    function genModelId() {
+        return 'm_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    // 获取当前启用的模型
+    function getActiveModel() {
+        const models = getStoredModels();
+        return models.find(m => m.active) || null;
+    }
+
+    // 设置启用模型（保证只有一个active）
+    function setActiveModel(modelId) {
+        const models = getStoredModels();
+        models.forEach(m => { m.active = (m.id === modelId); });
+        saveStoredModels(models);
+    }
+
+    // 新增模型
+    function addModel(model) {
+        const models = getStoredModels();
+        models.push({ id: genModelId(), active: false, ...model });
+        saveStoredModels(models);
+        return models;
+    }
+
+    // 更新模型
+    function updateModel(modelId, updates) {
+        const models = getStoredModels();
+        const idx = models.findIndex(m => m.id === modelId);
+        if (idx !== -1) { models[idx] = { ...models[idx], ...updates }; saveStoredModels(models); }
+        return models;
+    }
+
+    // 删除模型
+    function deleteModel(modelId) {
+        let models = getStoredModels();
+        models = models.filter(m => m.id !== modelId);
+        saveStoredModels(models);
+        return models;
+    }
+
+    // 向指定模型发起真实API请求
+    async function testModelAPI(model, prompt) {
+        if (!model || !model.apiUrl || !model.apiKey || !model.modelName) {
+            throw new Error('模型配置不完整');
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        const headers = { 'Content-Type': 'application/json' };
+        if (model.apiKey) headers['Authorization'] = 'Bearer ' + model.apiKey;
+
+        const body = {
+            model: model.modelName,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: model.temperature != null ? model.temperature : 0.7,
+        };
+
+        try {
+                const resp = await fetch(model.apiUrl, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(body),
+                    signal: controller.signal,
+                });
+            clearTimeout(timer);
+            if (!resp.ok) {
+                const errTxt = await resp.text();
+                throw new Error('API错误 ' + resp.status + ': ' + (errTxt.slice(0, 200)));
+            }
+            const data = await resp.json();
+            return data;
+        } catch (e) {
+            clearTimeout(timer);
+            if (e.name === 'AbortError') throw new Error('请求超时（30秒）');
+            throw e;
+        }
     }
 
     let modelConfigModal = null;
+    let modelEditId = null; // null=新增，非null=编辑
+    let modelListVersion = 0; // 用于强制刷新列表
+    let modelTestPassed = false; // 当前表单是否通过测试连接
+
+    function showModelConfig() {
+        modelEditId = null;
+        modelListVersion++;
+        const modal = ensureModelConfigModal();
+        modal.classList.remove('hidden');
+        renderModelList();
+        showModelForm(null);
+    }
 
     function ensureModelConfigModal() {
         if (modelConfigModal) return modelConfigModal;
@@ -1157,78 +1898,343 @@
         wrap.id = 'model-config-modal';
         wrap.className = 'modal-overlay hidden';
         wrap.innerHTML = `
-            <div class="modal-card">
-                <div class="modal-header">
+            <div class="modal-card" style="max-width:720px;width:95vw;max-height:85vh;display:flex;flex-direction:column;">
+                <div class="modal-header" style="flex-shrink:0;">
                     <h3>AI模型配置</h3>
                     <button class="modal-close" id="model-config-close" aria-label="关闭">✕</button>
                 </div>
-                <div class="modal-body">
-                    <div class="form-row">
-                        <label class="form-label">AI服务商</label>
-                        <select class="form-input" id="model-provider">
-                            <option value="openai">OpenAI</option>
-                            <option value="anthropic">Anthropic</option>
-                            <option value="ollama">Ollama</option>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">模型名称</label>
-                        <input type="text" class="form-input" id="model-name" placeholder="如：gpt-3.5-turbo">
-                    </div>
-                    <div class="form-row">
-                        <label class="form-label">温度参数 (0-1)</label>
-                        <input type="number" class="form-input" id="model-temperature" min="0" max="1" step="0.1" value="0.7">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-ghost" id="model-config-cancel">取消</button>
-                    <button class="btn-primary" id="model-config-save">保存</button>
+                <div class="modal-body" style="flex:1;overflow-y:auto;padding:0;" id="model-config-body">
+                    <div id="model-list-area"></div>
+                    <div id="model-form-area" class="hidden" style="padding:20px 24px;"></div>
                 </div>
             </div>
         `;
         document.body.appendChild(wrap);
         modelConfigModal = wrap;
 
-        wrap.querySelector('#model-config-close').addEventListener('click', () => {
-            modelConfigModal.classList.add('hidden');
-        });
-        wrap.querySelector('#model-config-cancel').addEventListener('click', () => {
-            modelConfigModal.classList.add('hidden');
-        });
-        wrap.addEventListener('click', e => {
-            if (e.target === wrap) modelConfigModal.classList.add('hidden');
-        });
-        wrap.querySelector('#model-config-save').addEventListener('click', saveModelConfig);
+        wrap.querySelector('#model-config-close').addEventListener('click', closeModelConfig);
+        wrap.addEventListener('click', e => { if (e.target === wrap) closeModelConfig(); });
 
         return wrap;
     }
 
-    async function loadModelConfig() {
-        try {
-            const res = await API.getModelConfig();
-            if (res && res.success) {
-                const cfg = res.config;
-                const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-                set('model-provider', cfg.provider || 'openai');
-                set('model-name', cfg.model || 'gpt-3.5-turbo');
-                set('model-temperature', cfg.temperature || 0.7);
-            }
-        } catch (e) {
-            console.error('加载模型配置失败:', e);
+    function closeModelConfig() {
+        if (modelConfigModal) modelConfigModal.classList.add('hidden');
+    }
+
+    // 渲染模型列表
+    function renderModelList() {
+        const area = document.getElementById('model-list-area');
+        if (!area) return;
+        const models = getStoredModels();
+        const active = getActiveModel();
+        area.innerHTML = `
+            <div style="padding:16px 24px 0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                    <p style="font-size:12px;color:var(--color-slate-400);">共 ${models.length} 个模型${active ? ' · 当前启用：' + active.name : ''}</p>
+                    <button class="btn-primary btn-sm" id="model-add-btn" style="font-size:12px;padding:6px 14px;">
+                        <span class="nav-icon" data-icon="plus"></span> 新增模型
+                    </button>
+                </div>
+            </div>
+            <div id="model-list-items" style="padding:0 24px 16px;">
+                ${models.length === 0 ? '<p style="text-align:center;color:var(--color-slate-400);padding:32px 0;font-size:13px;">暂无模型，点击上方按钮添加</p>' : ''}
+            </div>
+        `;
+        renderIcons();
+
+        document.getElementById('model-add-btn')?.addEventListener('click', () => {
+            modelEditId = null;
+            showModelForm(null);
+        });
+
+        const items = document.getElementById('model-list-items');
+        if (!items) return;
+        models.forEach(m => {
+            const isActive = !!m.active;
+            const card = document.createElement('div');
+            card.className = 'model-item-card';
+            card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;margin-bottom:6px;background:var(--color-slate-50);border:1.5px solid ' + (isActive ? 'var(--color-emerald-400)' : 'transparent') + ';transition:all .15s;cursor:pointer;';
+            card.innerHTML = `
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+                        <span style="font-size:13px;font-weight:600;color:var(--color-slate-800);">${escapeHtml(m.name || '')}</span>
+                        ${isActive ? '<span style="font-size:10px;padding:1px 6px;border-radius:20px;background:var(--color-emerald-500);color:#fff;">启用中</span>' : ''}
+                    </div>
+                    <div style="font-size:11px;color:var(--color-slate-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.modelName || '')} · ${escapeHtml(m.apiUrl || '')}</div>
+                </div>
+            `;
+
+            card.addEventListener('mouseenter', () => { card.style.background = 'var(--color-slate-100)'; });
+            card.addEventListener('mouseleave', () => { card.style.background = isActive ? 'var(--color-emerald-50)' : 'var(--color-slate-50)'; card.style.borderColor = isActive ? 'var(--color-emerald-400)' : 'transparent'; });
+            card.addEventListener('click', () => { modelEditId = m.id; showModelForm(m); });
+            items.appendChild(card);
+        });
+
+        // 底部操作按钮（对选中行生效）
+        if (models.length > 0) {
+            const active = getActiveModel();
+            const actionBar = document.createElement('div');
+            actionBar.style.cssText = 'padding:0 24px 16px;display:flex;gap:8px;flex-wrap:wrap;';
+            actionBar.innerHTML = `
+                <button class="btn-ghost btn-sm" id="model-test-btn" style="font-size:12px;">测试调用</button>
+                ${active ? '<span style="font-size:12px;color:var(--color-slate-400);display:flex;align-items:center;">当前: ' + escapeHtml(active.name) + '</span>' : ''}
+            `;
+            area.appendChild(actionBar);
+            renderIcons();
+
+            // 测试调用
+            document.getElementById('model-test-btn')?.addEventListener('click', () => openModelTestDialog(active));
         }
     }
 
-    async function saveModelConfig() {
-        const provider = document.getElementById('model-provider')?.value;
-        const model = document.getElementById('model-name')?.value;
-        const temperature = parseFloat(document.getElementById('model-temperature')?.value || '0.7');
-        try {
-            await API.updateModelConfig({ provider, model, temperature });
-            modelConfigModal?.classList.add('hidden');
-            alert('配置已保存');
-        } catch (e) {
-            console.error('保存模型配置失败:', e);
+    // 显示表单（新增或编辑）
+    function showModelForm(model) {
+        const formArea = document.getElementById('model-form-area');
+        const listArea = document.getElementById('model-list-area');
+        if (!formArea) return;
+
+        const isEdit = !!model;
+        formArea.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <button class="btn-ghost btn-sm" id="model-form-back" style="font-size:12px;">
+                    <span class="nav-icon" data-icon="back"></span> 返回列表
+                </button>
+                <h4 style="font-size:14px;font-weight:600;margin:0;">${isEdit ? '编辑模型' : '新增模型'}</h4>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-row" style="grid-column:1/-1;">
+                    <label class="form-label">模型名称 <span style="color:#ef4444;">*</span></label>
+                    <input type="text" class="form-input" id="mf-name" placeholder="如：我的Groq模型" value="${isEdit ? escapeHtml(model.name || '') : ''}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">API请求地址 <span style="color:#ef4444;">*</span></label>
+                    <input type="text" class="form-input" id="mf-api-url" placeholder="https://api.groq.com/openai/v1/chat/completions" value="${isEdit ? escapeHtml(model.apiUrl || '') : ''}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">API Key <span style="color:#ef4444;">*</span></label>
+                    <input type="password" class="form-input" id="mf-api-key" placeholder="gsk_xxxx" value="${isEdit ? escapeHtml(model.apiKey || '') : ''}">
+                </div>
+                <div class="form-row">
+                    <label class="form-label">模型名称（model） <span style="color:#ef4444;">*</span></label>
+                    <input type="text" class="form-input" id="mf-model-name" placeholder="llama-3.3-70b-versatile" value="${isEdit ? escapeHtml(model.modelName || '') : ''}">
+                </div>
+                <div class="form-row" style="grid-column:1/-1;">
+                    <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="mf-active" ${isEdit && model.active ? 'checked' : ''}>
+                        设为当前启用模型
+                    </label>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+                <button class="btn-ghost" id="mf-test-btn" style="font-size:13px;${isEdit ? 'display:none;' : ''}">测试连接</button>
+                ${isEdit ? '<button class="btn-ghost" id="mf-delete-btn" style="color:#ef4444;font-size:13px;margin-right:auto;">删除</button>' : ''}
+                <button class="btn-ghost" id="mf-cancel-btn" style="font-size:13px;">取消</button>
+                <button class="btn-primary" id="mf-save-btn" style="font-size:13px;opacity:.5;cursor:not-allowed;" disabled>${isEdit ? '保存修改' : '确认添加'}</button>
+            </div>
+        `;
+        renderIcons();
+
+        formArea.classList.remove('hidden');
+        listArea?.classList.add('hidden');
+
+        // 重置测试状态：每次进入表单都必须重新测试
+        modelTestPassed = false;
+        const testBtn = document.getElementById('mf-test-btn');
+        if (testBtn) { testBtn.disabled = false; testBtn.textContent = '测试连接'; testBtn.style.color = ''; }
+        // 编辑模式下隐藏测试按钮（已通过存储验证）
+        if (testBtn) testBtn.style.display = isEdit ? 'none' : '';
+
+        // 更新保存按钮状态
+        updateSaveBtnState();
+
+        document.getElementById('model-form-back')?.addEventListener('click', () => { modelEditId = null; showModelListView(); });
+        document.getElementById('mf-cancel-btn')?.addEventListener('click', () => { modelEditId = null; showModelListView(); });
+
+        // 保存：必须先测试通过
+        document.getElementById('mf-save-btn')?.addEventListener('click', () => {
+            if (!modelTestPassed) {
+                alert('请先点击「测试连接」，连接成功后再保存');
+                return;
+            }
+            saveModelForm(isEdit);
+        });
+
+        // 测试连接（仅新增模式）
+        document.getElementById('mf-test-btn')?.addEventListener('click', doModelConnectionTest);
+
+        if (isEdit) {
+            document.getElementById('mf-delete-btn')?.addEventListener('click', () => {
+                if (confirm('确定删除模型「' + (model.name || '') + '」？')) {
+                    deleteModel(model.id);
+                    modelEditId = null;
+                    showModelListView();
+                    renderModelList();
+                }
+            });
         }
+    }
+
+    function showModelListView() {
+        const formArea = document.getElementById('model-form-area');
+        const listArea = document.getElementById('model-list-area');
+        formArea?.classList.add('hidden');
+        listArea?.classList.remove('hidden');
+        renderModelList();
+    }
+
+    function saveModelForm(isEdit) {
+        const name = document.getElementById('mf-name')?.value.trim();
+        const apiUrl = document.getElementById('mf-api-url')?.value.trim();
+        const apiKey = document.getElementById('mf-api-key')?.value.trim();
+        const modelName = document.getElementById('mf-model-name')?.value.trim();
+        const setActive = document.getElementById('mf-active')?.checked;
+
+        if (!name || !apiUrl || !apiKey || !modelName) {
+            alert('请填写所有必填项');
+            return;
+        }
+
+        if (isEdit) {
+            updateModel(modelEditId, { name, apiUrl, apiKey, modelName });
+            if (setActive) { setActiveModel(modelEditId); }
+        } else {
+            let models = addModel({ name, apiUrl, apiKey, modelName });
+            const newModel = models[models.length - 1];
+            if (setActive) { setActiveModel(newModel.id); }
+        }
+
+        showModelListView();
+        renderModelList();
+    }
+
+    // 更新保存按钮状态
+    function updateSaveBtnState() {
+        const btn = document.getElementById('mf-save-btn');
+        if (!btn) return;
+        if (modelTestPassed) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        } else {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+        }
+    }
+
+    // 测试连接（使用当前表单中的值，走后端代理避免CORS）
+    async function doModelConnectionTest() {
+        const name = document.getElementById('mf-name')?.value.trim();
+        const apiUrl = document.getElementById('mf-api-url')?.value.trim();
+        const apiKey = document.getElementById('mf-api-key')?.value.trim();
+        const modelName = document.getElementById('mf-model-name')?.value.trim();
+
+        if (!name || !apiUrl || !apiKey || !modelName) {
+            alert('请先填写完 API地址、API Key 和模型名称 后再测试');
+            return;
+        }
+
+        const btn = document.getElementById('mf-test-btn');
+        const saveBtn = document.getElementById('mf-save-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.5'; }
+
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 30000);
+            const resp = await fetch('/api/model/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiUrl, apiKey, modelName }),
+                signal: controller.signal,
+            });
+            clearTimeout(timer);
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || '请求失败');
+
+            const reply = data.reply || data.choices?.[0]?.message?.content;
+            if (reply) {
+                modelTestPassed = true;
+                updateSaveBtnState();
+                if (btn) { btn.textContent = '已通过'; btn.style.color = 'var(--color-emerald-600)'; }
+                alert('连接成功！AI 响应：「' + String(reply).slice(0, 80) + (String(reply).length > 80 ? '...' : '') + '」');
+            } else {
+                throw new Error('返回数据格式异常，未获取到有效回复内容');
+            }
+        } catch (e) {
+            modelTestPassed = false;
+            updateSaveBtnState();
+            if (btn) { btn.disabled = false; btn.textContent = '测试连接'; btn.style.color = ''; }
+            alert('连接失败：' + (e.name === 'AbortError' ? '请求超时（30秒）' : (e.message || String(e))));
+        } finally {
+            if (btn && btn.textContent !== '已通过') { btn.disabled = false; btn.textContent = '测试连接'; }
+        }
+    }
+
+    // 测试调用弹窗
+    function openModelTestDialog(model) {
+        if (!model) { alert('请先添加并启用一个模型'); return; }
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'align-items:center;justify-content:center;z-index:10000;';
+        overlay.innerHTML = `
+            <div class="modal-card" style="max-width:640px;width:95vw;max-height:80vh;display:flex;flex-direction:column;">
+                <div class="modal-header" style="flex-shrink:0;">
+                    <h3>测试 · ${escapeHtml(model.name || '')}</h3>
+                    <button class="modal-close" id="model-test-close" aria-label="关闭">✕</button>
+                </div>
+                <div class="modal-body" style="flex:1;overflow-y:auto;padding:20px 24px;">
+                    <p style="font-size:12px;color:var(--color-slate-400);margin:0 0 12px;">
+                        模型: ${escapeHtml(model.modelName || '')}<br>
+                        地址: ${escapeHtml(model.apiUrl || '')}
+                    </p>
+                    <div class="form-row">
+                        <label class="form-label">测试Prompt</label>
+                        <textarea class="form-input" id="test-prompt-input" rows="4" style="resize:vertical;" placeholder="输入你想测试的内容...">你好，请用一句话介绍自己</textarea>
+                    </div>
+                    <button class="btn-primary" id="test-send-btn" style="margin-top:8px;width:100%;">发送测试请求</button>
+                    <div id="test-response-area" style="margin-top:12px;display:none;">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                            <span style="font-size:12px;font-weight:600;color:var(--color-emerald-600);">响应结果</span>
+                        </div>
+                        <div id="test-response-content" style="background:var(--color-slate-50);border-radius:8px;padding:12px;font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--color-slate-700);line-height:1.6;"></div>
+                    </div>
+                    <div id="test-error-area" style="margin-top:12px;display:none;">
+                        <div style="padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:13px;color:#ef4444;" id="test-error-content"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        renderIcons();
+
+        overlay.querySelector('#model-test-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+        document.getElementById('test-send-btn')?.addEventListener('click', async () => {
+            const prompt = document.getElementById('test-prompt-input')?.value.trim();
+            if (!prompt) { alert('请输入测试内容'); return; }
+            const btn = document.getElementById('test-send-btn');
+            const respArea = document.getElementById('test-response-area');
+            const errArea = document.getElementById('test-error-area');
+            respArea.style.display = 'none';
+            errArea.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = '请求中...';
+            try {
+                const data = await testModelAPI(model, prompt);
+                const reply = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+                document.getElementById('test-response-content').textContent = reply;
+                respArea.style.display = 'block';
+            } catch (e) {
+                document.getElementById('test-error-content').textContent = e.message || String(e);
+                errArea.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '发送测试请求';
+            }
+        });
     }
 
     // ==================== 图表 ====================

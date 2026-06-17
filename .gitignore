@@ -38,7 +38,7 @@ env/
 Thumbs.db
 
 # Data files (optional - uncomment if you don't want to commit data)
-# data/*.json
+data/*.json
 
 # Logs
 *.log

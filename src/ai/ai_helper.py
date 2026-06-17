@@ -63,9 +63,18 @@ class StudyPalAI:
     - 对话历史持久化
     """
 
-    def __init__(self, model_key: str = None):
-        """初始化 StudyPal AI"""
+    def __init__(self, model_key: str = None, model_override: dict = None):
+        """
+        初始化 StudyPal AI
+
+        参数：
+            model_key: config.py 中的模型配置 key（默认使用 DEFAULT_MODEL_KEY）
+            model_override: 可选，优先使用的模型配置 dict
+                             支持字段：apiUrl, apiKey, modelName, name
+                             当此参数非 None 时，忽略 model_key 和 MODELS_CONFIG
+        """
         self.model_key = model_key or DEFAULT_MODEL_KEY
+        self.model_override = model_override  # 存储备用
         self._load_model_config()
 
         self.conversation_history: List[Dict[str, str]] = []
@@ -76,6 +85,15 @@ class StudyPalAI:
 
     def _load_model_config(self):
         """从配置中加载模型信息"""
+        # 优先使用外部传入的模型覆盖配置
+        if self.model_override:
+            self.provider = "openai"  # 外部配置均为 OpenAI 兼容格式
+            self.model_name = self.model_override.get("modelName", self.model_override.get("model", ""))
+            self.base_url = self._normalize_base_url(self.model_override.get("apiUrl", self.model_override.get("api_url", "")))
+            self.model_api_key = self.model_override.get("apiKey", self.model_override.get("api_key", ""))
+            self.timeout = AI_TIMEOUT
+            return
+
         if self.model_key in MODELS_CONFIG:
             config = MODELS_CONFIG[self.model_key]
             self.provider = config.get("provider", "openai")
@@ -89,6 +107,13 @@ class StudyPalAI:
             self.model_api_key = API_KEY
 
         self.timeout = AI_TIMEOUT
+
+    def _normalize_base_url(self, url: str) -> str:
+        """标准化 base_url：去除尾部斜杠和 /v1 后缀"""
+        url = url.strip().rstrip('/')
+        if url.endswith('/v1'):
+            url = url[:-3]
+        return url
 
     def get_current_model_info(self) -> Dict[str, str]:
         """获取当前模型信息"""
@@ -118,7 +143,8 @@ class StudyPalAI:
                 "stream": False
             },
             headers={"Content-Type": "application/json"},
-            timeout=self.timeout
+            timeout=self.timeout,
+            proxies={'http': None, 'https': None}
         )
 
         if response.status_code != 200:
@@ -142,7 +168,8 @@ class StudyPalAI:
                 "stream": False
             },
             headers=headers,
-            timeout=self.timeout
+            timeout=self.timeout,
+            proxies={'http': None, 'https': None}
         )
 
         if response.status_code != 200:
