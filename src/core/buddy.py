@@ -292,17 +292,36 @@ class Buddy:
         """构建系统提示词"""
         profile = self.profile.get_user()
         buddy_info = self.profile.get_buddy_info()
+        role_key = buddy_info.get("role_key", "xiaodou")
         memory_context = self.memory.build_context_for_ai()
         current_phase = self.profile.get_current_phase()
         study_summary = self.profile.get_study_summary()
 
-        return self.prompts.get_system_prompt(
+        # 获取基础提示词
+        base_prompt = self.prompts.get_system_prompt(
             buddy_name=buddy_info.get("name", "小豆"),
             user_name=profile.get("name", ""),
             study_summary=study_summary,
             memory_context=memory_context,
             current_phase=current_phase
         )
+
+        # 获取角色风格规则（这是搭子差异化的核心！）
+        from src.buddy.buddy_roles import BuddyRoles
+        role_style_rules = BuddyRoles.get_role_style_rules(role_key)
+
+        # 拼接基础提示词 + 角色风格规则
+        if role_style_rules:
+            final_prompt = base_prompt + "\n\n" + role_style_rules
+        else:
+            final_prompt = base_prompt
+
+        # 调试日志（生产环境可在日志级别控制）
+        print(f"[搭子对话] 当前搭子: {role_key} ({buddy_info.get('name', '未知')})")
+        print(f"[搭子对话] SystemPrompt长度: {len(final_prompt)} 字")
+        print(f"[搭子对话] SystemPrompt前200字: {final_prompt[:200]}")
+
+        return final_prompt
 
     def _build_user_message(
         self,

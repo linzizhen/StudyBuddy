@@ -16,6 +16,7 @@ from .timeline import timeline_bp
 from .recommend import recommend_bp
 from .insights import insights_bp
 from .settings import settings_bp
+from .ai_model import ai_model_bp
 
 
 def register_blueprints(app):
@@ -31,3 +32,4 @@ def register_blueprints(app):
     app.register_blueprint(recommend_bp)
     app.register_blueprint(insights_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(ai_model_bp)

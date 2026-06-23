@@ -351,7 +351,7 @@
                 status: study.is_studying ? '休息中' : '在线',
                 message: buddy.emotion_desc || '今天也要加油哦~',
                 userName: user.name || user.nickname || '',
-                role_key: currentRole || 'xiaodou',
+                role_key: currentRoleRes?.success ? (currentRoleRes.role_key || currentRoleRes.role) : currentRole,
             };
             // 更新用户名
             const userNameEl = document.getElementById('user-name');
@@ -884,7 +884,167 @@
             nameEl.title = '双击测试搭子系统';
             nameEl.ondblclick = triggerBuddyTest;
         }
+
+        // 渲染搭子切换列表
+        renderBuddySwitchList();
     }
+
+    // ========== 搭子切换模块 ==========
+    async function renderBuddySwitchList() {
+        const listEl = document.getElementById('rs-buddy-list');
+        if (!listEl) return;
+
+        // 优先用 State 中已加载的 role_key，否则从 API 获取当前角色
+        let currentRole = State.buddyProfile?.role_key;
+        if (!currentRole) {
+            try {
+                const res = await fetch('/api/buddy/current-role');
+                const data = await res.json();
+                currentRole = data?.success ? (data.role_key || data.role) : 'xiaodou';
+            } catch {
+                currentRole = 'xiaodou';
+            }
+        }
+
+        try {
+            const res = await fetch('/api/buddy/roles');
+            const data = await res.json();
+            if (!data.success) { listEl.innerHTML = '<div style="font-size:12px;color:var(--color-text-secondary)">加载失败</div>'; return; }
+
+            // 合并：内置搭子 + 自定义搭子（自定义搭子用 p_ 前缀 id 区分）
+            const builtIn = data.roles || [];
+            const custom = getStoredPersonas().map(p => ({
+                id: p.id,
+                name: p.name,
+                emoji: p.emoji || '🤖',
+                avatar_url: p.avatarUrl || '',
+                personality: p.description || '',
+                greeting: p.name + ' 已就位~',
+                isCustom: true,
+            }));
+            const allRoles = [...builtIn, ...custom];
+
+            listEl.innerHTML = allRoles.map(role => {
+                const isActive = role.id === currentRole;
+                const avatarContent = role.avatar_url
+                    ? '<img src="' + escapeHtml(role.avatar_url) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                    : (role.emoji || '🤖');
+                return `
+                <div class="rs-buddy-item ${isActive ? 'active' : ''}" data-role="${role.id}" data-custom="${role.isCustom ? '1' : ''}">
+                    <div class="rs-buddy-item-avatar">${avatarContent}</div>
+                    <div class="rs-buddy-item-info">
+                        <div class="rs-buddy-item-name">${escapeHtml(role.name)}</div>
+                        <div class="rs-buddy-item-trait">${escapeHtml(role.personality || '')}</div>
+                    </div>
+                    ${isActive ? '<span class="rs-buddy-item-active-dot"></span>' : ''}
+                </div>`;
+            }).join('');
+
+            // 绑定点击切换（内置搭子走 API，自定义搭子走 localStorage）
+            listEl.querySelectorAll('.rs-buddy-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const isCustom = item.dataset.custom === '1';
+                    switchBuddyRole(item.dataset.role, isCustom);
+                });
+            });
+        } catch (e) {
+            listEl.innerHTML = '<div style="font-size:12px;color:var(--color-text-secondary)">加载失败</div>';
+        }
+    }
+
+    async function switchBuddyRole(roleKey, isCustom) {
+        if (State.buddyProfile && State.buddyProfile.role_key === roleKey) return;
+
+        const activeModel = getActiveModel();
+        if (!activeModel) {
+            alert('请先在「AI模型配置」中添加并启用一个模型');
+            return;
+        }
+
+        // 显示加载状态
+        const listEl = document.getElementById('rs-buddy-list');
+        listEl?.querySelectorAll('.rs-buddy-item').forEach(item => {
+            if (item.dataset.role === roleKey) {
+                item.style.opacity = '0.6';
+                item.style.pointerEvents = 'none';
+            }
+        });
+
+        try {
+            let data;
+            if (isCustom) {
+                // 自定义搭子：更新 localStorage + State
+                const personas = getStoredPersonas();
+                personas.forEach(p => { p.active = (p.id === roleKey); });
+                saveStoredPersonas(personas);
+                const p = personas.find(p => p.id === roleKey);
+                State.buddyProfile = {
+                    ...State.buddyProfile,
+                    role_key: roleKey,
+                    name: p?.name || roleKey,
+                    emoji: p?.emoji || '🤖',
+                    avatarUrl: p?.avatarUrl || '',
+                    trait: p?.description || '',
+                };
+                data = {
+                    success: true,
+                    name: p?.name || roleKey,
+                    emoji: p?.emoji || '🤖',
+                    avatar_url: p?.avatarUrl || '',
+                    greeting: '我是' + (p?.name || '这个搭子') + '~',
+                };
+            } else {
+                // 内置搭子：调用 API
+                const res = await fetch('/api/buddy/switch/' + roleKey, { method: 'POST' });
+                data = await res.json();
+                if (data.success) {
+                    if (!State.buddyProfile) State.buddyProfile = {};
+                    State.buddyProfile.role_key = roleKey;
+                    State.buddyProfile.name = data.name || roleKey;
+                    State.buddyProfile.emoji = data.emoji || '💪';
+                    State.buddyProfile.avatarUrl = data.avatar_url || '';
+                    State.buddyProfile.trait = data.personality || State.buddyProfile.trait;
+                }
+            }
+
+            if (data.success) {
+                // 刷新搭子列表高亮
+                renderBuddySwitchList();
+                // 刷新搭子信息展示
+                renderBuddyView();
+                // 刷新右栏搭子卡片（头像 + 昵称）
+                const rsAvatar = document.getElementById('rs-buddy-avatar');
+                const rsName = document.getElementById('rs-buddy-name');
+                const rsMsg = document.getElementById('rs-buddy-msg');
+                const newEmoji = data.emoji || '💪';
+                const newName = data.name || roleKey;
+                const newAvatarUrl = data.avatar_url || '';
+                if (rsAvatar) {
+                    rsAvatar.innerHTML = newAvatarUrl
+                        ? '<img src="' + escapeHtml(newAvatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                        : newEmoji;
+                }
+                if (rsName) rsName.textContent = newName;
+                if (rsMsg) rsMsg.textContent = data.greeting || '今天也要加油哦~';
+            } else {
+                alert(data.error || '切换失败');
+                renderBuddySwitchList();
+            }
+        } catch (e) {
+            alert('切换失败，请重试');
+            renderBuddySwitchList();
+        }
+    }
+
+    // 搭子创建按钮
+    document.getElementById('rs-buddy-create-btn')?.addEventListener('click', function() {
+        // 打开角色选择弹窗（复用现有逻辑）
+        if (window.openBuddyDesigner) {
+            openBuddyDesigner();
+        } else {
+            alert('功能开发中，敬请期待~');
+        }
+    });
 
     // ========== 搭子系统测试（内部验证）===========
     // 测试流程：保存状态 → 调用 /api/buddy/test → 展示结果 → 自动 cleanup
@@ -987,6 +1147,53 @@
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
     }
 
+    // 创建加载动画气泡（返回更新函数）
+    function appendLoadingBubble(modelName) {
+        const wrap = document.getElementById('chat-messages');
+        if (!wrap) return null;
+        const div = document.createElement('div');
+        div.className = 'chat-bubble assistant loading';
+        const avatar = State.buddyProfile?.emoji || '💪';
+        div.innerHTML = `
+            <div class="chat-avatar">${avatar}</div>
+            <div class="chat-content">
+                <div class="chat-loading">
+                    <div class="chat-loading-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="chat-loading-text">正在连接AI模型...</div>
+                    ${modelName ? `<div class="chat-loading-model">${escapeHtml(modelName)}</div>` : ''}
+                </div>
+            </div>
+        `;
+        wrap.appendChild(div);
+        wrap.scrollTop = wrap.scrollHeight;
+
+        // 超时处理（30秒后显示取消按钮）
+        const timeoutId = setTimeout(() => {
+            const loadingEl = div.querySelector('.chat-loading');
+            if (loadingEl) {
+                loadingEl.innerHTML = `
+                    <div style="color:var(--color-negative);font-size:12px;">响应较慢，请稍后...</div>
+                    <button class="chat-timeout-btn" onclick="this.closest('.chat-bubble').remove()">取消</button>
+                `;
+            }
+        }, 30000);
+
+        return {
+            element: div,
+            updateContent: (newContent) => {
+                clearTimeout(timeoutId);
+                const contentEl = div.querySelector('.chat-content');
+                if (contentEl) contentEl.textContent = newContent;
+            },
+            cancel: () => {
+                clearTimeout(timeoutId);
+                div.remove();
+            }
+        };
+    }
+
     function appendChat(role, content) {
         const wrap = document.getElementById('chat-messages');
         if (!wrap) return;
@@ -1039,15 +1246,23 @@
                     appendChat('assistant', '当前搭子未绑定有效模型，请在搭子设计器中检查模型配置~');
                     return;
                 }
+                if (!activePersona.systemPrompt?.trim()) {
+                    appendChat('assistant', '当前搭子未填写人格设定，请先编辑搭子~');
+                    return;
+                }
 
                 // 追加用户消息到本地历史
                 personaChatHistory.push({ role: 'user', content: msg });
-                const assistantBubble = appendChat('assistant', '思考中...');
+                // 显示加载动画气泡
+                const modelDisplayName = model.name + ' · ' + model.modelName;
+                const loadingBubble = appendLoadingBubble(modelDisplayName);
+                const controller = new AbortController();
 
                 try {
                     const res = await fetch('/api/persona/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        signal: controller.signal,
                         body: JSON.stringify({
                             systemPrompt: activePersona.systemPrompt || '',
                             modelConfig: {
@@ -1055,41 +1270,45 @@
                                 apiKey: model.apiKey,
                                 modelName: model.modelName,
                             },
-                            messages: personaChatHistory.slice(0, -1), // 不含当前用户消息（已放在 system 后面）
+                            messages: personaChatHistory,
                         }),
                     });
                     const data = await res.json();
 
                     if (data && data.success) {
-                        // 更新气泡内容
-                        if (assistantBubble) {
-                            const contentEl = assistantBubble.querySelector('.chat-content');
-                            if (contentEl) contentEl.textContent = data.reply || '...';
+                        if (loadingBubble) {
+                            loadingBubble.updateContent(data.reply || '...');
                         }
                         personaChatHistory.push({ role: 'assistant', content: data.reply || '' });
-                        // 更新搭子页面显示
                         updateBuddyDisplay(activePersona);
                     } else {
-                        if (assistantBubble) {
-                            const contentEl = assistantBubble.querySelector('.chat-content');
-                            if (contentEl) contentEl.textContent = '请求失败：' + (data?.error || '未知错误');
+                        if (loadingBubble) {
+                            loadingBubble.updateContent('请求失败：' + (data?.error || '未知错误'));
                         }
                     }
                 } catch (e) {
-                    if (assistantBubble) {
-                        const contentEl = assistantBubble.querySelector('.chat-content');
-                        if (contentEl) contentEl.textContent = '网络异常：' + (e.message || String(e));
+                    let errMsg = '网络异常：' + (e.message || String(e));
+                    if (e.name === 'AbortError') errMsg = '请求超时（30秒），请检查网络或模型配置后重试';
+                    if (loadingBubble) {
+                        loadingBubble.updateContent(errMsg);
                     }
                 }
             } else {
                 // 路径B：使用内置搭子系统（fallback）
+                // 显示加载动画气泡
+                const loadingBubble = appendLoadingBubble(null);
+
                 const res = await API.buddyChat(msg, State.conversationId || undefined);
                 if (res && res.success) {
+                    if (loadingBubble) {
+                        loadingBubble.updateContent(res.reply || '我遇到了一些问题，请稍后再试~');
+                    }
                     if (res.conversation_id) State.conversationId = res.conversation_id;
-                    appendChat('assistant', res.reply || '我遇到了一些问题，请稍后再试~');
                     loadBuddy();
                 } else {
-                    appendChat('assistant', '抱歉，我遇到了一些问题。');
+                    if (loadingBubble) {
+                        loadingBubble.updateContent(res?.error || '抱歉，我遇到了一些问题。');
+                    }
                 }
             }
         } catch (err) {
@@ -1106,21 +1325,29 @@
         if (!persona) return;
         const name = persona.name || '自定义搭子';
         const emoji = persona.emoji || '🤖';
+        const avatarUrl = persona.avatarUrl || '';
         const trait = (persona.description || '自定义学习搭子') + ' · Lv.1';
+        const model = getModelConfigById(persona.modelId);
+        const modelTag = model ? model.name + ' · ' + model.modelName : '';
         const fields = [
             ['buddy-page-name', name],
             ['buddy-page-trait', trait],
             ['rs-buddy-page-name', name],
             ['rs-buddy-page-trait', persona.description || '自定义学习搭子'],
             ['rs-buddy-level', 'Lv.1'],
+            ['rs-buddy-model', modelTag],
         ];
         fields.forEach(([id, val]) => setText(id, val));
-        const avEl = document.getElementById('buddy-page-avatar');
-        if (avEl) avEl.textContent = emoji;
-        const avLg = document.getElementById('rs-buddy-page-avatar-lg');
-        if (avLg) avLg.textContent = emoji;
-        const rsAvatar = document.getElementById('rs-buddy-avatar');
-        if (rsAvatar) rsAvatar.textContent = emoji;
+
+        function setAvatar(el, url, emojiText) {
+            if (!el) return;
+            el.innerHTML = url
+                ? '<img src="' + escapeHtml(url) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                : emojiText;
+        }
+        setAvatar(document.getElementById('buddy-page-avatar'), avatarUrl, emoji);
+        setAvatar(document.getElementById('rs-buddy-page-avatar-lg'), avatarUrl, emoji);
+        setAvatar(document.getElementById('rs-buddy-avatar'), avatarUrl, emoji);
     }
 
     // 切换搭子时重置对话历史
@@ -1420,6 +1647,7 @@
         modal.classList.remove('hidden');
         renderPersonaView();
     }
+    window.openBuddyDesigner = openBuddyDesigner;
 
     function ensureBuddyDesignerModal() {
         if (personaDesignerModal) return personaDesignerModal;
@@ -1501,16 +1729,26 @@
         personas.forEach(p => {
             const model = getModelConfigById(p.modelId);
             const card = document.createElement('div');
-            card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;border-radius:8px;background:var(--color-slate-50);border:1.5px solid ' + (p.active ? 'var(--color-emerald-400)' : 'transparent') + ';transition:all .15s;cursor:pointer;position:relative;';
+            const isActive = p.active;
+            card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px;border-radius:8px;background:var(--color-slate-50);border:1.5px solid ' + (isActive ? 'var(--color-accent)' : 'transparent') + ';transition:all .15s;cursor:pointer;position:relative;';
+            if (isActive) {
+                card.style.boxShadow = '0 0 0 3px ' + 'var(--color-accent-glow)';
+            }
+            const avatarContent = p.avatarUrl
+                ? '<img src="' + escapeHtml(p.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${p.color || '#6366f1'};color:#fff;font-size:18px;border-radius:50%;">${p.emoji || '🤖'}</div>`;
+            const modelTagHtml = model
+                ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border-radius:4px;background:var(--color-accent-subtle);color:var(--color-accent-fg);margin-top:4px;">${escapeHtml(model.name)} · <span style="font-family:var(--font-mono);font-size:9px;">${escapeHtml(model.modelName)}</span></span>`
+                : `<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;background:var(--color-negative-bg);color:var(--color-negative);margin-top:4px;">未绑定模型</span>`;
             card.innerHTML = `
-                <div style="width:40px;height:40px;border-radius:50%;background:${p.color || '#6366f1'};display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;flex-shrink:0;">${p.emoji || '🤖'}</div>
+                <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;flex-shrink:0;">${avatarContent}</div>
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
                         <span style="font-size:13px;font-weight:600;color:var(--color-slate-800);">${escapeHtml(p.name || '')}</span>
-                        ${p.active ? '<span style="font-size:10px;padding:1px 6px;border-radius:20px;background:var(--color-emerald-500);color:#fff;">当前搭子</span>' : ''}
+                        ${isActive ? '<span style="font-size:10px;padding:1px 6px;border-radius:20px;background:var(--color-accent);color:#fff;display:inline-flex;align-items:center;gap:3px;"><span style="width:4px;height:4px;border-radius:50%;background:#fff;"></span>使用中</span>' : ''}
                     </div>
                     <div style="font-size:11px;color:var(--color-slate-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(p.description || '暂无描述')}</div>
-                    <div style="font-size:11px;color:var(--color-slate-400);margin-top:2px;">模型：${model ? escapeHtml(model.name) : '<span style="color:#ef4444;">未绑定</span>'}</div>
+                    ${modelTagHtml}
                 </div>
                 <div style="display:flex;gap:4px;flex-shrink:0;">
                     <button class="btn-ghost btn-sm persona-test-btn" data-id="${p.id}" style="font-size:11px;padding:4px 8px;">测试</button>
@@ -1570,19 +1808,25 @@
             </div>
             <div class="modal-body" style="flex:1;overflow-y:auto;padding:16px;">
                 <div style="display:grid;gap:14px;">
+                    <div class="buddy-avatar-picker" id="buddy-avatar-picker">
+                        <div class="buddy-avatar-preview">
+                            <div class="buddy-avatar-preview-placeholder" id="avatar-preview-box">${isEdit && editData?.avatarUrl ? '<img src="' + escapeHtml(editData.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">' : (isEdit && editData?.emoji ? escapeHtml(editData.emoji) : '🤖')}</div>
+                            <div class="buddy-avatar-preview-text">
+                                <p>点击上传或选择预设头像</p>
+                                <div class="buddy-avatar-actions">
+                                    <button class="btn-avatar-upload" id="btn-upload-avatar">上传图片</button>
+                                    <button class="btn-avatar-preset" id="btn-show-presets">选择预设</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="buddy-avatar-presets" id="buddy-presets">
+                            ${[1,2,3,4,5,6,7,8].map(n => '<div class="buddy-avatar-preset-item" data-preset="/static/avatars/preset' + n + '.svg"><img src="/static/avatars/preset' + n + '.svg" alt="预设' + n + '"></div>').join('')}
+                        </div>
+                    </div>
+                    <input type="file" id="avatar-upload-input" accept="image/jpeg,image/png" class="buddy-avatar-upload-input">
                     <div class="form-row">
                         <label class="form-label">搭子名称 <span style="color:#ef4444;">*</span></label>
                         <input type="text" class="form-input" id="pf-name" placeholder="如：我的学霸搭子" value="${isEdit ? escapeHtml(editData.name || '') : ''}">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div class="form-row">
-                            <label class="form-label">图标 emoji</label>
-                            <input type="text" class="form-input" id="pf-emoji" placeholder="🤖" value="${isEdit ? escapeHtml(editData.emoji || '') : ''}" maxlength="4" style="text-align:center;font-size:20px;">
-                        </div>
-                        <div class="form-row">
-                            <label class="form-label">主题色</label>
-                            <input type="color" id="pf-color" value="${isEdit ? (editData.color || '#6366f1') : '#6366f1'}" style="width:100%;height:38px;border-radius:6px;border:1px solid var(--color-slate-200);cursor:pointer;">
-                        </div>
                     </div>
                     <div class="form-row">
                         <label class="form-label">描述</label>
@@ -1616,40 +1860,89 @@
             </div>
         `;
 
-        renderIcons();
+        // 头像选择逻辑
+        let currentAvatarUrl = isEdit ? (editData?.avatarUrl || '') : '';
+        let currentAvatarEmoji = isEdit ? (editData?.emoji || '🤖') : '🤖';
+
+        function updateAvatarPreview(url, emoji) {
+            const box = document.getElementById('avatar-preview-box');
+            if (!box) return;
+            if (url) {
+                box.innerHTML = '<img src="' + escapeHtml(url) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+            } else {
+                box.textContent = emoji || '🤖';
+            }
+        }
+
+        document.getElementById('btn-show-presets')?.addEventListener('click', function() {
+            const presets = document.getElementById('buddy-presets');
+            presets?.classList.toggle('show');
+        });
+
+        document.getElementById('buddy-presets')?.querySelectorAll('.buddy-avatar-preset-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const url = this.dataset.preset;
+                currentAvatarUrl = url;
+                currentAvatarEmoji = '';
+                updateAvatarPreview(url, '');
+                document.querySelectorAll('.buddy-avatar-preset-item').forEach(p => p.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        document.getElementById('btn-upload-avatar')?.addEventListener('click', function() {
+            document.getElementById('avatar-upload-input')?.click();
+        });
+
+        document.getElementById('avatar-upload-input')?.addEventListener('change', async function(e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { alert('图片大小不能超过 2MB'); return; }
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const dataUrl = ev.target.result;
+                currentAvatarUrl = dataUrl; // 本地预览用 data URL
+                currentAvatarEmoji = '';
+                updateAvatarPreview(dataUrl, '');
+                document.querySelectorAll('.buddy-avatar-preset-item').forEach(p => p.classList.remove('selected'));
+            };
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('avatar-preview-box')?.addEventListener('click', function() {
+            document.getElementById('avatar-upload-input')?.click();
+        });
+
         document.getElementById('persona-close').addEventListener('click', closeBuddyDesigner);
         document.getElementById('pf-back-btn').addEventListener('click', () => { personaView = 'list'; renderPersonaView(); });
         document.getElementById('pf-test-btn').addEventListener('click', () => {
-            // 先预览 systemPrompt 效果：切换到测试视图
             const name = document.getElementById('pf-name')?.value.trim();
             const systemPrompt = document.getElementById('pf-system-prompt')?.value.trim();
-            const emoji = document.getElementById('pf-emoji')?.value.trim() || '🤖';
-            const color = document.getElementById('pf-color')?.value || '#6366f1';
+            const emoji = currentAvatarEmoji || '🤖';
             const modelId = document.getElementById('pf-model')?.value;
             if (!systemPrompt) { alert('请先填写人格设定'); return; }
-            // 保存临时数据（不上 localStorage，仅用于预览）
             personaTestHistory = [];
-            personaTestPersona = { name: name || '未命名搭子', emoji, color, systemPrompt, modelId, id: personaEditId || '__preview__' };
+            personaTestPersona = { name: name || '未命名搭子', emoji, avatarUrl: currentAvatarUrl, systemPrompt, modelId, id: personaEditId || '__preview__' };
             personaView = 'test';
             personaTestHistory = [{ role: 'assistant', content: '你好！我是' + (name || '这个搭子') + '～' }];
             renderPersonaView();
         });
         document.getElementById('pf-save-btn').addEventListener('click', () => {
             const name = document.getElementById('pf-name')?.value.trim();
-            const emoji = document.getElementById('pf-emoji')?.value.trim();
-            const color = document.getElementById('pf-color')?.value;
             const description = document.getElementById('pf-desc')?.value.trim();
             const modelId = document.getElementById('pf-model')?.value;
             const systemPrompt = document.getElementById('pf-system-prompt')?.value.trim();
+            const emoji = currentAvatarEmoji || '';
+            const avatarUrl = currentAvatarUrl;
 
             if (!name) { alert('请填写搭子名称'); return; }
             if (!modelId) { alert('请选择绑定模型'); return; }
             if (!systemPrompt) { alert('请填写人格设定'); return; }
 
             if (isEdit) {
-                updatePersona(personaEditId, { name, emoji, color, description, modelId, systemPrompt });
+                updatePersona(personaEditId, { name, emoji, avatarUrl, description, modelId, systemPrompt });
             } else {
-                addPersona({ name, emoji, color, description, modelId, systemPrompt });
+                addPersona({ name, emoji, avatarUrl, description, modelId, systemPrompt });
             }
             personaView = 'list';
             renderPersonaView();
@@ -1668,10 +1961,13 @@
         const model = getModelConfigById(persona.modelId);
         const modelName = model ? model.name + ' · ' + model.modelName : '<span style="color:#ef4444;">未绑定模型</span>';
 
+        const avatarHtml = persona.avatarUrl
+            ? '<img src="' + escapeHtml(persona.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${persona.color || '#6366f1'};color:#fff;font-size:14px;border-radius:50%;">${persona.emoji || '🤖'}</div>`;
         content.innerHTML = `
             <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
-                    <span style="width:28px;height:28px;border-radius:50%;background:${persona.color || '#6366f1'};display:inline-flex;align-items:center;justify-content:center;font-size:14px;color:#fff;">${persona.emoji || '🤖'}</span>
+                    <span style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;">${avatarHtml}</span>
                     <span>${escapeHtml(persona.name || '')} · 对话测试</span>
                 </h3>
                 <button class="modal-close" id="persona-close" aria-label="关闭">✕</button>
@@ -1701,11 +1997,15 @@
         function appendMsg(role, content) {
             const div = document.createElement('div');
             div.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-            const avatar = role === 'user' ? '👤' : (persona.emoji || '🤖');
-            const bg = role === 'user' ? 'var(--color-indigo-50);border-color:var(--color-indigo-200)' : 'var(--color-slate-50);border-color:var(--color-slate-200)';
+            const avatarColor = persona.color || '#6366f1';
+            const avatarEmoji = persona.emoji || '🤖';
+            const avatarUrl = persona.avatarUrl || '';
+            const avatarHtml = avatarUrl
+                ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${avatarColor};color:#fff;font-size:14px;border-radius:50%;">${avatarEmoji}</div>`;
             div.innerHTML = `
-                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${role === 'user' ? 'var(--color-indigo-100)' : (persona.color || '#6366f1')};color:${role === 'user' ? 'var(--color-indigo-600)' : '#fff'};">${avatar}</div>
-                <div style="flex:1;background:${bg};border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.6;color:var(--color-slate-700);white-space:pre-wrap;word-break:break-all;border:1px solid transparent;">${escapeHtml(content)}</div>
+                <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${role === 'user' ? 'var(--color-indigo-100)' : avatarColor};">${role === 'user' ? '👤' : avatarHtml}</div>
+                <div style="flex:1;background:${role === 'user' ? 'var(--color-indigo-50)' : 'var(--color-slate-50)'};border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.6;color:var(--color-slate-700);white-space:pre-wrap;word-break:break-all;border:1px solid ${role === 'user' ? 'var(--color-indigo-200)' : 'var(--color-slate-200)'};">${escapeHtml(content)}</div>
             `;
             msgWrap.appendChild(div);
             msgWrap.scrollTop = msgWrap.scrollHeight;
@@ -1726,10 +2026,16 @@
             sendBtn.textContent = '思考中...';
 
             // 临时 thinking 气泡
+            const avatarColor = persona.color || '#6366f1';
+            const avatarEmoji = persona.emoji || '🤖';
+            const avatarUrl = persona.avatarUrl || '';
             const thinkingDiv = document.createElement('div');
             thinkingDiv.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+            const thinkingAvatarHtml = avatarUrl
+                ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${avatarColor};color:#fff;font-size:14px;border-radius:50%;">${avatarEmoji}</div>`;
             thinkingDiv.innerHTML = `
-                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${persona.color || '#6366f1'};color:#fff;">${persona.emoji || '🤖'}</div>
+                <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${avatarColor};">${thinkingAvatarHtml}</div>
                 <div style="flex:1;background:var(--color-slate-50);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--color-slate-400);">思考中...</div>
             `;
             msgWrap.appendChild(thinkingDiv);

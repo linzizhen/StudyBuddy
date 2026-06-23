@@ -730,6 +730,159 @@ const App = {
         document.getElementById('achievement-overlay').classList.remove('visible');
     },
 
+    // ==================== AI模型配置 ====================
+
+    async testCustomModel() {
+        const apiUrl = document.getElementById('custom-model-url')?.value.trim();
+        const apiKey = document.getElementById('custom-model-key')?.value.trim();
+        const modelName = document.getElementById('custom-model-model')?.value.trim();
+        const resultEl = document.getElementById('test-result');
+
+        if (!apiUrl || !apiKey || !modelName) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444;">请填写完整的 API 地址、API Key 和模型名称</span>';
+            return;
+        }
+
+        const btn = document.getElementById('btn-test-model');
+        if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
+        if (resultEl) resultEl.innerHTML = '<span style="color:#64748b;">正在连接...</span>';
+
+        try {
+            const resp = await fetch('/api/model/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiUrl, apiKey, modelName })
+            });
+            const data = await resp.json();
+
+            if (data.success || data.reply) {
+                if (resultEl) resultEl.innerHTML = '<span style="color:#10b981;">✓ 连接成功！AI 响应：「' + (data.reply || data.choices?.[0]?.message?.content || '') + '」</span>';
+                if (btn) { btn.disabled = false; btn.textContent = '测试连接'; }
+            } else {
+                if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444;">✗ ' + (data.error || '连接失败') + '</span>';
+                if (btn) { btn.disabled = false; btn.textContent = '测试连接'; }
+            }
+        } catch (e) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444;">✗ 连接失败：' + e.message + '</span>';
+            if (btn) { btn.disabled = false; btn.textContent = '测试连接'; }
+        }
+    },
+
+    async saveModelConfig() {
+        const apiUrl = document.getElementById('custom-model-url')?.value.trim();
+        const apiKey = document.getElementById('custom-model-key')?.value.trim();
+        const modelName = document.getElementById('custom-model-model')?.value.trim();
+        const modelDisplayName = document.getElementById('custom-model-name')?.value.trim() || '自定义模型';
+
+        if (!apiUrl || !apiKey || !modelName) {
+            this.showToast('请填写完整的模型配置');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/ai-model/custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + this.token
+                },
+                body: JSON.stringify({
+                    base_url: apiUrl,
+                    api_key: apiKey,
+                    model: modelName,
+                    name: modelDisplayName
+                })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                this.showToast('模型配置已保存');
+                localStorage.setItem('ai_model_configured', 'true');
+            } else {
+                this.showToast(data.error || '保存失败');
+            }
+        } catch (e) {
+            this.showToast('保存失败，请重试');
+        }
+    },
+
+    async testChatModel() {
+        const url = document.getElementById('chat-custom-model-url')?.value.trim();
+        const key = document.getElementById('chat-custom-model-key')?.value.trim();
+        const model = document.getElementById('chat-custom-model-name2')?.value.trim();
+        const resultEl = document.getElementById('chat-test-result');
+
+        if (!url || !key || !model) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444;">请填写完整信息</span>';
+            return;
+        }
+
+        const btn = document.getElementById('chat-test-model-btn');
+        if (btn) { btn.disabled = true; btn.textContent = '测试中...'; }
+        if (resultEl) resultEl.innerHTML = '<span style="color:#64748b;">正在连接...</span>';
+
+        try {
+            const resp = await fetch('/api/model/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apiUrl: url, apiKey: key, modelName: model })
+            });
+            const data = await resp.json();
+
+            if (data.success || data.reply) {
+                if (resultEl) resultEl.innerHTML = '<span style="color:#10b981;">✓ 连接成功！</span>';
+                if (btn) { btn.disabled = false; btn.textContent = '测试连接'; }
+            } else {
+                if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444;">✗ ' + (data.error || '连接失败') + '</span>';
+                if (btn) { btn.disabled = false; btn.textContent = '测试连接'; }
+            }
+        } catch (e) {
+            if (resultEl) resultEl.innerHTML = '<span style="color:#ef4444;">✗ ' + e.message + '</span>';
+            if (btn) { btn.disabled = false; btn.textContent = '测试连接'; }
+        }
+    },
+
+    async saveChatModel() {
+        const url = document.getElementById('chat-custom-model-url')?.value.trim();
+        const key = document.getElementById('chat-custom-model-key')?.value.trim();
+        const model = document.getElementById('chat-custom-model-name2')?.value.trim();
+        const name = document.getElementById('chat-custom-model-name')?.value.trim() || '自定义模型';
+
+        if (!url || !key || !model) {
+            this.showToast('请填写完整信息');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/ai-model/custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + this.token
+                },
+                body: JSON.stringify({ base_url: url, api_key: key, model: model, name: name })
+            });
+            const data = await resp.json();
+
+            if (data.success) {
+                this.showToast('模型已保存，可以开始聊天了');
+                this.closeChatModelModal();
+            } else {
+                this.showToast(data.error || '保存失败');
+            }
+        } catch (e) {
+            this.showToast('保存失败');
+        }
+    },
+
+    openChatModelModal() {
+        document.getElementById('chat-model-modal')?.classList.add('show');
+    },
+
+    closeChatModelModal() {
+        document.getElementById('chat-model-modal')?.classList.remove('show');
+    },
+
     _updateNavHighlight(page) {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.page === page);

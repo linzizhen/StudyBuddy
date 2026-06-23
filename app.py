@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 import os
 import secrets
 import logging
+import socket
+import requests
 
 # 加载环境变量
 load_dotenv()
@@ -64,41 +66,70 @@ def test_model_connection():
     api_key = data.get('apiKey', '').strip()
     model_name = data.get('modelName', '').strip()
 
-    if not api_url or not api_key or not model_name:
-        return {'error': 'API地址、API Key 和模型名称 均不能为空'}, 400
+    if not api_url or not model_name:
+        return {'error': 'API地址 和 模型名称 均不能为空'}, 400
 
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {api_key}',
-    }
+    # 检测是否为 Ollama（端口 11434 或包含 /api）
+    is_ollama = '11434' in api_url or api_url.endswith('/api')
 
-    payload = {
-        'model': model_name,
-        'messages': [{'role': 'user', 'content': '你好'}],
-        'max_tokens': 50,
-    }
+    if is_ollama:
+        # Ollama 格式
+        endpoint = api_url.rstrip('/') + '/api/chat'
+        headers = {'Content-Type': 'application/json'}
+        payload = {
+            'model': model_name,
+            'messages': [{'role': 'user', 'content': '你好'}],
+            'stream': False,
+        }
+    else:
+        # OpenAI 兼容格式（如智谱、DeepSeek 等）
+        if '/chat/completions' not in api_url:
+            api_url = api_url.rstrip('/') + '/chat/completions'
+        endpoint = api_url
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {api_key}' if api_key else '',
+        }
+        payload = {
+            'model': model_name,
+            'messages': [{'role': 'user', 'content': '你好'}],
+            'max_tokens': 50,
+        }
 
     try:
         resp = req_lib.post(
-            api_url,
+            endpoint,
             json=payload,
             headers=headers,
-            timeout=25,
+            timeout=60,
             proxies={'http': None, 'https': None}
         )
         if resp.status_code == 200:
             result = resp.json()
-            reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+            if is_ollama:
+                # Ollama 响应格式
+                reply = result.get('message', {}).get('content', '')
+            else:
+                # OpenAI 响应格式
+                reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
             return {'success': True, 'reply': reply}
         elif resp.status_code == 401:
             return {'error': 'API Key 无效，请检查是否正确'}, 400
         elif resp.status_code == 403:
             return {'error': 'API 拒绝访问（权限不足）'}, 400
-        elif resp.status_code == 404:
-            return {'error': 'API 地址不正确（404 Not Found），请检查地址是否包含完整路径'}, 400
+        elif resp.status_code == 400:
+            try:
+                err_data = resp.json()
+                err = err_data.get('error', {}).get('message', err_data.get('error', resp.text))
+            except:
+                err = resp.text
+            # 如果是模型名称错误，给出更友好的提示
+            if 'model' in err.lower() or 'invalid' in err.lower():
+                return {'error': f'模型名称不存在，请检查是否已在 Ollama 中安装 (ollama pull 模型名)'}, 400
+            return {'error': f'请求失败 ({resp.status_code}): {err}'}, 400
         else:
             try:
-                err = resp.json().get('error', {}).get('message', resp.text)
+                err = result.get('error', {}).get('message', resp.text) if 'result' in dir() else resp.text
             except:
                 err = resp.text
             return {'error': f'请求失败 ({resp.status_code}): {err}'}, 400
@@ -117,7 +148,8 @@ def persona_chat():
     请求体: { systemPrompt, modelId, modelConfig: {apiUrl,apiKey,modelName}, messages: [{role,content}..] }
     返回:   { success, reply, conversationId }
     """
-    import req_lib as requests
+    import logging
+    logger = logging.getLogger('app')
     from flask import request
 
     data = request.json or {}
@@ -129,10 +161,21 @@ def persona_chat():
     api_key = model_config.get('apiKey', '').strip()
     model_name = model_config.get('modelName', '').strip()
 
+    # 归一化 API URL：自动补全 /chat/completions 后缀
+    if api_url:
+        normalized = api_url.rstrip('/')
+        # 已知不需要补全的路径模式
+        skip_suffixes = ('/chat/completions', '/v1/chat/completions', '/chat/completions/')
+        if not any(normalized.endswith(s) for s in skip_suffixes):
+            normalized += '/chat/completions'
+        api_url = normalized
+
+    logger.info(f"[persona_chat] systemPrompt长度={len(system_prompt)}, api_url={api_url}, model_name={model_name}")
+
     if not system_prompt:
-        return {'success': False, 'error': '人格设定不能为空'}, 400
+        return {'success': False, 'error': '人格设定不能为空，请先在搭子设计器中填写'}, 400
     if not api_url or not api_key or not model_name:
-        return {'success': False, 'error': '模型配置不完整'}, 400
+        return {'success': False, 'error': '模型配置不完整，请在搭子设计器中绑定有效模型'}, 400
 
     # 构建 messages：system + 历史
     messages = [{'role': 'system', 'content': system_prompt}]
@@ -147,6 +190,7 @@ def persona_chat():
         'messages': messages,
         'max_tokens': 500,
     }
+    logger.info(f"[persona_chat] 即将调用AI, messages数量={len(messages)}, 前3条: {[m.get('role')+':'+m.get('content','')[:30] for m in messages[:3]]}")
 
     try:
         resp = requests.post(
@@ -156,6 +200,7 @@ def persona_chat():
             timeout=25,
             proxies={'http': None, 'https': None}
         )
+        logger.info(f"[persona_chat] AI响应状态码={resp.status_code}, body前200: {resp.text[:200]}")
         if resp.status_code == 200:
             result = resp.json()
             reply = result.get('choices', [{}])[0].get('message', {}).get('content', '')
@@ -182,14 +227,36 @@ def persona_chat():
 
 # ==================== 应用启动 ====================
 
+def get_lan_ip():
+    """获取本机局域网IP地址"""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return None
+
+
+def print_startup_info(host, port, debug):
+    """启动时打印访问信息"""
+    print("\n" + "=" * 50)
+    print("  StudyPal 服务已启动")
+    print("=" * 50)
+    print(f"  本地访问: http://127.0.0.1:{port}")
+    lan_ip = get_lan_ip()
+    if lan_ip:
+        print(f"  局域网访问: http://{lan_ip}:{port}")
+    if debug:
+        print("\n  [警告] Debug 模式已开启 - 生产环境请设置 FLASK_DEBUG=False")
+    print("=" * 50 + "\n")
+
+
 if __name__ == '__main__':
     debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.getenv('PORT', 5000))
+    host = '0.0.0.0'
 
-    if debug:
-        logger.warning("=" * 50)
-        logger.warning("Flask running in DEBUG mode - do NOT use in production!")
-        logger.warning("Set FLASK_DEBUG=False for production")
-        logger.warning("=" * 50)
-
-    app.run(debug=debug, port=port, host='0.0.0.0')
+    print_startup_info(host, port, debug)
+    app.run(debug=debug, port=port, host=host)

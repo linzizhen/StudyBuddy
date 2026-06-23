@@ -173,11 +173,23 @@ def get_buddy_roles():
 @buddy_bp.route('/switch/<role_key>', methods=['POST'])
 def switch_buddy_role(role_key):
     """切换搭子角色"""
+    from src.buddy.buddy_roles import BuddyRoles
+    role = BuddyRoles.get_role(role_key)
+    if not role:
+        return jsonify({'success': False, 'error': '角色不存在'}), 400
     buddy = get_buddy()
     success = buddy.switch_role(role_key)
     if success:
-        return jsonify({'success': True, 'message': f'已切换到 {role_key}'})
-    return jsonify({'success': False, 'error': '角色不存在'}), 400
+        return jsonify({
+            'success': True,
+            'name': role['name'],
+            'emoji': role['emoji'],
+            'personality': role['personality'],
+            'greeting': role['greeting'],
+            'avatar_url': role.get('avatar_url', ''),
+            'message': f'已切换到 {role["name"]}'
+        })
+    return jsonify({'success': False, 'error': '角色切换失败'}), 400
 
 
 @buddy_bp.route('/current-role', methods=['GET'])
@@ -193,6 +205,8 @@ def get_current_role():
         'name': buddy_info.get('name', '小豆'),
         'emoji': buddy_info.get('emoji', '🌸'),
         'trait': buddy_info.get('personality', '温柔陪伴型'),
+        'role_key': current_role,
+        'avatar_url': buddy_info.get('avatar_url', ''),
     })
 
 

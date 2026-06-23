@@ -8,9 +8,31 @@ StudyPal AI 模型配置路由
 
 from flask import Blueprint, jsonify, request
 from config import MODELS_CONFIG, DEFAULT_MODEL_KEY
-from src.auth.auth import auth_required, get_current_user, AuthService
+from src.modules.data_manager import get_data_manager
 
 ai_model_bp = Blueprint('ai_model', __name__, url_prefix='/api/ai-model')
+
+
+def _get_current_user():
+    """获取当前用户（简化版，从请求头获取 token）"""
+    token = request.headers.get('Authorization', '')
+    if token.startswith('Bearer '):
+        token = token[7:]
+    
+    dm = get_data_manager()
+    data = dm.get_data()
+    users = data.get('users', {})
+    
+    for user in users.values():
+        if user.get('token') == token:
+            return user
+    return None
+
+
+def _update_user_settings(user_id, updates):
+    """更新用户设置"""
+    dm = get_data_manager()
+    dm.update_settings(**updates)
 
 
 @ai_model_bp.route('/presets', methods=['GET'])
@@ -33,12 +55,9 @@ def get_preset_models():
 
 
 @ai_model_bp.route('/status', methods=['GET'])
-@auth_required
 def get_model_status():
-    """
-    获取模型配置状态（简化版，用于判断是否已配置可用模型）
-    """
-    user = get_current_user()
+    """获取模型配置状态（简化版）"""
+    user = _get_current_user()
     if not user:
         return jsonify({"success": False, "error": "未登录"}), 401
 
@@ -75,12 +94,10 @@ def get_model_status():
 
 
 @ai_model_bp.route('/current', methods=['GET'])
-@auth_required
 def get_current_model():
     """获取用户当前使用的模型配置"""
-    user = get_current_user()
+    user = _get_current_user()
 
-    # 用户设置了自定义模型
     if user and user.get('ai_custom_config'):
         return jsonify({
             "success": True,
@@ -94,7 +111,6 @@ def get_current_model():
             "model_key": user.get('ai_model_key')
         })
 
-    # 无自定义配置时，返回系统默认模型
     config = MODELS_CONFIG.get(DEFAULT_MODEL_KEY, {})
     return jsonify({
         "success": True,
@@ -110,10 +126,9 @@ def get_current_model():
 
 
 @ai_model_bp.route('/preset', methods=['POST'])
-@auth_required
 def set_preset_model():
     """切换到预设模型"""
-    user = get_current_user()
+    user = _get_current_user()
     if not user:
         return jsonify({"success": False, "error": "未登录"}), 401
 
@@ -123,7 +138,8 @@ def set_preset_model():
     if model_key and model_key not in MODELS_CONFIG:
         return jsonify({"success": False, "error": "无效的模型"}), 400
 
-    AuthService.update_user(user['id'], {
+    user_id = user.get('id')
+    _update_user_settings(user_id, {
         'ai_model_key': model_key or None,
         'ai_custom_config': None
     })
@@ -137,10 +153,9 @@ def set_preset_model():
 
 
 @ai_model_bp.route('/custom', methods=['POST'])
-@auth_required
 def set_custom_model():
     """保存用户自定义模型配置"""
-    user = get_current_user()
+    user = _get_current_user()
     if not user:
         return jsonify({"success": False, "error": "未登录"}), 401
 
@@ -158,15 +173,14 @@ def set_custom_model():
     if not model:
         return jsonify({"success": False, "error": "模型名称不能为空"}), 400
 
-    # 确保 base_url 格式正确
     if not base_url.startswith(("http://", "https://")):
         base_url = "http://" + base_url
     base_url = base_url.rstrip('/')
-    # 去掉 /v1 后缀（如果有），保留基础地址
     if base_url.endswith('/v1'):
         base_url = base_url[:-3]
 
-    AuthService.update_user(user['id'], {
+    user_id = user.get('id')
+    _update_user_settings(user_id, {
         'ai_custom_config': {
             "name": name,
             "base_url": base_url,
@@ -189,14 +203,14 @@ def set_custom_model():
 
 
 @ai_model_bp.route('/custom', methods=['DELETE'])
-@auth_required
 def delete_custom_model():
     """删除用户自定义模型配置"""
-    user = get_current_user()
+    user = _get_current_user()
     if not user:
         return jsonify({"success": False, "error": "未登录"}), 401
 
-    AuthService.update_user(user['id'], {
+    user_id = user.get('id')
+    _update_user_settings(user_id, {
         'ai_custom_config': None,
         'ai_model_key': DEFAULT_MODEL_KEY
     })
@@ -208,7 +222,6 @@ def delete_custom_model():
 
 
 @ai_model_bp.route('/test', methods=['POST'])
-@auth_required
 def test_model():
     """测试模型连接"""
     import requests
@@ -222,12 +235,10 @@ def test_model():
     if not base_url or not api_key or not model:
         return jsonify({"success": False, "error": "请填写完整的模型配置"}), 400
 
-    # 格式化 base_url，去掉协议前缀和尾部斜杠
     if not base_url.startswith(("http://", "https://")):
         base_url = "http://" + base_url
     base_url = base_url.rstrip('/')
 
-    # 去掉 /v1 或 /v1/ 后缀（如果有），保留基础地址
     if base_url.endswith('/v1'):
         base_url = base_url[:-3]
 
@@ -242,7 +253,6 @@ def test_model():
         "max_tokens": 20,
     }
 
-    # 尝试多个可能的端点
     endpoints_to_try = [
         f"{base_url}/v1/chat/completions",
         f"{base_url}/chat/completions",
@@ -273,7 +283,7 @@ def test_model():
             elif response.status_code == 403:
                 return jsonify({"success": False, "error": "API 拒绝访问（权限不足）"}), 400
             elif response.status_code == 404:
-                continue  # 尝试下一个端点
+                continue
             else:
                 try:
                     err = response.json().get("error", {}).get("message", response.text)
@@ -288,7 +298,6 @@ def test_model():
         except Exception as e:
             return jsonify({"success": False, "error": f"连接失败: {str(e)}"}), 400
 
-    # 所有端点都失败了
     if tried_urls:
         return jsonify({
             "success": False,
@@ -298,17 +307,12 @@ def test_model():
 
 
 @ai_model_bp.route('/proxy/chat', methods=['GET'])
-@auth_required
 def proxy_chat():
-    """
-    AI 代理端点：Flask 只返回模型配置，实际请求由浏览器直发。
-    解决 Flask 后端无法访问内网 IP 的问题。
-    """
-    user = get_current_user()
+    """AI 代理端点"""
+    user = _get_current_user()
     if not user:
         return jsonify({"success": False, "error": "未登录"}), 401
 
-    # 用户有自定义模型配置
     if user.get('ai_custom_config'):
         config = user['ai_custom_config']
         return jsonify({
@@ -319,7 +323,6 @@ def proxy_chat():
             "model": config.get("model", ""),
         })
 
-    # 预设模型
     model_key = user.get('ai_model_key', DEFAULT_MODEL_KEY)
     config = MODELS_CONFIG.get(model_key, MODELS_CONFIG.get(DEFAULT_MODEL_KEY, {}))
     return jsonify({
@@ -332,18 +335,14 @@ def proxy_chat():
 
 
 @ai_model_bp.route('/proxy/save', methods=['POST'])
-@auth_required
 def proxy_save():
-    """
-    保存 AI 对话消息到后端历史记录。
-    浏览器直调 AI 后，调用此接口保存历史。
-    """
-    user = get_current_user()
+    """保存 AI 对话消息到后端历史记录"""
+    user = _get_current_user()
     if not user:
         return jsonify({"success": False, "error": "未登录"}), 401
 
     data = request.json or {}
-    role = data.get("role")  # "user" 或 "assistant"
+    role = data.get("role")
     content = data.get("content", "")
     conversation_id = data.get("conversation_id")
 
