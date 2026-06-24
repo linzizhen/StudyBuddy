@@ -255,9 +255,14 @@
         const rs = document.getElementById('rs-' + page);
         if (rs) rs.classList.add('active');
         // 高亮导航
+        if (page === 'buddy') {
+            document.getElementById('nav-buddy-submenu')?.classList.add('open');
+            document.getElementById('nav-buddy-toggle')?.setAttribute('aria-expanded', 'true');
+        }
         document.querySelectorAll('.nav-item[data-page]').forEach(item => {
             item.classList.toggle('active', item.getAttribute('data-page') === page);
         });
+        document.getElementById('nav-buddy-toggle')?.classList.toggle('active', page === 'buddy');
         // 按需渲染（只渲染当前页 + 右栏，不渲染全部 7 个页面）
         const renderMap = {
             'stats':    renderStatsView,
@@ -289,6 +294,10 @@
         moodLevel: 6,
         conversationId: null,
         chatHistory: [],
+        buddyRoleMap: null,
+        gameFlowActive: false,
+        isSending: false,
+        lastKnowledgeQuestion: null,
         taskFilter: 'all',
         showDiaryList: false,
     };
@@ -352,6 +361,7 @@
                 message: buddy.emotion_desc || '今天也要加油哦~',
                 userName: user.name || user.nickname || '',
                 role_key: currentRoleRes?.success ? (currentRoleRes.role_key || currentRoleRes.role) : currentRole,
+                avatarUrl: currentRoleRes?.success ? (currentRoleRes.avatar_url || '') : '',
             };
             // 更新用户名
             const userNameEl = document.getElementById('user-name');
@@ -863,29 +873,73 @@
     }
 
     // ==================== 搭子页 ====================
+    function isCustomBuddyRole(roleKey) {
+        return roleKey && String(roleKey).startsWith('p_');
+    }
+
+    /** 当前选中的是自定义搭子时返回 persona，内置搭子返回 null */
+    function getActiveCustomPersona() {
+        const roleKey = State.buddyProfile?.role_key;
+        if (!isCustomBuddyRole(roleKey)) return null;
+        return getStoredPersonas().find(p => p.id === roleKey) || null;
+    }
+
+    function clearCustomPersonaActive() {
+        const personas = getStoredPersonas();
+        let changed = false;
+        personas.forEach(p => {
+            if (p.active) { p.active = false; changed = true; }
+        });
+        if (changed) saveStoredPersonas(personas);
+    }
+
+    function applyBuddyDisplay(buddy) {
+        if (!buddy) return;
+        const name = buddy.name || '小豆';
+        const emoji = buddy.emoji || '💪';
+        const avatarUrl = buddy.avatar_url || buddy.avatarUrl || '';
+        const trait = buddy.trait || buddy.personality || State.buddyProfile?.trait || '温暖鼓励型';
+        const level = buddy.level || State.buddyProfile?.level || 1;
+
+        State.buddyProfile = {
+            ...State.buddyProfile,
+            name,
+            emoji,
+            avatarUrl,
+            trait,
+            role_key: buddy.role_key || State.buddyProfile?.role_key,
+        };
+
+        setText('rs-buddy-page-name', name);
+        setText('rs-buddy-page-trait', trait);
+        setText('rs-buddy-name', name);
+        setText('rs-buddy-level', 'Lv.' + level);
+        setText('chat-header-name', name);
+        setText('chat-header-trait', trait);
+        const headerEmoji = document.getElementById('chat-header-emoji');
+        if (headerEmoji) headerEmoji.textContent = emoji;
+
+        function setAvatar(el, url, emojiText) {
+            if (!el) return;
+            el.innerHTML = url
+                ? '<img src="' + escapeHtml(url) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                : emojiText;
+        }
+        setAvatar(document.getElementById('rs-buddy-page-avatar-lg'), avatarUrl, emoji);
+        setAvatar(document.getElementById('rs-buddy-avatar'), avatarUrl, emoji);
+    }
+
     function renderBuddyView() {
-        const b = State.buddyProfile || {};
-        setText('buddy-page-name', b.name || '小豆');
-        setText('buddy-page-trait', (b.trait || '温暖鼓励型') + ' · Lv.' + (b.level || 1));
-        const avEl = document.getElementById('buddy-page-avatar');
-        if (avEl) avEl.textContent = b.emoji || '💪';
+        applyBuddyDisplay(State.buddyProfile || {});
+        loadActiveConversation();
 
-        // 右栏搭子信息（考研目标页右栏也会用到）
-        setText('rs-buddy-page-name', b.name || '小豆');
-        setText('rs-buddy-page-trait', b.trait || '温暖鼓励型');
-        setText('rs-buddy-level', 'Lv.' + (b.level || 1));
-        const avLg = document.getElementById('rs-buddy-page-avatar-lg');
-        if (avLg) avLg.textContent = b.emoji || '💪';
-
-        // 双击搭子名触发系统测试（内部验证用）
-        const nameEl = document.getElementById('buddy-page-name');
+        const nameEl = document.getElementById('chat-header-name');
         if (nameEl) {
             nameEl.style.cursor = 'pointer';
             nameEl.title = '双击测试搭子系统';
             nameEl.ondblclick = triggerBuddyTest;
         }
 
-        // 渲染搭子切换列表
         renderBuddySwitchList();
     }
 
@@ -994,7 +1048,8 @@
                     greeting: '我是' + (p?.name || '这个搭子') + '~',
                 };
             } else {
-                // 内置搭子：调用 API
+                // 内置搭子：调用 API，并清除自定义搭子的 active 标记
+                clearCustomPersonaActive();
                 const res = await fetch('/api/buddy/switch/' + roleKey, { method: 'POST' });
                 data = await res.json();
                 if (data.success) {
@@ -1153,9 +1208,14 @@
         if (!wrap) return null;
         const div = document.createElement('div');
         div.className = 'chat-bubble assistant loading';
-        const avatar = State.buddyProfile?.emoji || '💪';
+        const b = State.buddyProfile || {};
+        const avatarUrl = b.avatarUrl || '';
+        const avatarEmoji = b.emoji || '💪';
+        const avatarHtml = avatarUrl
+            ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+            : avatarEmoji;
         div.innerHTML = `
-            <div class="chat-avatar">${avatar}</div>
+            <div class="chat-avatar">${avatarHtml}</div>
             <div class="chat-content">
                 <div class="chat-loading">
                     <div class="chat-loading-dots">
@@ -1182,10 +1242,34 @@
 
         return {
             element: div,
-            updateContent: (newContent) => {
+            updateContent: (newContent, meta) => {
                 clearTimeout(timeoutId);
+                div.classList.remove('loading');
                 const contentEl = div.querySelector('.chat-content');
-                if (contentEl) contentEl.textContent = newContent;
+                const displayContent = stripGameMarkers(newContent);
+                if (contentEl) contentEl.textContent = displayContent;
+                div.querySelector('.option-buttons')?.remove();
+
+                const isGamification = meta?.use_gamification || getGameMode() === 'game';
+                if (meta?.options?.length && isGamification) {
+                    State.gameFlowActive = true;
+                    const btnContainer = document.createElement('div');
+                    btnContainer.className = 'option-buttons';
+                    meta.options.forEach((opt, i) => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'option-btn';
+                        const text = meta.option_texts?.[i] || '';
+                        btn.textContent = text ? `${opt}. ${text}` : opt;
+                        btn.onclick = () => sendOption(opt, btnContainer);
+                        btnContainer.appendChild(btn);
+                    });
+                    div.appendChild(btnContainer);
+                } else if (State.gameFlowActive && shouldShowGameEnd(meta, displayContent)) {
+                    State.gameFlowActive = false;
+                    renderGameEndButtons(div);
+                }
+                wrap.scrollTop = wrap.scrollHeight;
             },
             cancel: () => {
                 clearTimeout(timeoutId);
@@ -1194,49 +1278,400 @@
         };
     }
 
-    function appendChat(role, content) {
+    async function loadBuddyRoleMap() {
+        if (State.buddyRoleMap) return;
+        try {
+            const res = await API.getBuddyRoles();
+            if (res?.success) {
+                State.buddyRoleMap = {};
+                (res.roles || []).forEach(r => {
+                    State.buddyRoleMap[r.id] = r;
+                });
+            } else {
+                State.buddyRoleMap = {};
+            }
+        } catch (e) {
+            State.buddyRoleMap = {};
+        }
+    }
+
+    function resolveAssistantAvatar(msgMeta, convBuddy) {
+        let avatarUrl = '';
+        let emoji = '💪';
+        const roleKey = msgMeta?.buddy_role_key || convBuddy?.buddy_role_key;
+        if (msgMeta?.buddy_role_key) {
+            avatarUrl = msgMeta.buddy_avatar_url || msgMeta.avatar_url || '';
+            emoji = msgMeta.buddy_emoji || emoji;
+        } else if (convBuddy?.buddy_role_key) {
+            emoji = convBuddy.buddy_emoji || emoji;
+        } else {
+            const b = State.buddyProfile || {};
+            avatarUrl = b.avatarUrl || '';
+            emoji = b.emoji || '💪';
+            return avatarUrl
+                ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+                : emoji;
+        }
+        if (!avatarUrl && roleKey && State.buddyRoleMap?.[roleKey]) {
+            avatarUrl = State.buddyRoleMap[roleKey].avatar_url || '';
+            if (!msgMeta?.buddy_emoji) emoji = State.buddyRoleMap[roleKey].emoji || emoji;
+        }
+        return avatarUrl
+            ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+            : emoji;
+    }
+
+    function appendChat(role, content, msgMeta, convBuddy) {
         const wrap = document.getElementById('chat-messages');
         if (!wrap) return;
         const div = document.createElement('div');
         div.className = 'chat-bubble ' + role;
-        const avatar = role === 'user' ? '👤' : (State.buddyProfile?.emoji || '💪');
+        let avatarHtml = '👤';
+        if (role !== 'user') {
+            avatarHtml = resolveAssistantAvatar(msgMeta, convBuddy);
+        }
         div.innerHTML = `
-            <div class="chat-avatar">${avatar}</div>
+            <div class="chat-avatar">${avatarHtml}</div>
             <div class="chat-content">${escapeHtml(content)}</div>
         `;
         wrap.appendChild(div);
         wrap.scrollTop = wrap.scrollHeight;
     }
 
-    function resetChat() {
+    function appendWelcomeMessage() {
         const wrap = document.getElementById('chat-messages');
-        if (wrap) {
-            wrap.innerHTML = `
-                <div class="chat-bubble assistant">
-                    <div class="chat-avatar">💪</div>
-                    <div class="chat-content">嗨！我是你的学习搭子，今天有什么想聊的？</div>
-                </div>
-            `;
+        if (!wrap) return;
+        const b = State.buddyProfile || {};
+        const emoji = b.emoji || '💪';
+        wrap.innerHTML = `
+            <div class="chat-bubble assistant" id="chat-welcome">
+                <div class="chat-avatar">${escapeHtml(emoji)}</div>
+                <div class="chat-content">嗨！我是${escapeHtml(b.name || '你的学习搭子')}，今天有什么想聊的？</div>
+            </div>`;
+    }
+
+    function renderConversationMessages(messages, convBuddy) {
+        const wrap = document.getElementById('chat-messages');
+        if (!wrap) return;
+        if (!messages || messages.length === 0) {
+            appendWelcomeMessage();
+            return;
         }
-        State.conversationId = null;
-        State.chatHistory = [];
+        wrap.innerHTML = '';
+        messages.forEach(m => {
+            const role = m.role === 'user' ? 'user' : 'assistant';
+            appendChat(role, m.content, m, convBuddy);
+        });
+    }
+
+    function formatConvDate(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '';
+        return `${d.getMonth() + 1}月${d.getDate()}日`;
+    }
+
+    async function loadActiveConversation() {
+        if (getActiveCustomPersona()) return;
+        try {
+            await loadBuddyRoleMap();
+            const res = await API.getActiveConversation();
+            if (!res?.success) return;
+            if (!res.conversation) {
+                State.conversationId = null;
+                renderConversationMessages([]);
+                return;
+            }
+            const conv = res.conversation;
+            const convBuddy = {
+                buddy_role_key: conv.buddy_role_key,
+                buddy_name: conv.buddy_name,
+                buddy_emoji: conv.buddy_emoji,
+            };
+            State.conversationId = conv.id;
+            if (conv.buddy_role_key && !isCustomBuddyRole(conv.buddy_role_key)) {
+                await fetch('/api/buddy/switch/' + conv.buddy_role_key, { method: 'POST' });
+            }
+            const roleCfg = State.buddyRoleMap?.[conv.buddy_role_key];
+            applyBuddyDisplay({
+                name: conv.buddy_name,
+                emoji: conv.buddy_emoji,
+                role_key: conv.buddy_role_key,
+                avatar_url: roleCfg?.avatar_url || '',
+            });
+            renderConversationMessages(conv.messages, convBuddy);
+        } catch (e) {
+            console.error('loadActiveConversation:', e);
+        }
+    }
+
+    async function createNewConversation() {
+        document.querySelectorAll('.option-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+        });
+        try {
+            const res = await API.createConversation();
+            if (res?.success && res.conversation) {
+                State.conversationId = res.conversation.id;
+                personaChatHistory = [];
+                State.chatHistory = [];
+                State.gameFlowActive = false;
+                State.lastKnowledgeQuestion = null;
+                renderConversationMessages([]);
+                applyBuddyDisplay({
+                    name: res.conversation.buddy_name,
+                    emoji: res.conversation.buddy_emoji,
+                    role_key: res.conversation.buddy_role_key,
+                });
+            }
+        } catch (e) {
+            console.error('createNewConversation:', e);
+            alert('创建新对话失败，请重试');
+        }
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('history-modal-overlay')?.classList.add('hidden');
+    }
+
+    async function showHistoryModal() {
+        const overlay = document.getElementById('history-modal-overlay');
+        const listEl = document.getElementById('history-list');
+        if (!overlay || !listEl) return;
+        overlay.classList.remove('hidden');
+        listEl.innerHTML = '<div class="history-empty">加载中...</div>';
+        try {
+            const res = await API.listConversations();
+            const items = res?.conversations || [];
+            if (!items.length) {
+                listEl.innerHTML = '<div class="history-empty">暂无历史对话</div>';
+                return;
+            }
+            listEl.innerHTML = items.map(c => `
+                <button type="button" class="history-item${c.is_active ? ' active' : ''}" data-id="${escapeHtml(c.id)}">
+                    <span class="history-item-emoji">${escapeHtml(c.buddy_emoji || '💬')}</span>
+                    <div class="info">
+                        <div class="title">${escapeHtml(c.title || '未命名对话')}</div>
+                        <div class="meta">${escapeHtml(c.buddy_name || '')} · ${formatConvDate(c.updated_at)} · ${c.message_count || 0}条消息</div>
+                    </div>
+                </button>
+            `).join('');
+            listEl.querySelectorAll('.history-item').forEach(btn => {
+                btn.addEventListener('click', () => loadConversation(btn.dataset.id));
+            });
+        } catch (e) {
+            listEl.innerHTML = '<div class="history-empty">加载失败</div>';
+        }
+    }
+
+    async function loadConversation(convId) {
+        try {
+            await loadBuddyRoleMap();
+            const res = await API.getConversation(convId);
+            if (!res?.success || !res.conversation) return;
+            const conv = res.conversation;
+            const convBuddy = {
+                buddy_role_key: conv.buddy_role_key,
+                buddy_name: conv.buddy_name,
+                buddy_emoji: conv.buddy_emoji,
+            };
+            State.conversationId = conv.id;
+            personaChatHistory = [];
+            closeHistoryModal();
+            if (conv.buddy_role_key && !isCustomBuddyRole(conv.buddy_role_key)) {
+                await fetch('/api/buddy/switch/' + conv.buddy_role_key, { method: 'POST' });
+            }
+            const roleCfg = State.buddyRoleMap?.[conv.buddy_role_key];
+            applyBuddyDisplay({
+                name: conv.buddy_name,
+                emoji: conv.buddy_emoji,
+                role_key: conv.buddy_role_key,
+                avatar_url: roleCfg?.avatar_url || '',
+            });
+            renderConversationMessages(conv.messages, convBuddy);
+            switchPage('buddy');
+            document.querySelectorAll('.nav-sub-item').forEach(el => {
+                el.classList.toggle('active', el.id === 'nav-buddy-current');
+            });
+        } catch (e) {
+            alert('加载对话失败');
+        }
+    }
+
+    function initBuddyNav() {
+        const toggle = document.getElementById('nav-buddy-toggle');
+        const submenu = document.getElementById('nav-buddy-submenu');
+        toggle?.addEventListener('click', () => {
+            switchPage('buddy');
+            submenu?.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', submenu?.classList.contains('open') ? 'true' : 'false');
+        });
+        document.getElementById('nav-buddy-current')?.addEventListener('click', () => {
+            switchPage('buddy');
+            submenu?.classList.add('open');
+            document.querySelectorAll('.nav-sub-item').forEach(el => {
+                el.classList.toggle('active', el.id === 'nav-buddy-current');
+            });
+            loadActiveConversation();
+        });
+        document.getElementById('nav-buddy-history')?.addEventListener('click', () => {
+            switchPage('buddy');
+            submenu?.classList.add('open');
+            document.querySelectorAll('.nav-sub-item').forEach(el => {
+                el.classList.toggle('active', el.id === 'nav-buddy-history');
+            });
+            showHistoryModal();
+        });
+        document.getElementById('btn-chat-history')?.addEventListener('click', showHistoryModal);
+        document.getElementById('history-modal-close')?.addEventListener('click', closeHistoryModal);
+        document.getElementById('history-modal-overlay')?.addEventListener('click', e => {
+            if (e.target?.id === 'history-modal-overlay') closeHistoryModal();
+        });
+    }
+
+    function resetChat() {
+        createNewConversation();
     }
 
     // ==================== 搭子对话 ====================
     let personaChatHistory = []; // 自定义搭子对话历史（{role, content}）
+    const GAME_MODE_KEY = 'gameMode';
+    const GAME_MODE_LABELS = {
+        auto: '智能适配（搭子自动选择）',
+        game: '🎮 冒险探索（游戏化讲解）',
+        direct: '📖 学霸速读（直接讲解）',
+    };
+
+    function stripGameMarkers(text) {
+        if (!text) return text;
+        return text.replace(/\[GAME_OVER\]/gi, '').replace(/\[END\]/gi, '').trim();
+    }
+
+    function shouldShowGameEnd(meta, content) {
+        if (meta?.game_over) return true;
+        if (!meta?.options?.length) return true;
+        if (!content) return false;
+        const endPatterns = [
+            /本局结束/, /游戏化结束/, /恭喜通关/, /冒险结束/, /游戏结束/,
+            /探索完成/, /本轮结束/, /你已经学习了/, /你想要怎么做/,
+            /真了不起/, /做得真棒/, /学得不错/,
+        ];
+        return endPatterns.some(p => p.test(content));
+    }
+
+    function disableOptionButtons(container) {
+        (container || document).querySelectorAll('.option-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+        });
+    }
+
+    function renderGameEndButtons(bubbleEl) {
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'option-buttons';
+        const primaryBtn = document.createElement('button');
+        primaryBtn.type = 'button';
+        primaryBtn.className = 'option-btn option-btn-primary';
+        primaryBtn.textContent = '再来一局';
+        primaryBtn.onclick = () => {
+            disableOptionButtons(btnContainer);
+            playAgain();
+        };
+        const secondaryBtn = document.createElement('button');
+        secondaryBtn.type = 'button';
+        secondaryBtn.className = 'option-btn option-btn-secondary';
+        secondaryBtn.textContent = '学霸速读';
+        secondaryBtn.onclick = () => {
+            disableOptionButtons(btnContainer);
+            switchToDirectExplain();
+        };
+        btnContainer.appendChild(primaryBtn);
+        btnContainer.appendChild(secondaryBtn);
+        bubbleEl.appendChild(btnContainer);
+    }
+
+    function trackKnowledgeQuestion(msg) {
+        const trimmed = (msg || '').trim();
+        if (trimmed.length > 2 && !/^[A-Z]$/i.test(trimmed)) {
+            State.lastKnowledgeQuestion = trimmed;
+        }
+    }
+
+    function playAgain() {
+        const topic = State.lastKnowledgeQuestion || '刚才的知识点';
+        const input = document.getElementById('chat-input');
+        if (!input) return;
+        setGameMode('game');
+        input.value = `我们再来一局冒险探索吧！请继续用游戏化的方式讲解：${topic}`;
+        State.gameFlowActive = true;
+        sendChat();
+    }
+
+    function switchToDirectExplain() {
+        const topic = State.lastKnowledgeQuestion || '刚才的知识点';
+        const input = document.getElementById('chat-input');
+        if (!input) return;
+        setGameMode('direct');
+        State.gameFlowActive = false;
+        input.value = `请用学霸速读的方式，直接清晰地讲解：${topic}`;
+        sendChat();
+    }
+
+    function getGameMode() {
+        return localStorage.getItem(GAME_MODE_KEY) || 'auto';
+    }
+
+    function setGameMode(mode) {
+        localStorage.setItem(GAME_MODE_KEY, mode);
+        updateModeIndicator(mode);
+    }
+
+    function updateModeIndicator(mode) {
+        const el = document.getElementById('current-mode-indicator');
+        if (el) el.textContent = GAME_MODE_LABELS[mode] || mode;
+        document.querySelectorAll('input[name="gameMode"]').forEach(input => {
+            input.checked = input.value === mode;
+        });
+    }
+
+    function initGameModeSelector() {
+        updateModeIndicator(getGameMode());
+        document.querySelectorAll('input[name="gameMode"]').forEach(input => {
+            input.addEventListener('change', () => {
+                if (input.checked) setGameMode(input.value);
+            });
+        });
+    }
+
+    function sendOption(option, btnContainer) {
+        if (State.isSending) return;
+        const container = btnContainer || document;
+        container.querySelectorAll('.option-btn').forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+        });
+        const input = document.getElementById('chat-input');
+        if (!input) return;
+        input.value = option;
+        sendChat();
+    }
 
     async function sendChat() {
         const input = document.getElementById('chat-input');
         if (!input) return;
+        if (State.isSending) return;
         const msg = input.value.trim();
         if (!msg) return;
         input.value = '';
+        trackKnowledgeQuestion(msg);
 
-        const activePersona = getActivePersona();
+        const activePersona = getActiveCustomPersona();
         appendChat('user', msg);
 
         const sendBtn = document.getElementById('btn-chat-send');
         if (sendBtn) sendBtn.disabled = true;
+        State.isSending = true;
 
         try {
             if (activePersona && activePersona.modelId) {
@@ -1295,19 +1730,35 @@
                 }
             } else {
                 // 路径B：使用内置搭子系统（fallback）
-                // 显示加载动画气泡
                 const loadingBubble = appendLoadingBubble(null);
+                const gameMode = getGameMode();
 
-                const res = await API.buddyChat(msg, State.conversationId || undefined);
-                if (res && res.success) {
-                    if (loadingBubble) {
-                        loadingBubble.updateContent(res.reply || '我遇到了一些问题，请稍后再试~');
-                    }
-                    if (res.conversation_id) State.conversationId = res.conversation_id;
-                    loadBuddy();
-                } else {
-                    if (loadingBubble) {
+                try {
+                    const res = await API.buddyChat(msg, State.conversationId || undefined, gameMode);
+                    if (res && res.success) {
+                        if (loadingBubble) {
+                            loadingBubble.updateContent(res.reply || '我遇到了一些问题，请稍后再试~', {
+                                options: res.options,
+                                option_texts: res.option_texts,
+                                game_over: res.game_over,
+                                use_gamification: res.use_gamification,
+                            });
+                        }
+                        if (res.conversation_id) State.conversationId = res.conversation_id;
+                        if (res.buddy) {
+                            applyBuddyDisplay(res.buddy);
+                        } else {
+                            loadBuddy().then(() => renderBuddyView());
+                        }
+                    } else if (loadingBubble) {
                         loadingBubble.updateContent(res?.error || '抱歉，我遇到了一些问题。');
+                    }
+                } catch (e) {
+                    const errMsg = e.name === 'AbortError'
+                        ? '请求超时（60秒），请检查网络或模型配置后重试'
+                        : ('网络异常：' + (e.message || String(e)));
+                    if (loadingBubble) {
+                        loadingBubble.updateContent(errMsg);
                     }
                 }
             }
@@ -1315,6 +1766,7 @@
             console.error('Chat error:', err);
             appendChat('assistant', '网络异常，请稍后再试~');
         } finally {
+            State.isSending = false;
             if (sendBtn) sendBtn.disabled = false;
             input.focus();
         }
@@ -1322,32 +1774,7 @@
 
     // 根据自定义搭子更新页面搭子显示（名字/emoji/trait）
     function updateBuddyDisplay(persona) {
-        if (!persona) return;
-        const name = persona.name || '自定义搭子';
-        const emoji = persona.emoji || '🤖';
-        const avatarUrl = persona.avatarUrl || '';
-        const trait = (persona.description || '自定义学习搭子') + ' · Lv.1';
-        const model = getModelConfigById(persona.modelId);
-        const modelTag = model ? model.name + ' · ' + model.modelName : '';
-        const fields = [
-            ['buddy-page-name', name],
-            ['buddy-page-trait', trait],
-            ['rs-buddy-page-name', name],
-            ['rs-buddy-page-trait', persona.description || '自定义学习搭子'],
-            ['rs-buddy-level', 'Lv.1'],
-            ['rs-buddy-model', modelTag],
-        ];
-        fields.forEach(([id, val]) => setText(id, val));
-
-        function setAvatar(el, url, emojiText) {
-            if (!el) return;
-            el.innerHTML = url
-                ? '<img src="' + escapeHtml(url) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-                : emojiText;
-        }
-        setAvatar(document.getElementById('buddy-page-avatar'), avatarUrl, emoji);
-        setAvatar(document.getElementById('rs-buddy-page-avatar-lg'), avatarUrl, emoji);
-        setAvatar(document.getElementById('rs-buddy-avatar'), avatarUrl, emoji);
+        applyBuddyDisplay(persona);
     }
 
     // 切换搭子时重置对话历史
@@ -2728,7 +3155,7 @@
         document.getElementById('btn-theme-toggle')?.addEventListener('click', toggleTheme);
 
         // 导航
-        document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+        document.querySelectorAll('.nav-item[data-page]:not(.nav-group-toggle)').forEach(item => {
             item.addEventListener('click', () => switchPage(item.getAttribute('data-page')));
         });
 
@@ -2835,6 +3262,8 @@
         });
 
         // 搭子
+        initGameModeSelector();
+        initBuddyNav();
         document.getElementById('btn-chat-send')?.addEventListener('click', sendChat);
         document.getElementById('chat-input')?.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }

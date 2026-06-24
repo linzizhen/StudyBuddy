@@ -14,6 +14,7 @@ StudyPal 搭子系统
 """
 
 import re
+import sys
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -23,6 +24,15 @@ from src.buddy.caring_engine import CaringEngine, CaringEvent, get_caring_engine
 from src.study.study_tracker import StudyTracker, get_study_tracker
 from src.diary.diary import Diary, get_diary, EmotionTracker, get_emotion_tracker, DiaryEntry
 from src.ai.prompt_templates import get_prompt_templates
+
+
+def _safe_console_print(text: str):
+    """Windows 控制台 GBK 编码下安全打印（含 emoji）"""
+    encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
 
 
 class Buddy:
@@ -146,7 +156,13 @@ class Buddy:
 
     # ========== 对话系统 ==========
 
-    def chat(self, message: str, conversation_id: str = None) -> Dict[str, Any]:
+    def chat(
+        self,
+        message: str,
+        conversation_id: str = None,
+        game_mode: str = 'auto',
+        history_messages: List[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
         """
         搭子对话
 
@@ -177,7 +193,32 @@ class Buddy:
             self.set_emotion("thinking")
 
         # 构建 AI 回复
-        reply = self._generate_reply(message, emotion_analysis, conversation_id)
+        knowledge_config = self._resolve_knowledge_mode(
+            emotion_analysis.get("is_knowledge", False),
+            game_mode,
+        )
+        reply = self._generate_reply(
+            message,
+            emotion_analysis,
+            conversation_id,
+            knowledge_config,
+            history_messages=history_messages,
+        )
+
+        from src.buddy.option_parser import (
+            parse_chat_options,
+            detect_game_over,
+            strip_game_markers,
+            is_game_option_message,
+        )
+        options, option_texts = parse_chat_options(reply)
+        is_game_followup = is_game_option_message(message, game_mode)
+        in_game_context = knowledge_config.get("use_gamification") or is_game_followup
+        game_over = False
+        if in_game_context:
+            game_over = detect_game_over(reply, options, in_active_game=is_game_followup)
+            if game_over or re.search(r'\[(GAME_OVER|END)\]', reply, re.IGNORECASE):
+                reply = strip_game_markers(reply)
 
         # 如果检测到重要事件，记录到记忆
         self._record_memory_from_message(message, reply, emotion_analysis)
@@ -191,8 +232,36 @@ class Buddy:
             "emotion": self.get_emotion(),
             "emoji": self.get_emoji(),
             "emotion_desc": self.get_emotion_desc(),
-            "suggestions": self._generate_suggestions(message, emotion_analysis)
+            "suggestions": self._generate_suggestions(message, emotion_analysis),
+            "options": options,
+            "option_texts": option_texts,
+            "game_over": game_over,
+            "game_mode": game_mode,
+            "use_gamification": (
+                knowledge_config.get("use_gamification", False)
+                or (is_game_followup and not game_over)
+            ),
         }
+
+    def _resolve_knowledge_mode(self, is_knowledge: bool, game_mode: str) -> Dict[str, Any]:
+        """根据用户 game_mode 与搭子性格，决定知识点讲解方式"""
+        from src.buddy.buddy_roles import BuddyRoles
+        role_key = self.profile.get_buddy_info().get("role_key", "xiaodou")
+        game_style = BuddyRoles.get_game_style(role_key)
+        mode = (game_mode or 'auto').lower()
+
+        if not is_knowledge:
+            return {"use_gamification": False, "style": game_style, "mode": mode}
+
+        if mode == 'direct':
+            return {"use_gamification": False, "style": "direct", "mode": mode}
+        if mode == 'game':
+            style = game_style if game_style != 'direct' else 'battle'
+            return {"use_gamification": True, "style": style, "mode": mode}
+        # auto
+        if game_style == 'direct':
+            return {"use_gamification": False, "style": "direct", "mode": mode}
+        return {"use_gamification": True, "style": game_style, "mode": mode}
 
     def _analyze_message_emotion(self, message: str) -> Dict[str, Any]:
         """
@@ -229,14 +298,32 @@ class Buddy:
                            "有进步", "感觉好多了"]
         is_positive = any(kw in message_lower for kw in positive_keywords)
 
-        # 检测意图
+        # 检测意图（知识点优先于泛化的「什么/怎么」）
+        knowledge_keywords = [
+            "什么是", "是什么", "怎么理解", "解释一下", "给我讲讲",
+            "概念", "定义", "含义", "说说",
+        ]
+        is_knowledge = False
+        knowledge_keyword = None
+        for kw in knowledge_keywords:
+            if kw in message_lower:
+                is_knowledge = True
+                knowledge_keyword = kw
+                break
+
         intent = "chat"
-        if any(kw in message_lower for kw in ["怎么", "如何", "什么"]):
+        if is_knowledge:
+            intent = "knowledge"
+        elif any(kw in message_lower for kw in ["怎么", "如何", "什么"]):
             intent = "question"
         elif any(kw in message_lower for kw in ["计划", "安排", "复习"]):
             intent = "plan"
         elif any(kw in message_lower for kw in ["学不进去", "拖延"]):
             intent = "struggle"
+
+        _safe_console_print(f"用户消息: {message}")
+        _safe_console_print(f"是否知识点: {is_knowledge}")
+        _safe_console_print(f"匹配到的关键词: {knowledge_keyword}")
 
         # 提取关键词
         keywords = []
@@ -252,14 +339,18 @@ class Buddy:
             "is_giving_up": is_giving_up,
             "is_anxious": is_anxious,
             "keywords": keywords,
-            "intent": intent
+            "intent": intent,
+            "is_knowledge": is_knowledge,
+            "knowledge_keyword": knowledge_keyword,
         }
 
     def _generate_reply(
         self,
         message: str,
         emotion_analysis: Dict,
-        conversation_id: str = None
+        conversation_id: str = None,
+        knowledge_config: Dict = None,
+        history_messages: List[Dict[str, str]] = None,
     ) -> str:
         """
         生成搭子回复
@@ -270,26 +361,58 @@ class Buddy:
         from src.ai.ai_helper import get_ai_instance
         ai = get_ai_instance()
 
+        knowledge_config = knowledge_config or {}
+        is_knowledge = emotion_analysis.get("is_knowledge", False)
+        use_gamification = knowledge_config.get("use_gamification", False)
+
         # 构建系统提示词
-        system_prompt = self._build_system_prompt()
+        system_prompt = self._build_system_prompt(
+            is_knowledge=is_knowledge,
+            knowledge_config=knowledge_config,
+        )
 
         # 构建用户消息
-        user_message = self._build_user_message(message, emotion_analysis)
+        user_message = self._build_user_message(
+            message, emotion_analysis, use_gamification=use_gamification
+        )
 
         try:
-            # 调用 AI
+            if is_knowledge and use_gamification:
+                from src.buddy.buddy_roles import BuddyRoles
+                style = knowledge_config.get("style", "battle")
+                style_hint = {
+                    "battle": "记住：必须用⚡开头、对战竞技式回复，给A/B/C选项带游戏数值。",
+                    "simulation": "记住：必须用经营语言，给A/B/C选项带收入/成本数值。",
+                    "murder_mystery": "记住：必须用剧本杀语气，给A/B/C剧情分支。",
+                }.get(style, "记住：必须先给A/B/C选项，禁止直接讲定义。")
+                user_message = f"{user_message}\n\n{style_hint}"
+
+            use_hist = bool(history_messages) and not (is_knowledge and use_gamification)
             result = ai.ask(
                 question=user_message,
-                conversation_id=conversation_id,
-                system_prompt=system_prompt
+                conversation_id=None,
+                system_prompt=system_prompt,
+                prompt_mode='user_merged' if (is_knowledge and use_gamification) else 'default',
+                use_history=use_hist,
+                history_messages=history_messages if use_hist else None,
+                temperature=0.9 if (is_knowledge and use_gamification) else None,
+                top_p=0.95 if (is_knowledge and use_gamification) else None,
+                save_to_history=False,
             )
             return result.get("answer", "我在呢，有什么事？")
         except Exception as e:
-            # 如果 AI 调用失败，使用模板回复
+            _safe_console_print(f"[搭子对话] AI 调用失败: {e}")
             return self._fallback_reply(message, emotion_analysis)
 
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(
+        self,
+        is_knowledge: bool = False,
+        knowledge_config: Dict = None,
+    ) -> str:
         """构建系统提示词"""
+        knowledge_config = knowledge_config or {}
+        use_gamification = knowledge_config.get("use_gamification", False)
+        effective_style = knowledge_config.get("style", "direct")
         profile = self.profile.get_user()
         buddy_info = self.profile.get_buddy_info()
         role_key = buddy_info.get("role_key", "xiaodou")
@@ -309,6 +432,7 @@ class Buddy:
         # 获取角色风格规则（这是搭子差异化的核心！）
         from src.buddy.buddy_roles import BuddyRoles
         role_style_rules = BuddyRoles.get_role_style_rules(role_key)
+        game_style = BuddyRoles.get_game_style(role_key)
 
         # 拼接基础提示词 + 角色风格规则
         if role_style_rules:
@@ -316,17 +440,35 @@ class Buddy:
         else:
             final_prompt = base_prompt
 
-        # 调试日志（生产环境可在日志级别控制）
-        print(f"[搭子对话] 当前搭子: {role_key} ({buddy_info.get('name', '未知')})")
-        print(f"[搭子对话] SystemPrompt长度: {len(final_prompt)} 字")
-        print(f"[搭子对话] SystemPrompt前200字: {final_prompt[:200]}")
+        if is_knowledge:
+            from src.buddy.buddy_roles import BuddyRoles, GAME_STYLE_FORCE_RULES
+            if use_gamification:
+                force_rules = GAME_STYLE_FORCE_RULES.get(
+                    effective_style,
+                    BuddyRoles.get_game_style_force_rules(role_key),
+                )
+                final_prompt += "\n\n" + force_rules
+                final_prompt += "\n\n【本轮覆盖规则】用户在问知识点，忽略上方「回复2-4句话」限制，必须先给A/B/C/D等选项（至少2个），禁止直接讲定义。游戏化讲解结束时请在回复末尾加 [GAME_OVER]，且不要再给选项。"
+            else:
+                force_rules = GAME_STYLE_FORCE_RULES.get("direct", "")
+                final_prompt += "\n\n" + force_rules
+                final_prompt += "\n\n【本轮覆盖规则】用户在问知识点，用简洁结构化方式直接讲解，不要游戏化包装。"
+
+        _safe_console_print("=" * 50)
+        _safe_console_print(f"当前搭子: {buddy_info.get('name', '未知')}")
+        _safe_console_print(f"game_style: {game_style}")
+        _safe_console_print(f"是否知识点模式: {is_knowledge}")
+        _safe_console_print(f"讲解模式: {knowledge_config.get('mode', 'auto')}, 游戏化: {use_gamification}")
+        _safe_console_print(f"完整systemPrompt:\n{final_prompt}")
+        _safe_console_print("=" * 50)
 
         return final_prompt
 
     def _build_user_message(
         self,
         message: str,
-        emotion_analysis: Dict
+        emotion_analysis: Dict,
+        use_gamification: bool = False,
     ) -> str:
         """构建用户消息"""
         parts = [message]
@@ -338,6 +480,23 @@ class Buddy:
             parts.append("\n[注意：用户有些焦虑，需要安慰和理解]")
         elif emotion_analysis["is_negative"]:
             parts.append("\n[注意：用户情绪不太好，需要关心]")
+
+        # 添加知识点询问标记
+        if emotion_analysis.get("is_knowledge"):
+            if use_gamification:
+                game_style = self._get_current_game_style()
+                style_names = {
+                    "simulation": "模拟经营式",
+                    "battle": "对战竞技式",
+                    "detective": "侦探推理式",
+                    "rpg": "RPG冒险式",
+                    "murder_mystery": "剧本杀式",
+                    "direct": "直接讲解式"
+                }
+                parts.append("\n[注意：用户在询问知识点，必须游戏化讲解，先给A/B/C选项，禁止直接讲定义]")
+                parts.append(f"\n[游戏风格：{style_names.get(game_style, '直接讲解式')}]")
+            else:
+                parts.append("\n[注意：用户在询问知识点，请用简洁直接的方式讲解，不要游戏化]")
 
         # 添加今日上下文
         today_entry = self.diary.get_today()
@@ -353,6 +512,13 @@ class Buddy:
             parts.append(f"\n[今日已学习 {stats['today_hours']:.1f} 小时]")
 
         return "\n".join(parts)
+    
+    def _get_current_game_style(self) -> str:
+        """获取当前搭子的游戏化讲解风格"""
+        from src.buddy.buddy_roles import BuddyRoles
+        buddy_info = self.profile.get_buddy_info()
+        role_key = buddy_info.get("role_key", "xiaodou")
+        return BuddyRoles.get_game_style(role_key)
 
     def _fallback_reply(
         self,

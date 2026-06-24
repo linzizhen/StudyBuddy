@@ -1,6 +1,6 @@
 /**
  * StudyPal API 调用层 v2.1
- * - AbortController 10s 超时
+ * - AbortController 超时（默认 10s，搭子对话 60s）
  * - GET 参数过滤 null/undefined
  * - 命名空间 window.StudyPalAPI
  */
@@ -10,14 +10,18 @@ const StudyPalAPI = {
 
     async request(endpoint, options = {}) {
         const url = this.baseURL + endpoint;
+        const timeoutMs = options.timeoutMs ?? 10000;
+        const fetchOptions = { ...options };
+        delete fetchOptions.timeoutMs;
+
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 10000);
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
 
         const defaultOptions = {
             headers: { 'Content-Type': 'application/json' },
             signal: controller.signal,
         };
-        const config = { ...defaultOptions, ...options };
+        const config = { ...defaultOptions, ...fetchOptions };
 
         if (config.body && typeof config.body === 'object') {
             config.body = JSON.stringify(config.body);
@@ -55,8 +59,8 @@ const StudyPalAPI = {
         return this.request(url, { method: 'GET' });
     },
 
-    post: function(endpoint, data) {
-        return this.request(endpoint, { method: 'POST', body: data || {} });
+    post: function(endpoint, data, reqOptions) {
+        return this.request(endpoint, { method: 'POST', body: data || {}, ...(reqOptions || {}) });
     },
 
     put: function(endpoint, data) {
@@ -72,8 +76,12 @@ const StudyPalAPI = {
 
     // 搭子
     getBuddyStatus: function() { return this.get('/buddy/status'); },
-    buddyChat: function(message, conversationId) {
-        return this.post('/buddy/chat', { message: message, conversation_id: conversationId });
+    buddyChat: function(message, conversationId, gameMode) {
+        return this.post('/buddy/chat', {
+            message: message,
+            conversation_id: conversationId,
+            game_mode: gameMode || 'auto',
+        }, { timeoutMs: 60000 });
     },
     getBuddyProfile: function() { return this.get('/buddy/profile'); },
     updateBuddyProfile: function(profile) { return this.put('/buddy/profile', profile); },
@@ -85,6 +93,11 @@ const StudyPalAPI = {
     getBuddyRoles: function() { return this.get('/buddy/roles'); },
     switchBuddyRole: function(roleKey) { return this.post('/buddy/switch/' + roleKey, {}); },
     currentRole: function() { return this.get('/buddy/current-role'); },
+
+    getActiveConversation: function() { return this.get('/conversations/active'); },
+    createConversation: function() { return this.post('/conversations', {}); },
+    listConversations: function() { return this.get('/conversations'); },
+    getConversation: function(convId) { return this.get('/conversations/' + convId); },
 
     // 日记
     getDiaries: function(limit) {

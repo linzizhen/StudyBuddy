@@ -10,6 +10,7 @@ StudyPal AI 问答功能
 
 import requests
 import time
+import os
 from functools import wraps
 from typing import List, Dict, Optional
 from config import (
@@ -153,20 +154,48 @@ class StudyPalAI:
         result = response.json()
         return result.get("message", {}).get("content", "")
 
-    def _call_openai_compatible(self, messages: List[Dict[str, str]]) -> str:
-        """调用 OpenAI 兼容 API（如 Groq、DeepSeek 等）"""
+    def _debug_log_messages(self, messages: List[Dict[str, str]]):
+        """调试：打印发送给 API 的完整 messages（BUDDY_DEBUG_API=1 时启用）"""
+        if os.getenv('BUDDY_DEBUG_API', '').lower() not in ('1', 'true', 'yes'):
+            return
+        print("=" * 60)
+        print(f"模型: {self.model_name}")
+        print(f"URL: {self.base_url}/chat/completions")
+        print("Messages:")
+        for i, msg in enumerate(messages):
+            content = msg.get('content', '')
+            preview = content[:500] + ('...' if len(content) > 500 else '')
+            print(f"  [{i}] {msg.get('role')}:")
+            print(f"      {preview}")
+        print("=" * 60)
+
+    def _call_openai_compatible(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = None,
+        top_p: float = None,
+    ) -> str:
+        """调用 OpenAI 兼容 API（如 Groq、DeepSeek、智谱 等）"""
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.model_api_key}"
         }
 
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "stream": False,
+        }
+        if temperature is not None:
+            payload["temperature"] = temperature
+        if top_p is not None:
+            payload["top_p"] = top_p
+
+        self._debug_log_messages(messages)
+
         response = requests.post(
             f"{self.base_url}/chat/completions",
-            json={
-                "model": self.model_name,
-                "messages": messages,
-                "stream": False
-            },
+            json=payload,
             headers=headers,
             timeout=self.timeout,
             proxies={'http': None, 'https': None}
@@ -186,7 +215,11 @@ class StudyPalAI:
 
     def ask(self, question: str, use_history: bool = True,
             conversation_id: str = None, save_to_history: bool = True,
-            system_prompt: str = None) -> Dict:
+            system_prompt: str = None,
+            prompt_mode: str = 'default',
+            temperature: float = None,
+            top_p: float = None,
+            history_messages: List[Dict[str, str]] = None) -> Dict:
         """
         向 AI 发送问题并获取回答
 
@@ -196,12 +229,12 @@ class StudyPalAI:
             conversation_id: 指定对话 ID，不指定则使用当前对话
             save_to_history: 是否保存到历史记录
             system_prompt: 自定义系统提示词（覆盖默认）
+            prompt_mode: 'default' 或 'user_merged'（将全部指令合并到 user 角色，适合智谱等）
+            temperature: 采样温度
+            top_p: 核采样参数
 
         返回：
             包含 answer 和 conversation_id 的字典
-
-        异常：
-            Exception: 如果 API 调用失败
         """
         try:
             if conversation_id:
@@ -210,22 +243,40 @@ class StudyPalAI:
                 self.current_conversation_id = self.ai_memory.create_conversation()
 
             final_system_prompt = system_prompt if system_prompt else SYSTEM_PROMPT
-            messages = [
-                {"role": "system", "content": final_system_prompt}
-            ]
+            messages: List[Dict[str, str]] = []
 
-            if use_history:
-                stored_messages = self.ai_memory.get_conversation_messages(self.current_conversation_id)
-                if stored_messages:
-                    for msg in stored_messages[-self.max_history_length:]:
-                        messages.append({"role": msg["role"], "content": msg["content"]})
-
-            messages.append({"role": "user", "content": question})
+            if prompt_mode == 'user_merged':
+                merged = (
+                    f"【系统指令 - 必须遵守】\n{final_system_prompt}\n\n"
+                    f"【用户问题】\n{question}"
+                )
+                messages.append({"role": "user", "content": merged})
+            else:
+                messages.append({"role": "system", "content": final_system_prompt})
+                if use_history:
+                    if history_messages:
+                        for msg in history_messages[-self.max_history_length:]:
+                            messages.append({
+                                "role": msg["role"],
+                                "content": msg["content"],
+                            })
+                    else:
+                        stored_messages = self.ai_memory.get_conversation_messages(
+                            self.current_conversation_id
+                        )
+                        if stored_messages:
+                            for msg in stored_messages[-self.max_history_length:]:
+                                messages.append({"role": msg["role"], "content": msg["content"]})
+                messages.append({"role": "user", "content": question})
 
             if self.provider == "ollama":
                 answer = self._call_ollama(messages)
             else:
-                answer = self._call_openai_compatible(messages)
+                answer = self._call_openai_compatible(
+                    messages,
+                    temperature=temperature,
+                    top_p=top_p,
+                )
 
             if save_to_history:
                 self.ai_memory.add_message("user", question, self.current_conversation_id)

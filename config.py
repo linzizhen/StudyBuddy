@@ -105,6 +105,29 @@ MODELS_CONFIG = {
         "api_key": ""  # 需要从 https://openrouter.ai/keys 获取
     },
 
+    # 智谱 AI - OpenAI 兼容接口
+    "zhipu_glm4_flash": {
+        "name": "GLM-4 Flash (智谱)",
+        "model": "glm-4-flash",
+        "provider": "openai",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""
+    },
+    "zhipu_glm4_air": {
+        "name": "GLM-4 Air (智谱)",
+        "model": "glm-4-air",
+        "provider": "openai",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""
+    },
+    "zhipu_glm4_plus": {
+        "name": "GLM-4 Plus (智谱)",
+        "model": "glm-4-plus",
+        "provider": "openai",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""
+    },
+
     # ===== Ollama 本地模型 =====
     "qwen3.5_9b": {
         "name": "Qwen3.5 9B (本地)",
@@ -151,12 +174,20 @@ MODELS_CONFIG = {
 _env_api_keys = {
     'GROQ_API_KEY': 'groq_llama',
     'DEEPSEEK_API_KEY': 'deepseek_chat',
+    'ZHIPU_API_KEY': 'zhipu_glm4_flash',
 }
 for _env_var, _model_key in _env_api_keys.items():
     _env_key = os.getenv(_env_var, '')
     if _env_key:
         if _model_key in MODELS_CONFIG:
             MODELS_CONFIG[_model_key]['api_key'] = _env_key
+
+# 通用 AI_API_KEY：当智谱等模型未单独配置时，填充当前默认模型
+_default_key = os.getenv('DEFAULT_MODEL_KEY', 'groq_llama')
+_generic_api_key = os.getenv('AI_API_KEY', '')
+if _generic_api_key and _default_key in MODELS_CONFIG:
+    if not MODELS_CONFIG[_default_key].get('api_key'):
+        MODELS_CONFIG[_default_key]['api_key'] = _generic_api_key
 
 # 默认使用的模型配置 key（推荐使用云端免费模型）
 DEFAULT_MODEL_KEY = os.getenv('DEFAULT_MODEL_KEY', 'groq_llama')
@@ -222,6 +253,9 @@ USER_DATA_FILE = "data/user_settings.json"
 
 # AI 对话历史数据文件路径
 AI_HISTORY_FILE = "data/ai_history.json"
+
+# 搭子对话历史
+BUDDY_CONVERSATIONS_FILE = "data/buddy_conversations.json"
 
 # ==================== 成就系统配置 ====================
 

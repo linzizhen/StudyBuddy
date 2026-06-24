@@ -17,11 +17,13 @@ from .recommend import recommend_bp
 from .insights import insights_bp
 from .settings import settings_bp
 from .ai_model import ai_model_bp
+from .conversations import conversations_bp
 
 
 def register_blueprints(app):
     """注册所有 Blueprint"""
     app.register_blueprint(buddy_bp)
+    app.register_blueprint(conversations_bp)
     app.register_blueprint(diary_bp)
     app.register_blueprint(study_bp)
     app.register_blueprint(tasks_bp)

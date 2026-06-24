@@ -57,10 +57,15 @@
                     <span class="nav-icon" data-icon="book"></span>
                     <span>学习日记</span>
                 </button>
-                <button class="nav-item" data-page="buddy">
+                <button class="nav-item nav-group-toggle" data-page="buddy" id="nav-buddy-toggle" aria-expanded="false">
                     <span class="nav-icon" data-icon="message"></span>
                     <span>学习搭子</span>
+                    <span class="nav-chevron">▾</span>
                 </button>
+                <div class="nav-submenu" id="nav-buddy-submenu">
+                    <button class="nav-sub-item active" type="button" id="nav-buddy-current">当前对话</button>
+                    <button class="nav-sub-item" type="button" id="nav-buddy-history">历史对话</button>
+                </div>
                 <button class="nav-item" data-page="stats">
                     <span class="nav-icon" data-icon="chart"></span>
                     <span>数据统计</span>
@@ -405,26 +410,20 @@
 
                 <!-- 学习搭子页 -->
                 <div class="page-view" id="view-buddy">
-                    <div class="row-between">
-                        <div class="buddy-header">
-                            <div class="user-avatar-wrap" style="width:48px;height:48px;">
-                                <div class="user-avatar" id="buddy-page-avatar">💪</div>
-                                <div class="user-status-dot"></div>
-                            </div>
-                            <div>
-                                <div class="row gap-2">
-                                    <h1 class="greeting" id="buddy-page-name">小豆</h1>
-                                    <span class="badge-outline">在线</span>
+                    <div class="card chat-card">
+                        <div class="chat-header">
+                            <div class="buddy-info">
+                                <span class="chat-header-emoji" id="chat-header-emoji">💪</span>
+                                <div>
+                                    <span class="chat-header-name" id="chat-header-name">小豆</span>
+                                    <span class="chat-header-trait" id="chat-header-trait">温暖鼓励型</span>
                                 </div>
-                                <p class="user-motto" id="buddy-page-trait">温暖鼓励型 · Lv.1</p>
+                            </div>
+                            <div class="chat-actions">
+                                <button class="btn-ghost btn-sm" type="button" id="btn-chat-history">📜 历史</button>
+                                <button class="btn-ghost btn-sm" type="button" id="btn-buddy-new-chat">🔄 新对话</button>
                             </div>
                         </div>
-                        <button class="btn-ghost" id="btn-buddy-new-chat">
-                            <span class="nav-icon" data-icon="refresh"></span>
-                            <span>新对话</span>
-                        </button>
-                    </div>
-                    <div class="card chat-card">
                         <div class="chat-messages" id="chat-messages">
                             <div class="chat-bubble assistant" id="chat-welcome">
                                 <div class="chat-avatar">💪</div>
@@ -436,6 +435,21 @@
                             <button class="quick-reply" data-reply="帮我制定学习计划">帮我制定学习计划</button>
                             <button class="quick-reply" data-reply="推荐一些学习方法">推荐一些学习方法</button>
                             <button class="quick-reply" data-reply="今天完成了这些任务">今天完成了这些任务</button>
+                        </div>
+                        <div class="game-mode-bar">
+                            <span class="game-mode-label">讲解模式</span>
+                            <div class="game-mode-selector" id="game-mode-selector">
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="auto" checked> 智能适配（搭子自动选择）
+                                </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="game"> 🎮 冒险探索（游戏化讲解）
+                                </label>
+                                <label class="game-mode-option">
+                                    <input type="radio" name="gameMode" value="direct"> 📖 学霸速读（直接讲解）
+                                </label>
+                            </div>
+                            <span class="mode-indicator" id="current-mode-indicator">智能适配（搭子自动选择）</span>
                         </div>
                         <div class="chat-input-bar">
                             <input type="text" id="chat-input" placeholder="和搭子聊聊..." class="chat-input">
@@ -858,6 +872,19 @@
                 </div>
             </div>
         </aside>
+    </div>
+
+    <!-- 历史对话弹窗 -->
+    <div class="history-modal-overlay hidden" id="history-modal-overlay">
+        <div class="history-modal" role="dialog" aria-labelledby="history-modal-title">
+            <div class="history-modal-header">
+                <h3 id="history-modal-title">📜 历史对话</h3>
+                <button type="button" class="history-modal-close" id="history-modal-close" aria-label="关闭">×</button>
+            </div>
+            <div class="history-list" id="history-list">
+                <div class="history-empty">暂无历史对话</div>
+            </div>
+        </div>
     </div>
 
     <!-- 引入脚本 -->
