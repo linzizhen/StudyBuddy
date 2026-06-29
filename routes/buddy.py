@@ -11,7 +11,6 @@ from flask import Blueprint, jsonify, request, g
 from typing import Dict, Any, Optional
 
 from src.auth.auth import auth_required, auth_optional, get_current_user, ai_limit_required
-from src.core.buddy import get_buddy
 
 buddy_bp = Blueprint('buddy', __name__, url_prefix='/api/buddy')
 
@@ -62,8 +61,7 @@ def buddy_chat():
     result = buddy.chat(message, conversation_id)
 
     # 增加AI调用计数
-    from src.auth.auth import AuthService
-    AuthService.increment_ai_calls(user['id'])
+    user.increment_ai_calls()
 
     return jsonify({
         'success': True,
