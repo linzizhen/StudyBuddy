@@ -1,0 +1,20 @@
+PASS GET /api/study/stats
+PASS GET /api/buddy/status
+PASS GET /api/buddy/profile
+PASS POST /api/buddy/chat
+PASS GET /api/tasks?status=all
+PASS POST /api/tasks
+PASS GET /api/diary?limit=5
+PASS GET /api/diary/today
+PASS POST /api/diary
+PASS GET /api/plans
+PASS POST /api/plans
+PASS POST /api/study/start
+PASS POST /api/study/stop
+PASS GET /api/motto
+PASS POST /api/motto
+PASS GET /api/achievements
+PASS GET /api/insights/insight-summary
+PASS GET /api/notification/settings
+
+18 passed, 0 failed

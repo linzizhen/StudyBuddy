@@ -1,0 +1,6 @@
+{
+  "provider": "anthropic",
+  "model": "claude-3",
+  "temperature": 0.8,
+  "max_tokens": 3000
+}

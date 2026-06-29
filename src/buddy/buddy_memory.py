@@ -26,8 +26,14 @@ class BuddyMemory:
     管理搭子的三层记忆系统
     """
 
-    def __init__(self, data_file: str = "data/buddy_memory.json"):
-        self.data_file = data_file
+    def __init__(self, data_file: str = None, user_id: str = None):
+        if data_file:
+            self.data_file = data_file
+        elif user_id:
+            self.data_file = f"data/buddy_memory_{user_id}.json"
+        else:
+            self.data_file = "data/buddy_memory.json"
+        self.user_id = user_id
         self.data: Dict[str, Any] = {
             "profile_notes": {},
             "scenes": [],
@@ -87,11 +93,12 @@ class BuddyMemory:
         details: str = "",
         tags: List[str] = None,
         feeling: str = "",
-        buddy_said: str = ""
+        buddy_said: str = "",
+        importance: int = None
     ) -> str:
         """
         添加场景记忆
-        
+
         参数：
             summary: 事件摘要
             scene_type: 类型（achievement/struggle/conversation/emotion/milestone）
@@ -99,9 +106,15 @@ class BuddyMemory:
             tags: 标签列表
             feeling: 用户当时的感受
             buddy_said: 搭子当时说的话
-        
+            importance: 重要性（1-4），自动推断
+
         返回：场景ID
         """
+        # 自动推断重要性
+        if importance is None:
+            auto_map = {"achievement": 3, "milestone": 4, "struggle": 3, "emotion": 2, "conversation": 2}
+            importance = auto_map.get(scene_type, 1)
+
         scene_id = f"scene_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         scene = {
             "id": scene_id,
@@ -112,9 +125,13 @@ class BuddyMemory:
             "tags": tags or [],
             "feeling": feeling,
             "buddy_said": buddy_said,
+            "importance": importance,
+            "access_count": 0,
+            "last_accessed": datetime.now().isoformat(),
             "created_at": datetime.now().isoformat()
         }
         self.data["scenes"].insert(0, scene)
+        self._auto_forget()
         self._save()
         return scene_id
 
@@ -351,13 +368,165 @@ class BuddyMemory:
         self.data = self._default_data()
         self._save()
 
+    # ========== 记忆增强：重要性评分 + 自动遗忘 ==========
 
-# 全局单例
+    def add_scene_with_importance(
+        self,
+        summary: str,
+        scene_type: str,
+        details: str = "",
+        tags: List[str] = None,
+        feeling: str = "",
+        buddy_said: str = "",
+        importance: int = None
+    ) -> str:
+        """
+        添加带重要性评分的场景记忆
+
+        importance: 1=低(日常), 2=中(学习), 3=高(成就/困难), 4=极高(里程碑)
+        自动推断：如果没传，根据 scene_type 自动判断
+        """
+        # 自动推断重要性
+        if importance is None:
+            auto_map = {
+                "achievement": 3,
+                "milestone": 4,
+                "struggle": 3,
+                "emotion": 2,
+                "conversation": 2,
+            }
+            importance = auto_map.get(scene_type, 1)
+
+        scene_id = f"scene_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        scene = {
+            "id": scene_id,
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "type": scene_type,
+            "summary": summary,
+            "details": details,
+            "tags": tags or [],
+            "feeling": feeling,
+            "buddy_said": buddy_said,
+            "importance": importance,
+            "access_count": 0,
+            "last_accessed": datetime.now().isoformat(),
+            "created_at": datetime.now().isoformat()
+        }
+        self.data["scenes"].insert(0, scene)
+        self._auto_forget()
+        self._save()
+        return scene_id
+
+    def _auto_forget(self, min_importance: int = 2, max_scenes: int = 100):
+        """
+        自动遗忘低重要性记忆
+
+        规则：
+        - 重要性 < min_importance 且访问次数为0的，优先删除
+        - 总场景数超过 max_scenes 时，删除最低分的场景
+        - 30天以上的低重要性记忆自动降级
+        """
+        import time as time_module
+
+        scenes = self.data["scenes"]
+        now_ts = datetime.now().timestamp()
+        cutoff_30d = now_ts - (30 * 86400)
+
+        # 策略1：删除从未被访问过的低重要性记忆（超过7天）
+        to_remove = []
+        for i, scene in enumerate(scenes):
+            importance = scene.get("importance", 1)
+            access_count = scene.get("access_count", 0)
+            try:
+                created = datetime.fromisoformat(scene["created_at"]).timestamp()
+                age_days = (now_ts - created) / 86400
+            except (KeyError, ValueError):
+                age_days = 0
+
+            # 30天以上 + 从未访问 + 低重要性
+            if age_days > 30 and access_count == 0 and importance <= 1:
+                to_remove.append(i)
+
+        # 策略2：总数超限时，按遗忘分数排序删除
+        if len(scenes) > max_scenes:
+            scored = []
+            for scene in scenes:
+                try:
+                    created = datetime.fromisoformat(scene["created_at"]).timestamp()
+                    age_days = (now_ts - created) / 86400
+                except (KeyError, ValueError):
+                    age_days = 0
+
+                # 遗忘分数 = age_days / importance，越高越该遗忘
+                importance = scene.get("importance", 1)
+                forget_score = age_days / max(importance, 1)
+                scored.append((forget_score, scene))
+
+            scored.sort(reverse=True)
+            # 保留前 max_scenes 条，其余标记删除
+            keep_ids = {s[1]["id"] for s in scored[:max_scenes]}
+            to_remove = [i for i, s in enumerate(scenes) if s["id"] not in keep_ids]
+
+        # 倒序删除
+        for i in sorted(to_remove, reverse=True):
+            scenes.pop(i)
+
+    def smart_recall(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        智能记忆检索：综合相关性 + 重要性 + 时效性
+
+        遗忘分数 = age_days / (importance * 0.5 + access_count)
+        分数越低 = 越值得保留
+        """
+        results = self.recall(query, limit=20)
+        now_ts = datetime.now().timestamp()
+
+        scored_results = []
+        for result in results:
+            data = result["data"]
+            try:
+                created = datetime.fromisoformat(data.get("created_at", datetime.now().isoformat())).timestamp()
+                age_days = max(0.1, (now_ts - created) / 86400)
+            except (KeyError, ValueError):
+                age_days = 1
+
+            importance = data.get("importance", 1)
+            access_count = data.get("access_count", 0)
+
+            # 综合评分 = 相关性 * 遗忘分数的反比
+            relevance = result["score"]
+            forget_score = age_days / max(importance * 0.5 + access_count * 0.3, 0.1)
+            final_score = relevance * (1 / (1 + forget_score * 0.5))
+
+            scored_results.append({
+                **result,
+                "final_score": round(final_score, 3),
+                "age_days": round(age_days, 1),
+                "importance": importance
+            })
+
+        scored_results.sort(key=lambda x: x["final_score"], reverse=True)
+        return scored_results[:limit]
+
+    def touch_scene(self, scene_id: str):
+        """标记场景被访问过（增加访问计数，降低遗忘分数）"""
+        for scene in self.data.get("scenes", []):
+            if scene.get("id") == scene_id:
+                scene["access_count"] = scene.get("access_count", 0) + 1
+                scene["last_accessed"] = datetime.now().isoformat()
+                self._save()
+                break
+
+
+# 全局单例（向后兼容）
 _memory_instance: Optional[BuddyMemory] = None
 
 
-def get_buddy_memory() -> BuddyMemory:
+def get_buddy_memory(user_id: str = None) -> BuddyMemory:
     """获取搭子记忆实例"""
+    if user_id:
+        from src.core.buddy import get_buddy_memory as _pooled
+        return _pooled(user_id)
     global _memory_instance
     if _memory_instance is None:
         _memory_instance = BuddyMemory()
