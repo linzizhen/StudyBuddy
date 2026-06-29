@@ -76,3 +76,9 @@ def register_blueprints(app):
         app.register_blueprint(home_bp)
     except Exception as e:
         print(f"home 路由注册失败: {e}")
+
+    try:
+        from routes.challenges import challenges_bp
+        app.register_blueprint(challenges_bp)
+    except Exception as e:
+        print(f"challenges 路由注册失败: {e}")

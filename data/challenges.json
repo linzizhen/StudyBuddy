@@ -1,0 +1,234 @@
+{
+  "user_grade_mode": "middle",
+  "active_challenge_id": "ch_middle_001",
+  "challenges": [
+    {
+      "id": "ch_primary_001",
+      "name": "三年级下学期探险",
+      "grade_mode": "primary",
+      "type": "学期探险",
+      "deadline": "2027-06-30",
+      "description": "和爸爸妈妈一起探险这一学期",
+      "status": "active",
+      "created_at": "2026-06-29",
+      "subjects": [
+        {
+          "id": "sub_p_001",
+          "name": "语文城堡",
+          "icon": "🏰",
+          "display_mode": "star",
+          "target_score": 95,
+          "full_score": 100,
+          "current_score": 88,
+          "current_level": 3,
+          "max_level": 5,
+          "scores_history": [
+            {"date": "2026-04-15", "score": 82, "full_score": 100, "exam_name": "第一次小测验"},
+            {"date": "2026-05-20", "score": 85, "full_score": 100, "exam_name": "第二次小测验"},
+            {"date": "2026-06-15", "score": 88, "full_score": 100, "exam_name": "期末探险"}
+          ],
+          "weak_points": ["看图说话", "拼音拼读"],
+          "notes": "小探险家最近拼音进步很大"
+        },
+        {
+          "id": "sub_p_002",
+          "name": "数学森林",
+          "icon": "🌲",
+          "display_mode": "star",
+          "target_score": 95,
+          "full_score": 100,
+          "current_score": 92,
+          "current_level": 4,
+          "max_level": 5,
+          "scores_history": [
+            {"date": "2026-04-15", "score": 85, "full_score": 100, "exam_name": "第一次小测验"},
+            {"date": "2026-05-20", "score": 90, "full_score": 100, "exam_name": "第二次小测验"},
+            {"date": "2026-06-15", "score": 92, "full_score": 100, "exam_name": "期末探险"}
+          ],
+          "weak_points": ["应用题"],
+          "notes": "口算很棒"
+        }
+      ],
+      "milestones": [
+        {"id": "ms_p_001", "name": "本周收集的宝藏", "value": 12, "full_score": 20, "type": "custom", "comparison_text": "🎁 生字宝藏 ×8、🔢 口算宝藏 ×4", "visible": true}
+      ],
+      "timeline": [
+        {"id": "tl_p_001", "name": "数学小测验", "date": "2026-06-30", "type": "exam", "icon": "📚", "completed": false, "urgency": "medium"},
+        {"id": "tl_p_002", "name": "暑假开始", "date": "2026-07-05", "type": "activity", "icon": "🏖️", "completed": false, "urgency": "low"}
+      ]
+    },
+    {
+      "id": "ch_middle_001",
+      "name": "初三上学期",
+      "grade_mode": "middle",
+      "type": "学期考试",
+      "deadline": "2027-01-15",
+      "description": "目标：市重点高中",
+      "status": "active",
+      "created_at": "2026-06-29",
+      "subjects": [
+        {
+          "id": "sub_m_001",
+          "name": "语文",
+          "icon": "📝",
+          "display_mode": "star",
+          "target_score": 120,
+          "full_score": 150,
+          "current_score": 102,
+          "current_level": 8,
+          "max_level": 10,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 95, "full_score": 150, "exam_name": "第一次月考"},
+            {"date": "2026-10-20", "score": 98, "full_score": 150, "exam_name": "第二次月考"},
+            {"date": "2026-11-25", "score": 102, "full_score": 150, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["文言文阅读", "作文立意"],
+          "notes": "作文素材需积累"
+        },
+        {
+          "id": "sub_m_002",
+          "name": "数学",
+          "icon": "🔢",
+          "display_mode": "star",
+          "target_score": 130,
+          "full_score": 150,
+          "current_score": 115,
+          "current_level": 8,
+          "max_level": 10,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 105, "full_score": 150, "exam_name": "第一次月考"},
+            {"date": "2026-10-20", "score": 110, "full_score": 150, "exam_name": "第二次月考"},
+            {"date": "2026-11-25", "score": 115, "full_score": 150, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["二次函数", "几何证明"],
+          "notes": "函数进步明显"
+        },
+        {
+          "id": "sub_m_003",
+          "name": "英语",
+          "icon": "🌍",
+          "display_mode": "star",
+          "target_score": 125,
+          "full_score": 150,
+          "current_score": 108,
+          "current_level": 7,
+          "max_level": 10,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 100, "full_score": 150, "exam_name": "第一次月考"},
+            {"date": "2026-10-20", "score": 105, "full_score": 150, "exam_name": "第二次月考"},
+            {"date": "2026-11-25", "score": 108, "full_score": 150, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["完形填空", "听力"],
+          "notes": "词汇量稳步提升"
+        }
+      ],
+      "milestones": [
+        {"id": "ms_m_001", "name": "上次月考", "value": 98, "full_score": 150, "type": "self_last", "comparison_text": "比上次进步了 4分！", "visible": true},
+        {"id": "ms_m_002", "name": "班级平均", "value": 105, "full_score": 150, "type": "class_avg", "comparison_text": "距平均还差 3分，继续加油！", "visible": false},
+        {"id": "ms_m_003", "name": "市重点录取线", "value": 620, "full_score": 750, "type": "admission_line", "comparison_text": "距目标线还差 45分，加油！", "visible": true}
+      ],
+      "timeline": [
+        {"id": "tl_m_001", "name": "学校运动会", "date": "2026-10-15", "type": "activity", "icon": "🏃", "completed": true, "urgency": "low"},
+        {"id": "tl_m_002", "name": "期中考试", "date": "2026-11-10", "type": "exam", "icon": "📝", "completed": true, "urgency": "high"},
+        {"id": "tl_m_003", "name": "期末复习", "date": "2027-01-05", "type": "exam", "icon": "📚", "completed": false, "urgency": "medium"},
+        {"id": "tl_m_004", "name": "期末考试", "date": "2027-01-15", "type": "exam", "icon": "📝", "completed": false, "urgency": "high"}
+      ]
+    },
+    {
+      "id": "ch_high_001",
+      "name": "高三冲刺",
+      "grade_mode": "high",
+      "type": "高考冲刺",
+      "deadline": "2027-06-07",
+      "description": "目标：985 高校",
+      "status": "active",
+      "created_at": "2026-06-29",
+      "subjects": [
+        {
+          "id": "sub_h_001",
+          "name": "语文",
+          "icon": "📝",
+          "display_mode": "score",
+          "target_score": 125,
+          "full_score": 150,
+          "current_score": 110,
+          "current_level": 0,
+          "max_level": 0,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 105, "full_score": 150, "exam_name": "九月月考"},
+            {"date": "2026-10-20", "score": 108, "full_score": 150, "exam_name": "十月联考"},
+            {"date": "2026-11-25", "score": 110, "full_score": 150, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["文言文", "作文"],
+          "notes": ""
+        },
+        {
+          "id": "sub_h_002",
+          "name": "数学",
+          "icon": "🔢",
+          "display_mode": "score",
+          "target_score": 135,
+          "full_score": 150,
+          "current_score": 118,
+          "current_level": 0,
+          "max_level": 0,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 110, "full_score": 150, "exam_name": "九月月考"},
+            {"date": "2026-10-20", "score": 115, "full_score": 150, "exam_name": "十月联考"},
+            {"date": "2026-11-25", "score": 118, "full_score": 150, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["立体几何", "导数压轴"],
+          "notes": ""
+        },
+        {
+          "id": "sub_h_003",
+          "name": "英语",
+          "icon": "🌍",
+          "display_mode": "score",
+          "target_score": 135,
+          "full_score": 150,
+          "current_score": 125,
+          "current_level": 0,
+          "max_level": 0,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 118, "full_score": 150, "exam_name": "九月月考"},
+            {"date": "2026-10-20", "score": 122, "full_score": 150, "exam_name": "十月联考"},
+            {"date": "2026-11-25", "score": 125, "full_score": 150, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["七选五"],
+          "notes": ""
+        },
+        {
+          "id": "sub_h_004",
+          "name": "物理",
+          "icon": "⚛️",
+          "display_mode": "score",
+          "target_score": 90,
+          "full_score": 100,
+          "current_score": 78,
+          "current_level": 0,
+          "max_level": 0,
+          "scores_history": [
+            {"date": "2026-09-15", "score": 72, "full_score": 100, "exam_name": "九月月考"},
+            {"date": "2026-10-20", "score": 75, "full_score": 100, "exam_name": "十月联考"},
+            {"date": "2026-11-25", "score": 78, "full_score": 100, "exam_name": "期中考试"}
+          ],
+          "weak_points": ["电磁感应"],
+          "notes": ""
+        }
+      ],
+      "milestones": [
+        {"id": "ms_h_001", "name": "上次月考", "value": 108, "full_score": 150, "type": "self_last", "comparison_text": "比上次进步了 2分", "visible": true},
+        {"id": "ms_h_002", "name": "985 录取线参考", "value": 620, "full_score": 750, "type": "admission_line", "comparison_text": "距目标线还差 18分", "visible": true},
+        {"id": "ms_h_003", "name": "本省一本线", "value": 580, "full_score": 750, "type": "custom", "comparison_text": "已超过一本线 22分", "visible": true}
+      ],
+      "timeline": [
+        {"id": "tl_h_001", "name": "期末考试", "date": "2027-01-20", "type": "exam", "icon": "📝", "completed": false, "urgency": "high"},
+        {"id": "tl_h_002", "name": "一模", "date": "2027-03-10", "type": "exam", "icon": "📝", "completed": false, "urgency": "high"},
+        {"id": "tl_h_003", "name": "二模", "date": "2027-04-15", "type": "exam", "icon": "📝", "completed": false, "urgency": "high"},
+        {"id": "tl_h_004", "name": "三模", "date": "2027-05-20", "type": "exam", "icon": "📝", "completed": false, "urgency": "high"},
+        {"id": "tl_h_005", "name": "高考", "date": "2027-06-07", "type": "exam", "icon": "🎓", "completed": false, "urgency": "high"}
+      ]
+    }
+  ]
+}

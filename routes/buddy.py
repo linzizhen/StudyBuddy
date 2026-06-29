@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, request, g
 from typing import Dict, Any, Optional
 
 from src.auth.auth import auth_required, auth_optional, get_current_user, ai_limit_required
+from src.core.buddy import get_buddy
 
 buddy_bp = Blueprint('buddy', __name__, url_prefix='/api/buddy')
 

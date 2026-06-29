@@ -378,6 +378,108 @@ const API = {
     async getInsightSummary() {
         return this.get('/insights/insight-summary');
     },
+
+    // ==================== 挑战 API ====================
+
+    /** 获取挑战完整数据 */
+    async getChallenges() {
+        return this.get('/challenges');
+    },
+
+    /** 保存挑战完整数据 */
+    async saveChallenges(data) {
+        return this.post('/challenges', data);
+    },
+
+    /** 设置学段 */
+    async setGradeMode(gradeMode) {
+        return this.post('/challenges/grade', { grade_mode: gradeMode });
+    },
+
+    /** 获取学段学科预设 */
+    async getGradePresets(gradeMode) {
+        return this.get(`/challenges/presets/grade/${gradeMode}`);
+    },
+
+    /** 获取图标库 */
+    async getIconLibrary() {
+        return this.get('/challenges/presets/icons');
+    },
+
+    /** 新建挑战 */
+    async createChallenge(payload) {
+        return this.post('/challenges/challenge', payload);
+    },
+
+    /** 更新挑战 */
+    async updateChallenge(challengeId, payload) {
+        return this.put(`/challenges/challenge/${challengeId}`, payload);
+    },
+
+    /** 删除挑战 */
+    async deleteChallenge(challengeId) {
+        return this.delete(`/challenges/challenge/${challengeId}`);
+    },
+
+    /** 激活挑战 */
+    async activateChallenge(challengeId) {
+        return this.post(`/challenges/challenge/${challengeId}/activate`);
+    },
+
+    /** 添加学科 */
+    async addSubject(challengeId, subject) {
+        return this.post(`/challenges/challenge/${challengeId}/subject`, subject);
+    },
+
+    /** 更新学科 */
+    async updateSubject(challengeId, subjectId, subject) {
+        return this.put(`/challenges/challenge/${challengeId}/subject/${subjectId}`, subject);
+    },
+
+    /** 删除学科 */
+    async deleteSubject(challengeId, subjectId) {
+        return this.delete(`/challenges/challenge/${challengeId}/subject/${subjectId}`);
+    },
+
+    /** 记录成绩 */
+    async addScoreRecord(challengeId, subjectId, payload) {
+        return this.post(`/challenges/challenge/${challengeId}/subject/${subjectId}/score`, payload);
+    },
+
+    /** 添加对比项 */
+    async addMilestone(challengeId, milestone) {
+        return this.post(`/challenges/challenge/${challengeId}/milestone`, milestone);
+    },
+
+    /** 切换对比项可见性 */
+    async toggleMilestone(challengeId, milestoneId) {
+        return this.post(`/challenges/challenge/${challengeId}/milestone/${milestoneId}/toggle`);
+    },
+
+    /** 删除对比项 */
+    async deleteMilestone(challengeId, milestoneId) {
+        return this.delete(`/challenges/challenge/${challengeId}/milestone/${milestoneId}`);
+    },
+
+    /** 添加时间线节点 */
+    async addTimelineNode(challengeId, node) {
+        return this.post(`/challenges/challenge/${challengeId}/timeline`, node);
+    },
+
+    /** 切换时间线节点完成状态 */
+    async toggleTimelineNode(challengeId, nodeId) {
+        return this.post(`/challenges/challenge/${challengeId}/timeline/${nodeId}/toggle`);
+    },
+
+    /** 删除时间线节点 */
+    async deleteTimelineNode(challengeId, nodeId) {
+        return this.delete(`/challenges/challenge/${challengeId}/timeline/${nodeId}`);
+    },
+
+    /** 从旧版考研目标迁移数据 */
+    async migrateChallengeData() {
+        return this.post('/challenges/migrate');
+    },
 };
 
 // 导出为全局变量

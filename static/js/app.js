@@ -123,6 +123,9 @@ const App = {
             requestAnimationFrame(() => {
                 target.style.opacity = '1';
             });
+            if (page === 'challenges' && typeof this.mountChallenges === 'function') {
+                setTimeout(() => this.mountChallenges(), 0);
+            }
         }
 
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -1302,6 +1305,12 @@ const App = {
 
     mountInsights() {
         this.loadInsights(30);
+    },
+
+    mountChallenges() {
+        if (window.ChallengePage) {
+            window.ChallengePage.mount();
+        }
     },
 };
 

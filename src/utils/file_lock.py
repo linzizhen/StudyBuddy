@@ -76,12 +76,18 @@ def atomic_write_json(filepath: str, data: Any) -> None:
     try:
         with open(temp_path, 'w', encoding='utf-8') as f:
             if _file_lock:
-                _lock_file(f, 'exclusive')
+                try:
+                    _lock_file(f, 'exclusive')
+                except (OSError, IOError):
+                    pass
             json.dump(data, f, ensure_ascii=False, indent=2)
             f.flush()
             os.fsync(f.fileno())
             if _file_lock:
-                _unlock_file(f)
+                try:
+                    _unlock_file(f)
+                except (OSError, IOError):
+                    pass
         # 原子替换
         if os.path.exists(filepath):
             os.remove(filepath)
@@ -112,10 +118,16 @@ def atomic_read_json(filepath: str, default: Optional[Any] = None) -> Any:
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             if _file_lock:
-                _lock_file(f, 'shared')
+                try:
+                    _lock_file(f, 'shared')
+                except (OSError, IOError):
+                    pass
             data = json.load(f)
             if _file_lock:
-                _unlock_file(f)
+                try:
+                    _unlock_file(f)
+                except (OSError, IOError):
+                    pass
             return data
     except (json.JSONDecodeError, IOError):
         return default if default is not None else {}

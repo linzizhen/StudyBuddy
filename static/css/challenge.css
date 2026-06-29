@@ -1,0 +1,847 @@
+/* ============================================================
+ * StudyPal "我的挑战" 模块样式
+ * 严格遵循项目极简米色设计系统
+ * 所有类名以 .challenge- 为前缀，隔离样式作用域
+ * ============================================================ */
+
+/* ===== 页面容器 ===== */
+.page-challenges-wrap {
+    padding: var(--gap-5, 20px) var(--gap-4, 16px) 100px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.challenge-body {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+}
+
+.challenge-side-col {
+    position: sticky;
+    top: 80px;
+    align-self: start;
+}
+
+@media (max-width: 768px) {
+    .challenge-body {
+        grid-template-columns: 1fr;
+    }
+    .challenge-side-col {
+        position: static;
+    }
+}
+
+/* ===== 顶部控制栏 ===== */
+.challenge-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.challenge-select {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 12px;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #FFFFFF;
+    color: #1A1A1A;
+}
+
+.challenge-select:focus {
+    outline: none;
+    border-color: #1A1A1A;
+}
+
+.challenge-grade-tag {
+    background: #F5F3EE;
+    color: #8C8C8C;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.challenge-topbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ===== 卡片基础 ===== */
+.challenge-card {
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.challenge-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.challenge-card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A1A1A;
+}
+
+/* ===== 按钮 ===== */
+.challenge-btn-primary {
+    background: #1A1A1A;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.challenge-btn-primary:hover {
+    background: #333333;
+}
+
+.challenge-btn-ghost {
+    background: transparent;
+    color: #1A1A1A;
+    border: 1px solid #E8E6E1;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.challenge-btn-ghost:hover {
+    background: #F5F3EE;
+}
+
+.challenge-btn-danger {
+    background: transparent;
+    color: #F5222D;
+    border: 1px solid #F5222D;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.challenge-btn-danger:hover {
+    background: #FFF1F0;
+}
+
+.challenge-btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* ===== 挑战总览卡片 ===== */
+.challenge-overview-body {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 16px;
+}
+
+.challenge-overview-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin-bottom: 12px;
+}
+
+.challenge-overview-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.challenge-stars {
+    font-size: 18px;
+    letter-spacing: 2px;
+}
+
+.challenge-countdown {
+    font-size: 14px;
+    color: #8C8C8C;
+}
+
+.challenge-term-progress {
+    margin-top: 16px;
+}
+
+.challenge-term-progress-track {
+    width: 100%;
+    height: 6px;
+    background: #F0F0F0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.challenge-term-progress-fill {
+    height: 100%;
+    background: #1A1A1A;
+    border-radius: 3px;
+}
+
+.challenge-term-progress-text {
+    font-size: 12px;
+    color: #8C8C8C;
+}
+
+/* ===== 学科卡片（纵向） ===== */
+.challenge-subject-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.challenge-subject-card {
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.challenge-subject-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.challenge-subject-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1A1A1A;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.challenge-subject-icon {
+    font-size: 24px;
+}
+
+.challenge-subject-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.challenge-subject-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.challenge-subject-percent {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1A1A1A;
+    min-width: 36px;
+    text-align: right;
+}
+
+.challenge-subject-stars,
+.challenge-subject-score {
+    font-size: 14px;
+    color: #1A1A1A;
+    margin-left: auto;
+}
+
+.challenge-subject-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.challenge-subject-suggestion {
+    background: #FFF8DC;
+    color: #8C6914;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: inline-block;
+    width: fit-content;
+}
+
+.challenge-subject-weak {
+    font-size: 12px;
+    color: #8C8C8C;
+}
+
+/* ===== 进度条 ===== */
+.challenge-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: #F0F0F0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.challenge-progress-fill {
+    height: 100%;
+    background: #1A1A1A;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ===== 标签 ===== */
+.challenge-tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+}
+
+.challenge-tag-up { background: #E6F7E0; color: #389E0D; }
+.challenge-tag-warn { background: #FFF7E6; color: #D48806; }
+.challenge-tag-danger { background: #FFF1F0; color: #CF1322; }
+.challenge-tag-neutral { background: #F0F0F0; color: #595959; }
+
+/* ===== 成长对比（里程碑） ===== */
+.challenge-milestone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.challenge-milestone-item {
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px 16px;
+    align-items: center;
+}
+
+.challenge-milestone-name {
+    font-weight: 600;
+    color: #1A1A1A;
+    font-size: 14px;
+}
+
+.challenge-milestone-score {
+    font-weight: 600;
+    color: #1A1A1A;
+    font-size: 14px;
+    text-align: right;
+}
+
+.challenge-milestone-text {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    color: #8C8C8C;
+}
+
+.challenge-milestone-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.challenge-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 14px;
+    color: #1A1A1A;
+    cursor: pointer;
+}
+
+.challenge-toggle-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+/* ===== 时间线 ===== */
+.challenge-timeline-track {
+    width: 100%;
+    height: 3px;
+    background: #F0F0F0;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.challenge-timeline-progress {
+    height: 100%;
+    background: #1A1A1A;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.challenge-timeline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.challenge-timeline-node {
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.challenge-timeline-icon {
+    font-size: 22px;
+    text-align: center;
+}
+
+.challenge-timeline-name {
+    font-weight: 600;
+    color: #1A1A1A;
+    font-size: 14px;
+}
+
+.challenge-timeline-meta {
+    font-size: 12px;
+    color: #8C8C8C;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.challenge-timeline-actions {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+/* ===== 高中分布条形图 ===== */
+.challenge-distribution-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.challenge-distribution-item {
+    display: grid;
+    grid-template-columns: 32px 80px 1fr 50px;
+    align-items: center;
+    gap: 10px;
+}
+
+.challenge-distribution-icon {
+    font-size: 18px;
+    text-align: center;
+}
+
+.challenge-distribution-name {
+    font-size: 13px;
+    color: #1A1A1A;
+}
+
+.challenge-distribution-bar-wrap {
+    height: 6px;
+    background: #F0F0F0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.challenge-distribution-bar {
+    height: 100%;
+    background: #1A1A1A;
+    border-radius: 3px;
+}
+
+.challenge-distribution-val {
+    font-size: 12px;
+    color: #8C8C8C;
+    text-align: right;
+}
+
+/* ===== 高中减压每日一句 ===== */
+.challenge-daily-quote {
+    background: #FFF8DC;
+    border-left: 3px solid #FAAD14;
+    padding: 12px 16px;
+    border-radius: 4px;
+    color: #5C4400;
+    font-size: 13px;
+    margin-top: 16px;
+}
+
+/* ===== 初中学习小组 ===== */
+.challenge-companion-panel .challenge-companion-tip {
+    font-size: 13px;
+    color: #8C8C8C;
+    padding: 8px 0;
+}
+
+/* ===== 小学家长面板 ===== */
+.challenge-parent-panel {
+    border-color: #FFD93D;
+}
+
+.challenge-parent-stats {
+    display: flex;
+    gap: 16px;
+    margin: 12px 0;
+}
+
+.challenge-parent-stat {
+    flex: 1;
+    text-align: center;
+    background: #FFF8DC;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.challenge-parent-stat-val {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1A1A1A;
+}
+
+.challenge-parent-stat-label {
+    font-size: 11px;
+    color: #8C8C8C;
+}
+
+.challenge-parent-suggest {
+    background: #FFF8DC;
+    color: #8C6914;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+/* ===== 空状态 ===== */
+.challenge-empty {
+    text-align: center;
+    padding: 60px 20px;
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+}
+
+.challenge-empty-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+}
+
+.challenge-empty-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin-bottom: 8px;
+}
+
+.challenge-empty-desc {
+    font-size: 14px;
+    color: #8C8C8C;
+    margin-bottom: 20px;
+}
+
+.challenge-empty-state-sm {
+    text-align: center;
+    color: #BFBFBF;
+    font-size: 13px;
+    padding: 20px;
+}
+
+/* ===== 弹窗 ===== */
+.challenge-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+}
+
+.challenge-modal-content {
+    background: #FFFFFF;
+    border: 1px solid #E8E6E1;
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.challenge-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.challenge-modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1A1A1A;
+}
+
+.challenge-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    color: #8C8C8C;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+}
+
+.challenge-modal-close:hover {
+    color: #1A1A1A;
+}
+
+.challenge-modal-info {
+    color: #8C8C8C;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* ===== 表单 ===== */
+.challenge-form-row {
+    margin-bottom: 14px;
+}
+
+.challenge-form-label {
+    display: block;
+    font-size: 13px;
+    color: #8C8C8C;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.challenge-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #FFFFFF;
+    color: #1A1A1A;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+textarea.challenge-input {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.challenge-input:focus {
+    outline: none;
+    border-color: #1A1A1A;
+}
+
+.challenge-form-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.challenge-form-inline .challenge-input {
+    flex: 1;
+}
+
+.challenge-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.challenge-form-actions > div {
+    display: flex;
+    gap: 8px;
+}
+
+.challenge-form-actions .challenge-btn-danger {
+    margin-right: auto;
+}
+
+/* ===== 学段选择卡片 ===== */
+.challenge-grade-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.challenge-grade-option {
+    border: 1px solid #E8E6E1;
+    border-radius: 8px;
+    padding: 20px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #FFFFFF;
+}
+
+.challenge-grade-option:hover {
+    border-color: #1A1A1A;
+    background: #FAFAFA;
+}
+
+.challenge-grade-option-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.challenge-grade-option-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1A1A1A;
+    margin-bottom: 4px;
+}
+
+.challenge-grade-option-desc {
+    font-size: 12px;
+    color: #8C8C8C;
+}
+
+/* ===== 学段胶囊按钮（新建弹窗） ===== */
+.challenge-grade-pills {
+    display: flex;
+    gap: 8px;
+}
+
+.challenge-grade-pill {
+    flex: 1;
+    background: transparent;
+    border: 1px solid #E8E6E1;
+    border-radius: 20px;
+    padding: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    color: #8C8C8C;
+}
+
+.challenge-grade-pill.active {
+    background: #1A1A1A;
+    color: #FFFFFF;
+    border-color: #1A1A1A;
+}
+
+/* ===== 图标选择 ===== */
+.challenge-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+}
+
+@media (max-width: 480px) {
+    .challenge-icon-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+.challenge-icon-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.challenge-icon-btn:hover {
+    background: #F5F3EE;
+}
+
+.challenge-icon-btn.active {
+    border-color: #1A1A1A;
+    background: #FAFAFA;
+}
+
+/* ===== 历史记录表格 ===== */
+.challenge-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.challenge-history-table th,
+.challenge-history-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #E8E6E1;
+}
+
+.challenge-history-table th {
+    font-weight: 600;
+    color: #8C8C8C;
+    font-size: 12px;
+}
+
+/* ===== 首页入口卡片 ===== */
+.challenge-home-entry-card {
+    cursor: pointer;
+}
+
+.challenge-home-entry-card:hover {
+    background: #FAFAFA;
+}
+
+.challenge-home-entry-desc {
+    font-size: 14px;
+    color: #8C8C8C;
+}
+
+.challenge-home-entry-progress {
+    margin-top: 12px;
+}
+
+.progress-bar-wrap {
+    width: 100%;
+    height: 8px;
+    background: #F0F0F0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: #1A1A1A;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.challenge-home-entry-text {
+    font-size: 12px;
+    color: #8C8C8C;
+}

@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/static/css/base.css">
     <link rel="stylesheet" href="/static/css/components.css">
     <link rel="stylesheet" href="/static/css/mobile.css">
+    <link rel="stylesheet" href="/static/css/challenge.css">
 </head>
 <body>
 
@@ -173,32 +174,19 @@
                 </button>
             </div>
 
-            <!-- 目标概览 -->
-            <div class="card goal-overview-card">
+            <!-- 我的挑战入口（替换旧版考研目标） -->
+            <div class="card challenge-home-entry-card">
                 <div class="card-header" style="margin-bottom:var(--gap-3);">
-                    <div class="card-title">&#127808; 考研目标</div>
-                    <button class="btn btn-ghost btn-sm" onclick="App.navigate('settings')">编辑</button>
+                    <div class="card-title">🎯 我的挑战</div>
+                    <button class="btn btn-ghost btn-sm" onclick="App.navigate('challenges')">查看</button>
                 </div>
-                <div class="goal-detail-grid">
-                    <div class="goal-item">
-                        <div class="goal-item-icon">&#127891;</div>
-                        <div class="goal-item-val" id="goal-school">清华大学</div>
-                        <div class="goal-item-label">目标院校</div>
+                <div class="challenge-home-entry-body">
+                    <div class="challenge-home-entry-desc" id="challenge-home-desc">
+                        还没有设置学习挑战，去创建一个吧 →
                     </div>
-                    <div class="goal-item">
-                        <div class="goal-item-icon">&#128218;</div>
-                        <div class="goal-item-val" id="goal-major">计算机</div>
-                        <div class="goal-item-label">目标专业</div>
-                    </div>
-                    <div class="goal-item">
-                        <div class="goal-item-icon">&#9889;</div>
-                        <div class="goal-item-val" id="goal-score">380</div>
-                        <div class="goal-item-label">目标分数</div>
-                    </div>
-                    <div class="goal-item">
-                        <div class="goal-item-icon">&#128197;</div>
-                        <div class="goal-item-val" id="goal-days">--</div>
-                        <div class="goal-item-label">剩余天数</div>
+                    <div class="challenge-home-entry-progress" id="challenge-home-progress" style="display:none;">
+                        <div class="progress-bar-wrap"><div class="progress-bar" id="challenge-home-bar" style="width:0%"></div></div>
+                        <div class="challenge-home-entry-text" id="challenge-home-text">整体进度 0%</div>
                     </div>
                 </div>
             </div>
@@ -561,15 +549,40 @@
 
     </main>
 
+    <!-- ===== 挑战页 ===== -->
+    <div class="page page-challenges-wrap" id="page-challenges">
+        <h2 class="heading-2 mb-6">🎯 我的挑战</h2>
+        <div id="challenges-topbar"></div>
+        <div class="challenge-body">
+            <div class="challenge-main-col">
+                <div id="challenges-overview"></div>
+                <div id="challenges-subjects"></div>
+                <div id="challenges-milestones"></div>
+                <div id="challenges-timeline"></div>
+                <div id="challenges-distribution"></div>
+                <div id="challenges-quote"></div>
+                <div id="challenges-companion"></div>
+                <div id="challenges-parent"></div>
+            </div>
+            <aside class="challenge-side-col">
+                <div id="challenges-sidebar"></div>
+            </aside>
+        </div>
+    </div>
+
     <!-- ===== 底部导航 ===== -->
     <nav class="bottom-nav">
-        <button class="nav-item active" data-page="home" onclick="App.navigate('home')">
+        <button class="nav-item" data-page="home" onclick="App.navigate('home')">
             <span class="nav-item-icon">&#127968;</span>
             <span class="nav-item-label">首页</span>
         </button>
         <button class="nav-item" data-page="chat" onclick="App.navigate('chat')">
             <span class="nav-item-icon">&#128172;</span>
             <span class="nav-item-label">搭话</span>
+        </button>
+        <button class="nav-item" data-page="challenges" onclick="App.navigate('challenges')">
+            <span class="nav-item-icon">&#127919;</span>
+            <span class="nav-item-label">挑战</span>
         </button>
         <button class="nav-item" data-page="insights" onclick="App.navigate('insights')">
             <span class="nav-item-icon">&#128202;</span>
@@ -598,6 +611,7 @@
     <script src="/static/js/pages/settings.js"></script>
     <script src="/static/js/pages/achievements.js"></script>
     <script src="/static/js/pages/plans.js"></script>
+    <script src="/static/js/pages/challenges.js"></script>
     <script>
         App.init();
     </script>
