@@ -2,6 +2,54 @@
   "profile_notes": {},
   "scenes": [
     {
+      "id": "scene_20260625155342",
+      "date": "2026-06-25",
+      "type": "conversation",
+      "summary": "用户近期聊到：我们再来一局冒险探索吧！请继续用游戏化的方式讲解：什么是深圳市城市职业学院；你怎么看待我的；我的心情不好",
+      "details": "",
+      "tags": [
+        "对话摘要"
+      ],
+      "feeling": "",
+      "buddy_said": "",
+      "importance": 2,
+      "access_count": 0,
+      "last_accessed": "2026-06-25T15:53:42.583454",
+      "created_at": "2026-06-25T15:53:42.583454"
+    },
+    {
+      "id": "scene_20260625153556",
+      "date": "2026-06-25",
+      "type": "conversation",
+      "summary": "用户近期聊到：我们再来一局冒险探索吧！请继续用游戏化的方式讲解：什么是深圳市城市职业学院；你怎么看待我的；我的心情不好",
+      "details": "",
+      "tags": [
+        "对话摘要"
+      ],
+      "feeling": "",
+      "buddy_said": "",
+      "importance": 2,
+      "access_count": 0,
+      "last_accessed": "2026-06-25T15:35:56.679129",
+      "created_at": "2026-06-25T15:35:56.679129"
+    },
+    {
+      "id": "scene_20260625151019",
+      "date": "2026-06-25",
+      "type": "conversation",
+      "summary": "聊到了高数",
+      "details": "什么是高数",
+      "tags": [
+        "高数"
+      ],
+      "feeling": "",
+      "buddy_said": "",
+      "importance": 2,
+      "access_count": 0,
+      "last_accessed": "2026-06-25T15:10:19.854375",
+      "created_at": "2026-06-25T15:10:19.854375"
+    },
+    {
       "id": "scene_20260615151524",
       "date": "2026-06-15",
       "type": "conversation",
@@ -20,5 +68,5 @@
   ],
   "conversation_summaries": [],
   "preferences": {},
-  "updated_at": "2026-06-15T15:15:24.129255"
+  "updated_at": "2026-06-25T15:53:42.583454"
 }

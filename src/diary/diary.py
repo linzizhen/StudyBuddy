@@ -371,11 +371,347 @@ class Diary:
         return False
 
 
+"""
+StudyPal 心情选择器存储
+- 固定 8 个槽位：5 预设 + 3 自定义
+- LRU 淘汰（自定义满 3 个时，淘汰最久未用）
+- 选择心情时同步更新 last_used
+- 用户数据隔离（data/user_moods.json）
+"""
+
+import json
+import os
+import re
+import uuid
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+from src.utils.file_lock import atomic_read_json, atomic_write_json
+
+
+PRESET_MOODS: List[Dict[str, Any]] = [
+    {"id": "preset_happy",   "emoji": "😄", "label": "很开心", "value": 9},
+    {"id": "preset_ok",      "emoji": "🙂", "label": "还不错", "value": 7},
+    {"id": "preset_normal",  "emoji": "😐", "label": "一般般", "value": 5},
+    {"id": "preset_sad",     "emoji": "😔", "label": "有点丧", "value": 3},
+    {"id": "preset_cry",     "emoji": "😭", "label": "很难过", "value": 2},
+]
+
+PRESET_IDS = {m["id"] for m in PRESET_MOODS}
+MAX_SLOTS = 8
+MAX_CUSTOM = 3
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _validate_emoji(s: str) -> bool:
+    """宽松校验：1-2 个码点即视为合法 emoji"""
+    if not s:
+        return False
+    # 去除组合字符后检查码点数
+    stripped = re.sub(r"[\u200D\uFE0F]", "", s)
+    if len(stripped) == 0 or len(stripped) > 4:
+        return False
+    # 至少含一个非 ASCII 字符
+    return any(ord(c) > 127 for c in s)
+
+
+class MoodStore:
+    """
+    单用户心情 LRU 存储
+    数据文件：data/user_moods.json
+    结构：{
+        "users": {
+            "<user_id>": {
+                "user_id": "...",
+                "mood_slots": [ ...8 个槽位... ],
+                "history": [ ...归档的自定义心情... ]
+            }
+        }
+    }
+    """
+
+    def __init__(self, data_file: str = "data/user_moods.json"):
+        self.data_file = data_file
+        self._data: Dict[str, Any] = {}
+        self._load()
+
+    def _load(self):
+        raw = atomic_read_json(self.data_file, {"users": {}})
+        if not isinstance(raw, dict):
+            raw = {"users": {}}
+        self._data = raw
+        self._data.setdefault("users", {})
+
+    def _save(self):
+        atomic_write_json(self.data_file, self._data)
+
+    # ---------- 用户档 ----------
+
+    def _get_user(self, user_id: str) -> Dict[str, Any]:
+        users = self._data.setdefault("users", {})
+        user = users.get(user_id)
+        if not user:
+            user = self._init_user(user_id)
+            users[user_id] = user
+            self._save()
+        return user
+
+    def _init_user(self, user_id: str) -> Dict[str, Any]:
+        now = _now_iso()
+        return {
+            "user_id": user_id,
+            "mood_slots": [
+                {**m, "is_custom": False, "last_used": now}
+                for m in PRESET_MOODS
+            ],
+            "history": [],
+        }
+
+    def _persist_user(self, user: Dict[str, Any]):
+        self._data["users"][user["user_id"]] = user
+        self._save()
+
+    # ---------- 对外查询 ----------
+
+    def get_mood_slots(self, user_id: str) -> List[Dict[str, Any]]:
+        """返回按 last_used 降序排列的 8 个槽位"""
+        user = self._get_user(user_id)
+        slots = self._normalize_slots(user)
+        slots.sort(key=lambda m: m.get("last_used") or "", reverse=True)
+        return slots
+
+    def get_mood_by_id(self, user_id: str, mood_id: str) -> Optional[Dict[str, Any]]:
+        for m in self.get_mood_slots(user_id):
+            if m["id"] == mood_id:
+                return m
+        return None
+
+    def get_mood_by_label(self, user_id: str, label: str) -> Optional[Dict[str, Any]]:
+        if not label:
+            return None
+        for m in self.get_mood_slots(user_id):
+            if m["label"] == label:
+                return m
+        return None
+
+    def get_mood_by_value(self, user_id: str, value: int) -> Optional[Dict[str, Any]]:
+        """按情绪等级查找（兼容旧 diary.emotion_level 用法）"""
+        try:
+            v = int(value)
+        except (TypeError, ValueError):
+            return None
+        for m in self.get_mood_slots(user_id):
+            if m.get("value") == v:
+                return m
+        return None
+
+    # ---------- 选择心情（更新 LRU）----------
+
+    def touch_mood(self, user_id: str, mood_id: str) -> Optional[Dict[str, Any]]:
+        """选择某个心情：更新 last_used 并重排"""
+        user = self._get_user(user_id)
+        self._normalize_slots(user)  # 先清理脏数据
+        target = None
+        for m in user["mood_slots"]:
+            if m["id"] == mood_id:
+                target = m
+                break
+        if not target:
+            return None
+        target["last_used"] = _now_iso()
+        self._persist_user(user)
+        return target
+
+    # ---------- 添加自定义心情 ----------
+
+    def add_custom_mood(
+        self, user_id: str, emoji: str, label: str, value: int
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        添加自定义心情
+        返回: (added_mood, evicted_mood, slots)
+            - added_mood: 新增或被刷新的心情对象
+            - evicted_mood: 被淘汰的旧自定义心情（如有）
+            - slots: 最新 8 个槽位（按 last_used 降序）
+        """
+        # 参数校验
+        label = (label or "").strip()
+        if not label or len(label) > 4:
+            return None, None, self.get_mood_slots(user_id)
+        if not _validate_emoji(emoji or ""):
+            return None, None, self.get_mood_slots(user_id)
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            return None, None, self.get_mood_slots(user_id)
+        if not (1 <= value <= 10):
+            return None, None, self.get_mood_slots(user_id)
+
+        user = self._get_user(user_id)
+        slots = self._normalize_slots(user)
+
+        # 1) label 重复：刷新 last_used 并返回
+        for m in slots:
+            if m.get("is_custom") and m["label"] == label:
+                m["emoji"] = emoji
+                m["value"] = value
+                m["last_used"] = _now_iso()
+                user["mood_slots"] = slots
+                self._persist_user(user)
+                return m, None, self.get_mood_slots(user_id)
+
+        custom_slots = [m for m in slots if m.get("is_custom")]
+        evicted: Optional[Dict[str, Any]] = None
+
+        if len(custom_slots) >= MAX_CUSTOM:
+            # 2) 已满：淘汰最久未用
+            victim = min(custom_slots, key=lambda m: m.get("last_used") or "")
+            # 归档到 history
+            history = user.setdefault("history", [])
+            history.append({
+                **victim,
+                "archived_at": _now_iso(),
+            })
+            # 限制历史长度，防止无限增长
+            if len(history) > 200:
+                history[:] = history[-200:]
+            # 在原位置替换
+            for i, m in enumerate(slots):
+                if m["id"] == victim["id"]:
+                    new_mood = {
+                        "id": f"custom_{uuid.uuid4().hex[:8]}",
+                        "emoji": emoji,
+                        "label": label,
+                        "value": value,
+                        "is_custom": True,
+                        "last_used": _now_iso(),
+                    }
+                    slots[i] = new_mood
+                    evicted = victim
+                    added = new_mood
+                    break
+        else:
+            # 3) 未满：填充到第一个空闲槽
+            for i, m in enumerate(slots):
+                if m.get("is_placeholder"):
+                    new_mood = {
+                        "id": f"custom_{uuid.uuid4().hex[:8]}",
+                        "emoji": emoji,
+                        "label": label,
+                        "value": value,
+                        "is_custom": True,
+                        "last_used": _now_iso(),
+                    }
+                    slots[i] = new_mood
+                    added = new_mood
+                    break
+            else:
+                # 兜底：append 后裁剪
+                new_mood = {
+                    "id": f"custom_{uuid.uuid4().hex[:8]}",
+                    "emoji": emoji,
+                    "label": label,
+                    "value": value,
+                    "is_custom": True,
+                    "last_used": _now_iso(),
+                }
+                slots.append(new_mood)
+                # 确保预设都在
+                preset_ids_in = {m["id"] for m in slots if not m.get("is_custom")}
+                for p in PRESET_MOODS:
+                    if p["id"] not in preset_ids_in:
+                        slots.insert(0, {**p, "is_custom": False, "last_used": _now_iso()})
+                slots = slots[:MAX_SLOTS]
+                added = new_mood
+
+        user["mood_slots"] = slots
+        self._normalize_slots(user)  # 确保只保留 8 个，写入前规整
+        self._persist_user(user)
+        return added, evicted, self.get_mood_slots(user_id)
+
+    # ---------- 槽位规整 ----------
+
+    def _normalize_slots(self, user: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        把用户的 mood_slots 规整成正好 8 个槽位：
+        - 确保 5 个预设齐全（缺失则补回）
+        - 已有自定义保留
+        - 不足 8 个时补占位符
+        - 多余的自定义裁掉最早的（写入 history）
+        """
+        slots = list(user.get("mood_slots") or [])
+        history = user.setdefault("history", [])
+
+        # 分离预设/自定义
+        preset_map: Dict[str, Dict[str, Any]] = {}
+        customs: List[Dict[str, Any]] = []
+        for m in slots:
+            mid = m.get("id")
+            if mid in PRESET_IDS:
+                preset_map[mid] = m
+            elif m.get("is_custom"):
+                customs.append(m)
+
+        # 1) 重建预设：保持 last_used
+        now = _now_iso()
+        new_slots: List[Dict[str, Any]] = []
+        for p in PRESET_MOODS:
+            existing = preset_map.get(p["id"])
+            if existing:
+                new_slots.append({**p, **existing, "is_custom": False})
+            else:
+                new_slots.append({**p, "is_custom": False, "last_used": now})
+
+        # 2) 补足预设丢失的槽位（如果历史被裁掉）
+        #    这里只处理预设 5 个齐全的情况
+
+        # 3) 处理自定义：按 last_used 降序（最新的在前），淘汰最旧的
+        customs.sort(key=lambda m: m.get("last_used") or "", reverse=True)
+
+        if len(customs) > MAX_CUSTOM:
+            archived = customs[:len(customs) - MAX_CUSTOM]
+            for a in archived:
+                history.append({**a, "archived_at": now})
+            customs = customs[-MAX_CUSTOM:]
+
+        new_slots.extend(customs)
+
+        # 4) 占位符填充
+        while len(new_slots) < MAX_SLOTS:
+            new_slots.append({
+                "id": f"placeholder_{len(new_slots)}",
+                "emoji": "",
+                "label": "",
+                "value": 0,
+                "is_custom": False,
+                "is_placeholder": True,
+                "last_used": "",
+            })
+
+        # 5) 裁剪（保留前 8 个，预设 5 个 + 最近的 3 个自定义）
+        new_slots = new_slots[:MAX_SLOTS]
+
+        # 6) 写回
+        user["mood_slots"] = new_slots
+        return new_slots
+
+
 # 全局单例
-_diary_instance: Optional[Diary] = None
+_diary_instance: Optional["Diary"] = None
+_mood_store_instance: Optional[MoodStore] = None
 
 
-def get_diary() -> Diary:
+def get_mood_store() -> MoodStore:
+    global _mood_store_instance
+    if _mood_store_instance is None:
+        _mood_store_instance = MoodStore()
+    return _mood_store_instance
+
+
+def get_diary() -> "Diary":
     """获取日记实例"""
     global _diary_instance
     if _diary_instance is None:

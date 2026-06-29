@@ -1,17 +1,33 @@
 """
 StudyPal 日记路由 v5
-处理日记 CRUD、标签、图片上传等 API
+处理日记 CRUD、标签、图片上传、心情 LRU 等 API
 """
 
 import logging
 import os
 import base64
 import uuid
-from flask import Blueprint, jsonify, request
-from src.diary.diary import get_diary, DiaryEntry
+from flask import Blueprint, jsonify, request, g
+from src.diary.diary import get_diary, DiaryEntry, get_mood_store
 
 logger = logging.getLogger(__name__)
 diary_bp = Blueprint('diary', __name__, url_prefix='/api/diary')
+
+
+def _resolve_user_id() -> str:
+    """
+    解析用户 id。
+    当前项目数据层不依赖鉴权 token，默认为 'default'，
+    避免影响旧日记数据。前端可以按需替换。
+    """
+    try:
+        from flask import request as _req
+        uid = _req.headers.get('X-User-Id', '').strip()
+        if uid:
+            return uid
+    except Exception:
+        pass
+    return "default"
 
 
 # ==================== 读取 ====================
@@ -87,6 +103,85 @@ def get_emotion_curve():
     return jsonify({'success': True, 'curve': curve})
 
 
+# ==================== 心情 LRU ====================
+
+@diary_bp.route('/moods', methods=['GET'])
+def list_mood_slots():
+    """
+    获取当前用户的 8 个心情槽位
+    返回按 last_used 降序
+    """
+    store = get_mood_store()
+    user_id = _resolve_user_id()
+    slots = store.get_mood_slots(user_id)
+    return jsonify({
+        'success': True,
+        'mood_slots': slots,
+        'preset_ids': [m['id'] for m in slots if not m.get('is_custom')],
+    })
+
+
+@diary_bp.route('/moods/touch', methods=['POST'])
+def touch_mood_slot():
+    """
+    选择某个心情（更新 last_used）
+    Body: { "mood_id": "preset_happy" } 或 { "value": 5 }
+    """
+    store = get_mood_store()
+    user_id = _resolve_user_id()
+    data = request.json or {}
+    mood_id = (data.get('mood_id') or '').strip()
+    value = data.get('value')
+
+    mood = None
+    if mood_id:
+        mood = store.touch_mood(user_id, mood_id)
+    elif value is not None:
+        # 兼容老逻辑：按情绪等级找心情
+        m = store.get_mood_by_value(user_id, value)
+        if m:
+            mood = store.touch_mood(user_id, m['id'])
+
+    if not mood:
+        return jsonify({'success': False, 'error': '心情不存在'}), 404
+
+    return jsonify({
+        'success': True,
+        'mood': mood,
+        'mood_slots': store.get_mood_slots(user_id),
+    })
+
+
+@diary_bp.route('/moods/custom', methods=['POST'])
+def add_custom_mood():
+    """
+    添加自定义心情（带 LRU 淘汰）
+    Body: { "emoji": "🤫", "label": "闭嘴", "value": 6 }
+    """
+    store = get_mood_store()
+    user_id = _resolve_user_id()
+    data = request.json or {}
+
+    emoji = (data.get('emoji') or '').strip()
+    label = (data.get('label') or '').strip()
+    value = data.get('value', 5)
+
+    added, evicted, slots = store.add_custom_mood(user_id, emoji, label, value)
+
+    if added is None:
+        return jsonify({
+            'success': False,
+            'error': '参数无效：emoji 必须是合法表情，label 1-4 字，value 1-10',
+        }), 400
+
+    return jsonify({
+        'success': True,
+        'mood': added,
+        'evicted': evicted,           # 被淘汰的旧心情（前端用于 toast）
+        'mood_slots': slots,
+    })
+
+
 @diary_bp.route('/tags', methods=['GET'])
 def get_tags():
     """获取标签列表"""
@@ -116,6 +211,21 @@ def save_diary():
     images = data.get('images', [])
     tags = data.get('tags', [])
     weather = data.get('weather', '')
+
+    # 联动心情 LRU：按情绪等级 touch 对应心情的 last_used
+    try:
+        mood_store = get_mood_store()
+        user_id = _resolve_user_id()
+        # 优先用 mood_id（如果前端传了），否则按 level 找
+        mood_id = (data.get('mood_id') or '').strip()
+        if mood_id:
+            mood_store.touch_mood(user_id, mood_id)
+        else:
+            m = mood_store.get_mood_by_value(user_id, emotion_level)
+            if m:
+                mood_store.touch_mood(user_id, m['id'])
+    except Exception as e:
+        logger.warning(f"[diary] 联动心情 LRU 失败: {e}")
     
     # 检查今日是否已有日记
     existing = diary.get_today()

@@ -270,7 +270,7 @@
             'buddy':    renderBuddyView,
             'goal':     renderGoalView,
             'tasks':    renderTasksView,
-            'diary':    renderDiaryView,
+            'diary':    () => { window.DiaryView?.init?.(); window.DiarySidebar?.renderWeekMood?.(); window.DiarySidebar?.renderMonthlyStats?.(); },
             'settings': renderSettingsView,
         };
         const fn = renderMap[page];
@@ -301,6 +301,7 @@
         taskFilter: 'all',
         showDiaryList: false,
     };
+    window.dashboardState = State;
 
     // ==================== 数据加载 ====================
     async function loadAll() {
@@ -382,6 +383,10 @@
             if (today && today.success) {
                 State.todayDiary = today.entry || null;
             }
+            if (window.DiarySidebar) {
+                DiarySidebar.renderWeekMood();
+                DiarySidebar.renderMonthlyStats();
+            }
         } catch (e) { /* silent */ }
     }
 
@@ -399,10 +404,11 @@
         renderDashboard();
         renderPomodoroView();
         renderTasksView();
-        renderDiaryView();
         renderBuddyView();
         renderStatsView();
         renderGoalView();
+        window.DiaryView?.init?.();
+        window.DiarySidebar?.renderAll?.();
     }
 
     // ==================== 仪表盘 ====================
@@ -742,134 +748,19 @@
     }
 
     // ==================== 日记页 ====================
-    function renderDiaryView() {
-        // 加载今日日记
-        if (State.todayDiary) {
-            const t = State.todayDiary;
-            const titleEl = document.getElementById('diary-title');
-            const contentEl = document.getElementById('diary-content');
-            if (titleEl && !titleEl.value) titleEl.value = t.title || '';
-            if (contentEl && !contentEl.value) contentEl.value = t.content || '';
-            if (t.emotion_level) {
-                State.moodLevel = t.emotion_level;
-                document.querySelectorAll('.mood-btn').forEach(b => {
-                    b.classList.toggle('selected', parseInt(b.getAttribute('data-level')) === t.emotion_level);
-                });
-            }
-            if (Array.isArray(t.tags)) {
-                State.selectedTags = t.tags;
-                document.querySelectorAll('.tag-btn').forEach(b => {
-                    b.classList.toggle('selected', State.selectedTags.includes(b.textContent));
-                });
-            }
-        }
-        updateWordCount();
+    /* ==================== 日记页 ====================
+     * SPA 版日记功能已由 static/js/pages/diary.js 提供。
+     * dashboard.js 只负责:
+     *   1. 在页面路由表中把 'diary' 指向 window.DiaryView?.init
+     *   2. 维护 State.diaryEntries / todayDiary / moodLevel / selectedTags
+     *   3. 调用 DiarySidebar 渲染右栏 5 个区块
+     * 原 750-1058 的旧日记编辑器逻辑（约 300 行）已抽离。
+     */
 
-        // 右栏本月统计
-        const thisMonth = State.diaryEntries.filter(e => {
-            const d = new Date(e.date);
-            const now = new Date();
-            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        });
-        const totalWords = thisMonth.reduce((a, e) => a + (e.content?.length || 0), 0);
-        const avg = thisMonth.length > 0 ? Math.round(totalWords / thisMonth.length) : 0;
-        setText('diary-rs-days', thisMonth.length);
-        setText('diary-rs-words', totalWords);
-        setText('diary-rs-avg', avg);
-
-        // 历史日记
-        const histEl = document.getElementById('diary-history-list');
-        if (histEl) {
-            if (State.diaryEntries.length === 0) {
-                histEl.innerHTML = '<div class="timeline-empty">还没有日记</div>';
-            } else {
-                histEl.innerHTML = State.diaryEntries.slice(0, 20).map(e => {
-                    const emoji = e.emotion_emoji || '😐';
-                    return `
-                        <div class="diary-history-item" data-entry-id="${e.id}">
-                            <div class="diary-history-row">
-                                <span class="diary-history-emoji">${emoji}</span>
-                                <div>
-                                    <div class="diary-history-title">${escapeHtml(e.title || '无标题')}</div>
-                                    <div class="diary-history-date">${e.date || ''}</div>
-                                </div>
-                            </div>
-                            <div class="diary-history-content">${escapeHtml((e.content || '').slice(0, 100))}</div>
-                        </div>
-                    `;
-                }).join('');
-                histEl.querySelectorAll('.diary-history-item').forEach(it => {
-                    it.addEventListener('click', () => loadDiaryIntoEditor(it.getAttribute('data-entry-id')));
-                });
-            }
-        }
-    }
-
-    function loadDiaryIntoEditor(entryId) {
-        const e = State.diaryEntries.find(x => x.id === entryId);
-        if (!e) return;
-        document.getElementById('diary-title').value = e.title || '';
-        document.getElementById('diary-content').value = e.content || '';
-        if (e.emotion_level) {
-            State.moodLevel = e.emotion_level;
-            document.querySelectorAll('.mood-btn').forEach(b => {
-                b.classList.toggle('selected', parseInt(b.getAttribute('data-level')) === e.emotion_level);
-            });
-        }
-        if (Array.isArray(e.tags)) {
-            State.selectedTags = e.tags;
-            document.querySelectorAll('.tag-btn').forEach(b => {
-                b.classList.toggle('selected', State.selectedTags.includes(b.textContent));
-            });
-        }
-        toggleDiaryList(false);
-        updateWordCount();
-    }
-
-    function toggleDiaryList(force) {
-        State.showDiaryList = force !== undefined ? force : !State.showDiaryList;
-        const editor = document.getElementById('diary-editor');
-        const history = document.getElementById('diary-history');
-        if (State.showDiaryList) {
-            editor.classList.add('hidden');
-            history.classList.remove('hidden');
-        } else {
-            editor.classList.remove('hidden');
-            history.classList.add('hidden');
-        }
-    }
-
-    function updateWordCount() {
-        const content = document.getElementById('diary-content')?.value || '';
-        setText('diary-word-count', content.length);
-    }
-
-    async function saveDiary() {
-        const title = document.getElementById('diary-title')?.value || '';
-        const content = document.getElementById('diary-content')?.value || '';
-        if (!content.trim()) {
-            alert('请输入日记内容');
-            return;
-        }
-        const saveLabel = document.getElementById('diary-save-label');
-        const oldText = saveLabel?.textContent;
-        if (saveLabel) saveLabel.textContent = '保存中...';
-        try {
-            await API.saveDiary({
-                title: title.trim() || `日记 - ${new Date().toLocaleDateString()}`,
-                content: content.trim(),
-                emotion_level: State.moodLevel,
-                tags: State.selectedTags,
-            });
-            if (saveLabel) saveLabel.textContent = '已保存 ✓';
-            setTimeout(() => { if (saveLabel) saveLabel.textContent = oldText || '保存日记'; }, 2000);
-            await loadDiary();
-            renderDiaryView();
-        } catch (err) {
-            console.error('保存失败:', err);
-            if (saveLabel) saveLabel.textContent = '保存失败';
-            setTimeout(() => { if (saveLabel) saveLabel.textContent = oldText || '保存日记'; }, 2000);
-        }
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
     }
 
     // ==================== 搭子页 ====================
@@ -971,7 +862,7 @@
                 id: p.id,
                 name: p.name,
                 emoji: p.emoji || '🤖',
-                avatar_url: p.avatarUrl || '',
+                avatar_url: getPersonaAvatarUrl(p),
                 personality: p.description || '',
                 greeting: p.name + ' 已就位~',
                 isCustom: true,
@@ -1037,7 +928,7 @@
                     role_key: roleKey,
                     name: p?.name || roleKey,
                     emoji: p?.emoji || '🤖',
-                    avatarUrl: p?.avatarUrl || '',
+                    avatarUrl: getPersonaAvatarUrl(p),
                     trait: p?.description || '',
                 };
                 data = {
@@ -1063,11 +954,39 @@
             }
 
             if (data.success) {
-                // 刷新搭子列表高亮
+                // ===== 角色上下文隔离 =====
+                // 1. 清空本地 State 里的历史
+                State.chatHistory = [];
+                State.gameFlowActive = false;
+                State.lastKnowledgeQuestion = null;
+
+                // 2. 替换会话 ID（后端已经创建/切换到隔离后的新对话）
+                if (data.conversation_id) {
+                    State.conversationId = data.conversation_id;
+                }
+
+                // 3. 用后端返回的新 messages 渲染聊天窗口（含开场白）
+                const convBuddy = {
+                    buddy_role_key: data.role_key || roleKey,
+                    buddy_name: data.name,
+                    buddy_emoji: data.emoji,
+                    buddy_avatar_url: data.avatar_url || '',
+                };
+                // 把后端 messages 渲染进去；如果没有 messages 则显示欢迎语
+                if (Array.isArray(data.messages) && data.messages.length > 0) {
+                    renderConversationMessages(data.messages, convBuddy);
+                } else {
+                    renderConversationMessages([], convBuddy);
+                }
+
+                // 4. 同步显示"正在召唤 XXX..." 的过渡
+                showSwitchingOverlay(data.name || roleKey);
+
+                // 5. 刷新搭子列表高亮
                 renderBuddySwitchList();
-                // 刷新搭子信息展示
+                // 6. 刷新搭子信息展示
                 renderBuddyView();
-                // 刷新右栏搭子卡片（头像 + 昵称）
+                // 7. 刷新右栏搭子卡片（头像 + 昵称）
                 const rsAvatar = document.getElementById('rs-buddy-avatar');
                 const rsName = document.getElementById('rs-buddy-name');
                 const rsMsg = document.getElementById('rs-buddy-msg');
@@ -1081,6 +1000,10 @@
                 }
                 if (rsName) rsName.textContent = newName;
                 if (rsMsg) rsMsg.textContent = data.greeting || '今天也要加油哦~';
+
+                // 8. 关闭角色选择弹窗
+                const modal = document.getElementById('buddy-role-modal');
+                if (modal) modal.classList.add('hidden');
             } else {
                 alert(data.error || '切换失败');
                 renderBuddySwitchList();
@@ -1348,6 +1271,49 @@
                 <div class="chat-avatar">${escapeHtml(emoji)}</div>
                 <div class="chat-content">嗨！我是${escapeHtml(b.name || '你的学习搭子')}，今天有什么想聊的？</div>
             </div>`;
+    }
+
+    /**
+     * 切换角色时显示短暂的"召唤"提示（视觉过渡，强化认知）
+     */
+    function showSwitchingOverlay(roleName) {
+        const chatWrap = document.getElementById('chat-messages');
+        if (!chatWrap) return;
+        // 在最上方插入一个简短提示
+        const tip = document.createElement('div');
+        tip.className = 'chat-switch-tip';
+        tip.innerHTML = `<span class="chat-switch-dot"></span>正在召唤 ${escapeHtml(roleName)}…`;
+        chatWrap.insertBefore(tip, chatWrap.firstChild);
+        // 1.2 秒后淡出移除
+        setTimeout(() => {
+            tip.classList.add('fading');
+            setTimeout(() => tip.remove(), 400);
+        }, 1200);
+    }
+
+    /**
+     * 角色一致性失败时给用户提示（"搭子走神了"）
+     * 当前端拿到 role_consistency.valid === false 时调用
+     */
+    function showRoleInconsistencyHint(roleKey, reason) {
+        const tip = document.createElement('div');
+        tip.className = 'chat-consistency-tip';
+        tip.innerHTML = `<span class="chat-consistency-icon">⚠️</span><span>搭子好像走神了，已经自动校准回来～</span>`;
+        const wrap = document.getElementById('chat-messages');
+        if (wrap) {
+            wrap.appendChild(tip);
+            wrap.scrollTop = wrap.scrollHeight;
+        } else {
+            document.body.appendChild(tip);
+        }
+        setTimeout(() => {
+            tip.classList.add('fading');
+            setTimeout(() => tip.remove(), 400);
+        }, 3000);
+        // 仅做用户提示，不再在控制台暴露原因
+        if (window.console && console.debug) {
+            console.debug('[role_consistency] reason:', reason, 'role:', roleKey);
+        }
     }
 
     function renderConversationMessages(messages, convBuddy) {
@@ -1750,6 +1716,14 @@
                         } else {
                             loadBuddy().then(() => renderBuddyView());
                         }
+
+                        // 处理角色一致性失败提示
+                        if (res.role_consistency && res.role_consistency.valid === false) {
+                            showRoleInconsistencyHint(
+                                res.role_consistency.role_key,
+                                res.role_consistency.reason
+                            );
+                        }
                     } else if (loadingBubble) {
                         loadingBubble.updateContent(res?.error || '抱歉，我遇到了一些问题。');
                     }
@@ -1774,7 +1748,11 @@
 
     // 根据自定义搭子更新页面搭子显示（名字/emoji/trait）
     function updateBuddyDisplay(persona) {
-        applyBuddyDisplay(persona);
+        applyBuddyDisplay({
+            ...persona,
+            avatarUrl: getPersonaAvatarUrl(persona),
+            avatar_url: getPersonaAvatarUrl(persona),
+        });
     }
 
     // 切换搭子时重置对话历史
@@ -1994,9 +1972,119 @@
 
     // 数据层
     const PERSONA_STORAGE_KEY = 'ai_personas';
+    const DEFAULT_PERSONA_AVATAR = '/static/avatars/default_persona.svg';
+
+    const PRESET_AVATARS = [
+        { id: 'cute_pink', url: '/static/avatars/preset_cute1.svg', name: '可爱粉' },
+        { id: 'tech_blue', url: '/static/avatars/preset_tech1.svg', name: '科技蓝' },
+        { id: 'warm_yellow', url: '/static/avatars/preset_warm1.svg', name: '温暖黄' },
+        { id: 'mystery_purple', url: '/static/avatars/preset_mystery1.svg', name: '神秘紫' },
+        { id: 'nature_green', url: '/static/avatars/preset_nature1.svg', name: '自然绿' },
+        { id: 'study_brown', url: '/static/avatars/preset_study1.svg', name: '学者棕' },
+        { id: 'fire_red', url: '/static/avatars/preset_fire1.svg', name: '火焰红' },
+        { id: 'ocean_cyan', url: '/static/avatars/preset_ocean1.svg', name: '海洋青' },
+        { id: 'dream_indigo', url: '/static/avatars/preset_dream1.svg', name: '梦幻靛' },
+        { id: 'sun_orange', url: '/static/avatars/preset_sun1.svg', name: '阳光橙' },
+        { id: 'moon_silver', url: '/static/avatars/preset_moon1.svg', name: '月光银' },
+        { id: 'star_gold', url: '/static/avatars/preset_star1.svg', name: '星辰金' },
+    ];
+
+    const PERSONA_TEMPLATES = {
+        gentle: `你是一位温柔耐心的学习伙伴，像学姐一样陪伴用户。
+- 语气：温和、鼓励，常说"没关系，慢慢来"、"你已经很棒了"
+- 风格：用生活化的比喻解释复杂概念，不急躁
+- 习惯：在用户疲惫时提醒休息，在用户进步时真诚表扬`,
+        energetic: `你是一位热血满满的学习教练，充满激情和动力。
+- 语气：高能量、直接，常用"冲！"、"加油！你可以的！"、"别放弃！"
+- 风格：把学习比作战斗/比赛，设定目标、挑战、积分
+- 习惯：督促用户行动，庆祝每一个小胜利`,
+        humorous: `你是一位幽默风趣的学习伙伴，擅长用段子和梗让学习不枯燥。
+- 语气：轻松、调侃，偶尔自嘲，常说"这题有点皮"、"知识点它不讲武德"
+- 风格：用网络热梗、搞笑比喻解释知识
+- 习惯：在用户犯困时讲个冷笑话提神`,
+        ancient: `你是一位古风雅士，用古典诗词般的语言讲解知识。
+- 语气：文雅、含蓄，常用"且听我一言"、"此乃..."
+- 风格：引用古诗词、历史典故，把知识点包装成江湖故事
+- 习惯：以"侠士求学"的叙事框架引导学习`,
+        strict: `你是一位严格但高效的学习导师，对知识点要求精准。
+- 语气：直接、犀利，指出错误不留情面，常说"这不对"、"想清楚再答"
+- 风格：逻辑严密，层层推进，不允许模糊概念
+- 习惯：追问到底，直到用户真正理解`,
+        analyst: `你是一位冷静理性的知识分析师，用数据和逻辑拆解问题。
+- 语气：客观、平实，常用"从数据看"、"逻辑上"
+- 风格：结构化输出，分点论述，图表化思维
+- 习惯：先给框架再填细节，强调知识体系的完整性`,
+    };
+
+    function getPersonaAvatarUrl(persona) {
+        if (!persona) return DEFAULT_PERSONA_AVATAR;
+        if (persona.avatarType === 'upload' && persona.avatarValue) return persona.avatarValue;
+        if (persona.avatarType === 'preset' && persona.avatarValue) return persona.avatarValue;
+        if (persona.avatarUrl) return persona.avatarUrl;
+        if (persona.avatarValue) return persona.avatarValue;
+        return DEFAULT_PERSONA_AVATAR;
+    }
+
+    function normalizePersona(p) {
+        if (!p) return p;
+        const copy = { ...p };
+        if (!copy.avatarType || !copy.avatarValue) {
+            if (copy.avatarUrl) {
+                copy.avatarType = copy.avatarUrl.startsWith('data:') ? 'upload' : 'preset';
+                copy.avatarValue = copy.avatarUrl;
+            } else {
+                copy.avatarType = 'preset';
+                copy.avatarValue = DEFAULT_PERSONA_AVATAR;
+            }
+        }
+        copy.avatarUrl = getPersonaAvatarUrl(copy);
+        return copy;
+    }
+
+    function cropImageToSquare(file, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const size = Math.min(img.width, img.height);
+                const offsetX = (img.width - size) / 2;
+                const offsetY = (img.height - size) / 2;
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = 400;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, 400, 400);
+                let quality = file.size > 2 * 1024 * 1024 ? 0.6 : 0.85;
+                let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                while (dataUrl.length > 2.8 * 1024 * 1024 && quality > 0.35) {
+                    quality -= 0.1;
+                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                }
+                callback(dataUrl);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function showPersonaToast(message) {
+        let toast = document.getElementById('persona-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'persona-toast';
+            toast.className = 'persona-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(showPersonaToast._timer);
+        showPersonaToast._timer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
 
     function getStoredPersonas() {
-        try { return JSON.parse(localStorage.getItem(PERSONA_STORAGE_KEY) || '[]'); }
+        try {
+            return JSON.parse(localStorage.getItem(PERSONA_STORAGE_KEY) || '[]').map(normalizePersona);
+        }
         catch { return []; }
     }
 
@@ -2065,6 +2153,8 @@
     let personaEditId = null; // null=创建，string=编辑
     let personaView = 'list'; // 'list' | 'form' | 'test'
     let personaTestHistory = []; // 当前测试对话历史
+    let personaFormAvatar = { type: 'preset', value: DEFAULT_PERSONA_AVATAR };
+    let personaPreviewLastQuestion = '';
 
     function openBuddyDesigner() {
         personaEditId = null;
@@ -2083,15 +2173,60 @@
         wrap.className = 'modal-overlay hidden';
         wrap.style.cssText = 'align-items:center;justify-content:center;z-index:2000;';
         wrap.innerHTML = `
-            <div class="modal-card" id="persona-modal-content" style="max-width:760px;width:95vw;max-height:88vh;display:flex;flex-direction:column;"></div>
+            <div class="modal-card persona-designer-modal" id="persona-modal-content"></div>
         `;
         document.body.appendChild(wrap);
         personaDesignerModal = wrap;
+        ensurePresetAvatarModal();
 
         wrap.addEventListener('click', e => {
             if (e.target === wrap) closeBuddyDesigner();
         });
         return wrap;
+    }
+
+    function ensurePresetAvatarModal() {
+        if (document.getElementById('preset-modal')) return;
+        const modal = document.createElement('div');
+        modal.id = 'preset-modal';
+        modal.className = 'preset-modal';
+        modal.style.display = 'none';
+        modal.innerHTML = `
+            <div class="preset-modal-content">
+                <div class="preset-header">
+                    <h4>选择预设头像</h4>
+                    <button type="button" class="btn-close" id="close-preset-modal" aria-label="关闭">&times;</button>
+                </div>
+                <div class="preset-grid" id="preset-grid"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+    }
+
+    function openPresetAvatarModal(onSelect) {
+        ensurePresetAvatarModal();
+        const modal = document.getElementById('preset-modal');
+        const grid = document.getElementById('preset-grid');
+        if (!modal || !grid) return;
+        grid.innerHTML = PRESET_AVATARS.map(p => `
+            <button type="button" class="preset-item" data-url="${escapeHtml(p.url)}" title="${escapeHtml(p.name)}">
+                <img src="${escapeHtml(p.url)}" alt="${escapeHtml(p.name)}">
+                <span>${escapeHtml(p.name)}</span>
+            </button>
+        `).join('');
+        grid.querySelectorAll('.preset-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                onSelect(btn.dataset.url);
+                modal.style.display = 'none';
+            });
+        });
+        document.getElementById('close-preset-modal')?.addEventListener('click', () => {
+            modal.style.display = 'none';
+        }, { once: true });
+        modal.style.display = 'flex';
     }
 
     function closeBuddyDesigner() {
@@ -2114,6 +2249,8 @@
         const personas = getStoredPersonas();
         const activeModel = getActiveModel();
 
+        content.className = 'modal-card';
+        content.style.cssText = 'max-width:760px;width:95vw;max-height:88vh;display:flex;flex-direction:column;';
         content.innerHTML = `
             <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="margin:0;">学习搭子设计器</h3>
@@ -2161,9 +2298,8 @@
             if (isActive) {
                 card.style.boxShadow = '0 0 0 3px ' + 'var(--color-accent-glow)';
             }
-            const avatarContent = p.avatarUrl
-                ? '<img src="' + escapeHtml(p.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${p.color || '#6366f1'};color:#fff;font-size:18px;border-radius:50%;">${p.emoji || '🤖'}</div>`;
+            const avatarUrl = getPersonaAvatarUrl(p);
+            const avatarContent = '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
             const modelTagHtml = model
                 ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border-radius:4px;background:var(--color-accent-subtle);color:var(--color-accent-fg);margin-top:4px;">${escapeHtml(model.name)} · <span style="font-family:var(--font-mono);font-size:9px;">${escapeHtml(model.modelName)}</span></span>`
                 : `<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;background:var(--color-negative-bg);color:var(--color-negative);margin-top:4px;">未绑定模型</span>`;
@@ -2228,152 +2364,358 @@
         const isEdit = !!editData;
         const models = getStoredModels();
 
+        if (isEdit && editData) {
+            personaFormAvatar = {
+                type: editData.avatarType || 'preset',
+                value: editData.avatarValue || getPersonaAvatarUrl(editData),
+            };
+        } else {
+            personaFormAvatar = { type: 'preset', value: DEFAULT_PERSONA_AVATAR };
+        }
+        personaPreviewLastQuestion = '';
+
+        const initAvatar = getPersonaAvatarUrl({
+            avatarType: personaFormAvatar.type,
+            avatarValue: personaFormAvatar.value,
+        });
+
+        content.className = 'modal-card persona-designer-modal';
         content.innerHTML = `
-            <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
-                <h3 style="margin:0;">${isEdit ? '编辑学习搭子' : '新建学习搭子'}</h3>
-                <button class="modal-close" id="persona-close" aria-label="关闭">✕</button>
+            <div class="persona-form-header">
+                <h3>${isEdit ? '编辑学习搭子' : '新建学习搭子'}</h3>
+                <button type="button" class="modal-close" id="persona-close" aria-label="关闭">✕</button>
             </div>
-            <div class="modal-body" style="flex:1;overflow-y:auto;padding:16px;">
-                <div style="display:grid;gap:14px;">
-                    <div class="buddy-avatar-picker" id="buddy-avatar-picker">
-                        <div class="buddy-avatar-preview">
-                            <div class="buddy-avatar-preview-placeholder" id="avatar-preview-box">${isEdit && editData?.avatarUrl ? '<img src="' + escapeHtml(editData.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">' : (isEdit && editData?.emoji ? escapeHtml(editData.emoji) : '🤖')}</div>
-                            <div class="buddy-avatar-preview-text">
-                                <p>点击上传或选择预设头像</p>
-                                <div class="buddy-avatar-actions">
-                                    <button class="btn-avatar-upload" id="btn-upload-avatar">上传图片</button>
-                                    <button class="btn-avatar-preset" id="btn-show-presets">选择预设</button>
-                                </div>
-                            </div>
+            <div class="persona-form-body">
+                <div class="avatar-section">
+                    <div class="avatar-preview-wrapper" id="avatar-preview-wrapper">
+                        <div class="avatar-preview" id="avatar-preview">
+                            <img src="${escapeHtml(initAvatar)}" alt="头像" id="avatar-img">
                         </div>
-                        <div class="buddy-avatar-presets" id="buddy-presets">
-                            ${[1,2,3,4,5,6,7,8].map(n => '<div class="buddy-avatar-preset-item" data-preset="/static/avatars/preset' + n + '.svg"><img src="/static/avatars/preset' + n + '.svg" alt="预设' + n + '"></div>').join('')}
+                        <div class="avatar-overlay"><span>点击上传或拖拽图片</span></div>
+                    </div>
+                    <div class="avatar-actions-col">
+                        <div class="avatar-actions">
+                            <button type="button" class="btn btn-secondary" id="btn-upload-local"><span>📎</span> 本地上传</button>
+                            <button type="button" class="btn btn-secondary" id="btn-choose-preset"><span>🎨</span> 选择预设</button>
                         </div>
+                        <p class="avatar-hint">支持 JPG、PNG、WEBP，最大 2MB，建议 400×400</p>
                     </div>
-                    <input type="file" id="avatar-upload-input" accept="image/jpeg,image/png" class="buddy-avatar-upload-input">
-                    <div class="form-row">
-                        <label class="form-label">搭子名称 <span style="color:#ef4444;">*</span></label>
-                        <input type="text" class="form-input" id="pf-name" placeholder="如：我的学霸搭子" value="${isEdit ? escapeHtml(editData.name || '') : ''}">
+                    <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" hidden>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="pf-name">搭子名称 <span class="required">*</span></label>
+                    <input type="text" class="form-input" id="pf-name" maxlength="12" placeholder="如：小数学姐、编程教练" value="${isEdit ? escapeHtml(editData.name || '') : ''}">
+                    <div class="form-hint" id="pf-name-count">${(isEdit ? (editData.name || '').length : 0)}/12</div>
+                    <div class="form-error hidden" id="pf-name-error">请填写搭子名称（最多 12 字）</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="pf-desc">一句话描述（可选）</label>
+                    <input type="text" class="form-input" id="pf-desc" placeholder="如：温柔耐心的数学辅导学姐" value="${isEdit ? escapeHtml(editData.description || '') : ''}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="pf-model">AI 模型 <span class="required">*</span></label>
+                    <select class="form-select" id="pf-model">
+                        <option value="">请选择模型</option>
+                        ${models.map(m => `<option value="${m.id}" ${editData?.modelId === m.id ? 'selected' : ''}>${escapeHtml(m.name)} · ${escapeHtml(m.modelName)}</option>`).join('')}
+                    </select>
+                    <div class="form-error hidden" id="pf-model-error">请选择 AI 模型</div>
+                </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="pf-system-prompt">搭子人格 <span class="required">*</span></label>
+                        <textarea class="form-textarea" id="pf-system-prompt" placeholder="描述性格、语气、口头禅… 例如：你是温柔的学习伙伴，语气亲切，常用「呀」「呢」结尾。">${isEdit ? escapeHtml(editData.systemPrompt || '') : ''}</textarea>
+                        <div class="form-hint" id="pf-prompt-count">已输入 ${(isEdit ? (editData.systemPrompt || '').length : 0)} 字（至少 10 字）</div>
+                        <p class="form-hint">💡 提示：用“你必须…”、“每次回复要…”等强制语气，模型更容易遵循。例如：“你每次回复开头必须说‘加油！’，然后用鼓励的语气解释问题。”</p>
+                        <div class="form-error hidden" id="pf-prompt-error">人格描述至少 10 个字</div>
+                        <div class="template-section">
+                        <span class="template-label">快速模板：</span>
+                        <div class="template-tags">
+                            <button type="button" class="template-tag" data-template="gentle">温柔学姐</button>
+                            <button type="button" class="template-tag" data-template="energetic">热血教练</button>
+                            <button type="button" class="template-tag" data-template="humorous">冷幽默</button>
+                            <button type="button" class="template-tag" data-template="ancient">古风诗人</button>
+                            <button type="button" class="template-tag" data-template="strict">毒舌导师</button>
+                            <button type="button" class="template-tag" data-template="analyst">理性分析师</button>
+                        </div>
+                        <p class="template-hint">点击模板自动填充，可在此基础上修改</p>
                     </div>
-                    <div class="form-row">
-                        <label class="form-label">描述</label>
-                        <input type="text" class="form-input" id="pf-desc" placeholder="一句话介绍这个搭子的特点" value="${isEdit ? escapeHtml(editData.description || '') : ''}">
+                </div>
+
+                <div class="preview-section" id="preview-section">
+                    <div class="preview-header">
+                        <h4>💬 实时预览</h4>
+                        <button type="button" class="btn btn-sm btn-outline" id="btn-refresh-preview">刷新预览</button>
                     </div>
-                    <div class="form-row">
-                        <label class="form-label">绑定模型 <span style="color:#ef4444;">*</span></label>
-                        <select class="form-input" id="pf-model" style="cursor:pointer;">
-                            <option value="">— 选择模型 —</option>
-                            ${models.map(m => `<option value="${m.id}" ${editData?.modelId === m.id ? 'selected' : ''}>${escapeHtml(m.name)} · ${escapeHtml(m.modelName)}</option>`).join('')}
-                        </select>
+                    <div class="preview-chat" id="preview-chat">
+                        <div class="preview-empty">输入测试问题，看看搭子如何回复</div>
                     </div>
-                    <div class="form-row">
-                        <label class="form-label">人格设定（systemPrompt） <span style="color:#ef4444;">*</span></label>
-                        <textarea class="form-input" id="pf-system-prompt" rows="8" placeholder="定义这个搭子的性格、语气、回复风格。例如：
-你是我的学习搭子，性格温柔但有原则。
-- 语气亲切自然，像朋友聊天
-- 用'呀''呢''哦'结尾
-- 允许我偶尔偷懒，但会温柔督促
-- 回复不要太长，2-4句话就好" style="resize:vertical;font-size:12px;line-height:1.6;">${isEdit ? escapeHtml(editData.systemPrompt || '') : ''}</textarea>
-                        <div style="font-size:11px;color:var(--color-slate-400);margin-top:4px;">定义搭子的性格、语气和回复风格，会作为 systemPrompt 传入 AI</div>
+                    <div class="preview-input-row">
+                        <input type="text" id="preview-test-input" placeholder="输入测试问题..." maxlength="100">
+                        <button type="button" id="btn-send-preview">发送</button>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="flex-shrink:0;padding:12px 16px;border-top:1px solid var(--color-slate-100);display:flex;justify-content:space-between;gap:8px;">
-                <button class="btn-ghost" id="pf-back-btn" style="color:var(--color-slate-500);">← 返回列表</button>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn-ghost" id="pf-test-btn" style="font-size:13px;">预览人格</button>
-                    <button class="btn-primary" id="pf-save-btn">保存搭子</button>
+
+            <div class="form-actions">
+                <button type="button" class="btn-icon" id="btn-back-to-list" title="返回列表" aria-label="返回列表">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                </button>
+                <div class="action-right">
+                    <button type="button" class="btn btn-outline" id="btn-preview-persona">预览效果</button>
+                    <button type="button" class="btn btn-primary" id="btn-save-persona" disabled>保存搭子</button>
                 </div>
             </div>
         `;
 
-        // 头像选择逻辑
-        let currentAvatarUrl = isEdit ? (editData?.avatarUrl || '') : '';
-        let currentAvatarEmoji = isEdit ? (editData?.emoji || '🤖') : '🤖';
+        const avatarImg = document.getElementById('avatar-img');
+        const nameInput = document.getElementById('pf-name');
+        const promptInput = document.getElementById('pf-system-prompt');
+        const modelSelect = document.getElementById('pf-model');
+        const saveBtn = document.getElementById('btn-save-persona');
 
-        function updateAvatarPreview(url, emoji) {
-            const box = document.getElementById('avatar-preview-box');
-            if (!box) return;
-            if (url) {
-                box.innerHTML = '<img src="' + escapeHtml(url) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+        function setAvatarPreview(src) {
+            if (avatarImg) avatarImg.src = src;
+        }
+
+        function handleAvatarFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            cropImageToSquare(file, (dataUrl) => {
+                personaFormAvatar = { type: 'upload', value: dataUrl };
+                setAvatarPreview(dataUrl);
+            });
+        }
+
+        function validatePersonaForm() {
+            const name = nameInput?.value.trim() || '';
+            const prompt = promptInput?.value.trim() || '';
+            const modelId = modelSelect?.value || '';
+            let valid = true;
+
+            const nameOk = name.length > 0 && name.length <= 12;
+            const promptOk = prompt.length >= 10;
+            const modelOk = !!modelId;
+
+            nameInput?.classList.toggle('error', !nameOk);
+            document.getElementById('pf-name-error')?.classList.toggle('hidden', nameOk);
+            promptInput?.classList.toggle('error', !promptOk);
+            document.getElementById('pf-prompt-error')?.classList.toggle('hidden', promptOk);
+            modelSelect?.classList.toggle('error', !modelOk);
+            document.getElementById('pf-model-error')?.classList.toggle('hidden', modelOk);
+
+            if (!nameOk || !promptOk || !modelOk) valid = false;
+            if (saveBtn) saveBtn.disabled = !valid;
+            return valid;
+        }
+
+        function updateCounters() {
+            const nameLen = (nameInput?.value || '').length;
+            const promptLen = (promptInput?.value || '').length;
+            const nameCount = document.getElementById('pf-name-count');
+            const promptCount = document.getElementById('pf-prompt-count');
+            if (nameCount) nameCount.textContent = nameLen + '/12';
+            if (promptCount) promptCount.textContent = '已输入 ' + promptLen + ' 字（至少 10 字）';
+            validatePersonaForm();
+        }
+
+        function getPreviewAvatarHtml() {
+            const url = getPersonaAvatarUrl({
+                avatarType: personaFormAvatar.type,
+                avatarValue: personaFormAvatar.value,
+            });
+            return '<img src="' + escapeHtml(url) + '" alt="" class="preview-avatar-img">';
+        }
+
+        function appendPreviewBubble(role, text) {
+            const chat = document.getElementById('preview-chat');
+            if (!chat) return;
+            chat.querySelector('.preview-empty')?.remove();
+            const row = document.createElement('div');
+            row.className = 'preview-msg preview-msg-' + role;
+            if (role === 'assistant') {
+                row.innerHTML = getPreviewAvatarHtml() + '<div class="preview-bubble">' + escapeHtml(text) + '</div>';
             } else {
-                box.textContent = emoji || '🤖';
+                row.innerHTML = '<div class="preview-bubble preview-bubble-user">' + escapeHtml(text) + '</div>';
+            }
+            chat.appendChild(row);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        async function sendPersonaPreview(testMsg, isRefresh) {
+            const msg = (testMsg || '').trim();
+            if (!msg) return;
+            if (!validatePersonaForm()) {
+                showPersonaToast('请先完善名称、模型和人格设定');
+                return;
+            }
+            const systemPrompt = promptInput.value.trim();
+            const model = getModelConfigById(modelSelect.value);
+            if (!model) return;
+
+            personaPreviewLastQuestion = msg;
+            if (!isRefresh) appendPreviewBubble('user', msg);
+
+            const chat = document.getElementById('preview-chat');
+            const loading = document.createElement('div');
+            loading.className = 'preview-msg preview-msg-assistant preview-loading';
+            loading.innerHTML = getPreviewAvatarHtml() + '<div class="preview-bubble">思考中...</div>';
+            chat?.appendChild(loading);
+            chat && (chat.scrollTop = chat.scrollHeight);
+
+            const sendBtn = document.getElementById('btn-send-preview');
+            const refreshBtn = document.getElementById('btn-refresh-preview');
+            if (sendBtn) sendBtn.disabled = true;
+            if (refreshBtn) refreshBtn.disabled = true;
+
+            try {
+                const res = await fetch('/api/persona/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        systemPrompt,
+                        modelConfig: {
+                            apiUrl: model.apiUrl,
+                            apiKey: model.apiKey,
+                            modelName: model.modelName,
+                        },
+                        messages: [{ role: 'user', content: msg }],
+                    }),
+                });
+                const data = await res.json();
+                loading.remove();
+                if (data?.success) {
+                    appendPreviewBubble('assistant', data.reply || '...');
+                } else {
+                    appendPreviewBubble('assistant', '预览失败：' + (data?.error || '未知错误'));
+                }
+            } catch (e) {
+                loading.remove();
+                appendPreviewBubble('assistant', '网络异常，请稍后重试');
+            } finally {
+                if (sendBtn) sendBtn.disabled = false;
+                if (refreshBtn) refreshBtn.disabled = false;
             }
         }
 
-        document.getElementById('btn-show-presets')?.addEventListener('click', function() {
-            const presets = document.getElementById('buddy-presets');
-            presets?.classList.toggle('show');
+        document.getElementById('avatar-preview-wrapper')?.addEventListener('click', () => {
+            document.getElementById('avatar-file-input')?.click();
+        });
+        document.getElementById('btn-upload-local')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('avatar-file-input')?.click();
+        });
+        document.getElementById('avatar-file-input')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) handleAvatarFile(file);
+            e.target.value = '';
         });
 
-        document.getElementById('buddy-presets')?.querySelectorAll('.buddy-avatar-preset-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const url = this.dataset.preset;
-                currentAvatarUrl = url;
-                currentAvatarEmoji = '';
-                updateAvatarPreview(url, '');
-                document.querySelectorAll('.buddy-avatar-preset-item').forEach(p => p.classList.remove('selected'));
-                this.classList.add('selected');
+        const wrapper = document.getElementById('avatar-preview-wrapper');
+        wrapper?.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            wrapper.classList.add('drag-over');
+        });
+        wrapper?.addEventListener('dragleave', () => wrapper.classList.remove('drag-over'));
+        wrapper?.addEventListener('drop', (e) => {
+            e.preventDefault();
+            wrapper.classList.remove('drag-over');
+            const file = e.dataTransfer?.files?.[0];
+            if (file) handleAvatarFile(file);
+        });
+
+        document.getElementById('btn-choose-preset')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openPresetAvatarModal((url) => {
+                personaFormAvatar = { type: 'preset', value: url };
+                setAvatarPreview(url);
             });
         });
 
-        document.getElementById('btn-upload-avatar')?.addEventListener('click', function() {
-            document.getElementById('avatar-upload-input')?.click();
+        document.querySelectorAll('.template-tag').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.template;
+                const tpl = PERSONA_TEMPLATES[key];
+                if (!tpl || !promptInput) return;
+                const cur = promptInput.value.trim();
+                if (cur) {
+                    promptInput.value = cur + '\n\n' + tpl;
+                } else {
+                    promptInput.value = tpl;
+                }
+                promptInput.focus();
+                promptInput.setSelectionRange(promptInput.value.length, promptInput.value.length);
+                updateCounters();
+            });
         });
 
-        document.getElementById('avatar-upload-input')?.addEventListener('change', async function(e) {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            if (file.size > 2 * 1024 * 1024) { alert('图片大小不能超过 2MB'); return; }
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                const dataUrl = ev.target.result;
-                currentAvatarUrl = dataUrl; // 本地预览用 data URL
-                currentAvatarEmoji = '';
-                updateAvatarPreview(dataUrl, '');
-                document.querySelectorAll('.buddy-avatar-preset-item').forEach(p => p.classList.remove('selected'));
-            };
-            reader.readAsDataURL(file);
+        nameInput?.addEventListener('input', updateCounters);
+        promptInput?.addEventListener('input', updateCounters);
+        modelSelect?.addEventListener('change', updateCounters);
+
+        document.getElementById('btn-send-preview')?.addEventListener('click', () => {
+            sendPersonaPreview(document.getElementById('preview-test-input')?.value, false);
+            const input = document.getElementById('preview-test-input');
+            if (input) input.value = '';
         });
-
-        document.getElementById('avatar-preview-box')?.addEventListener('click', function() {
-            document.getElementById('avatar-upload-input')?.click();
-        });
-
-        document.getElementById('persona-close').addEventListener('click', closeBuddyDesigner);
-        document.getElementById('pf-back-btn').addEventListener('click', () => { personaView = 'list'; renderPersonaView(); });
-        document.getElementById('pf-test-btn').addEventListener('click', () => {
-            const name = document.getElementById('pf-name')?.value.trim();
-            const systemPrompt = document.getElementById('pf-system-prompt')?.value.trim();
-            const emoji = currentAvatarEmoji || '🤖';
-            const modelId = document.getElementById('pf-model')?.value;
-            if (!systemPrompt) { alert('请先填写人格设定'); return; }
-            personaTestHistory = [];
-            personaTestPersona = { name: name || '未命名搭子', emoji, avatarUrl: currentAvatarUrl, systemPrompt, modelId, id: personaEditId || '__preview__' };
-            personaView = 'test';
-            personaTestHistory = [{ role: 'assistant', content: '你好！我是' + (name || '这个搭子') + '～' }];
-            renderPersonaView();
-        });
-        document.getElementById('pf-save-btn').addEventListener('click', () => {
-            const name = document.getElementById('pf-name')?.value.trim();
-            const description = document.getElementById('pf-desc')?.value.trim();
-            const modelId = document.getElementById('pf-model')?.value;
-            const systemPrompt = document.getElementById('pf-system-prompt')?.value.trim();
-            const emoji = currentAvatarEmoji || '';
-            const avatarUrl = currentAvatarUrl;
-
-            if (!name) { alert('请填写搭子名称'); return; }
-            if (!modelId) { alert('请选择绑定模型'); return; }
-            if (!systemPrompt) { alert('请填写人格设定'); return; }
-
-            if (isEdit) {
-                updatePersona(personaEditId, { name, emoji, avatarUrl, description, modelId, systemPrompt });
-            } else {
-                addPersona({ name, emoji, avatarUrl, description, modelId, systemPrompt });
+        document.getElementById('preview-test-input')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('btn-send-preview')?.click();
             }
+        });
+        document.getElementById('btn-refresh-preview')?.addEventListener('click', () => {
+            if (personaPreviewLastQuestion) {
+                sendPersonaPreview(personaPreviewLastQuestion, true);
+            } else {
+                showPersonaToast('请先发送一条测试问题');
+            }
+        });
+        document.getElementById('btn-preview-persona')?.addEventListener('click', () => {
+            document.getElementById('preview-section')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+
+        document.getElementById('persona-close')?.addEventListener('click', closeBuddyDesigner);
+        document.getElementById('btn-back-to-list')?.addEventListener('click', () => {
             personaView = 'list';
             renderPersonaView();
         });
+
+        saveBtn?.addEventListener('click', async () => {
+            if (!validatePersonaForm()) return;
+            const name = nameInput.value.trim();
+            const description = document.getElementById('pf-desc')?.value.trim() || '';
+            const modelId = modelSelect.value;
+            const systemPrompt = promptInput.value.trim();
+            const payload = {
+                name,
+                description,
+                modelId,
+                systemPrompt,
+                avatarType: personaFormAvatar.type,
+                avatarValue: personaFormAvatar.value,
+                avatarUrl: personaFormAvatar.value,
+            };
+
+            saveBtn.disabled = true;
+            saveBtn.textContent = '保存中...';
+            try {
+                if (isEdit) {
+                    updatePersona(personaEditId, payload);
+                } else {
+                    const created = { ...payload, createdAt: Date.now() };
+                    addPersona(created);
+                }
+                showPersonaToast('搭子已保存');
+                personaView = 'list';
+                renderPersonaView();
+            } finally {
+                saveBtn.textContent = '保存搭子';
+            }
+        });
+
+        updateCounters();
     }
 
     // 测试/对话视图
@@ -2388,9 +2730,8 @@
         const model = getModelConfigById(persona.modelId);
         const modelName = model ? model.name + ' · ' + model.modelName : '<span style="color:#ef4444;">未绑定模型</span>';
 
-        const avatarHtml = persona.avatarUrl
-            ? '<img src="' + escapeHtml(persona.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${persona.color || '#6366f1'};color:#fff;font-size:14px;border-radius:50%;">${persona.emoji || '🤖'}</div>`;
+        const previewAvatarUrl = getPersonaAvatarUrl(persona);
+        const avatarHtml = '<img src="' + escapeHtml(previewAvatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
         content.innerHTML = `
             <div class="modal-header" style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
@@ -2424,16 +2765,16 @@
         function appendMsg(role, content) {
             const div = document.createElement('div');
             div.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-            const avatarColor = persona.color || '#6366f1';
-            const avatarEmoji = persona.emoji || '🤖';
-            const avatarUrl = persona.avatarUrl || '';
-            const avatarHtml = avatarUrl
-                ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${avatarColor};color:#fff;font-size:14px;border-radius:50%;">${avatarEmoji}</div>`;
-            div.innerHTML = `
-                <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${role === 'user' ? 'var(--color-indigo-100)' : avatarColor};">${role === 'user' ? '👤' : avatarHtml}</div>
-                <div style="flex:1;background:${role === 'user' ? 'var(--color-indigo-50)' : 'var(--color-slate-50)'};border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.6;color:var(--color-slate-700);white-space:pre-wrap;word-break:break-all;border:1px solid ${role === 'user' ? 'var(--color-indigo-200)' : 'var(--color-slate-200)'};">${escapeHtml(content)}</div>
-            `;
+            const avatarUrl = getPersonaAvatarUrl(persona);
+            const avatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+            const bubbleStyle = role === 'user'
+                ? 'background:#1a1a1a;color:white;border-radius:16px 16px 4px 16px;'
+                : 'background:#f5f5f5;color:#333;border-radius:16px 16px 16px 4px;';
+            if (role === 'user') {
+                div.innerHTML = '<div style="margin-left:auto;width:fit-content;max-width:70%;' + bubbleStyle + 'padding:8px 12px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(content) + '</div><div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--color-indigo-100);">👤</div>';
+            } else {
+                div.innerHTML = '<div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--color-slate-100);">' + avatarHtml + '</div><div style="flex:1;max-width:80%;' + bubbleStyle + 'padding:8px 12px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">' + escapeHtml(content) + '</div>';
+            }
             msgWrap.appendChild(div);
             msgWrap.scrollTop = msgWrap.scrollHeight;
         }
@@ -2453,16 +2794,12 @@
             sendBtn.textContent = '思考中...';
 
             // 临时 thinking 气泡
-            const avatarColor = persona.color || '#6366f1';
-            const avatarEmoji = persona.emoji || '🤖';
-            const avatarUrl = persona.avatarUrl || '';
+            const avatarUrl = getPersonaAvatarUrl(persona);
+            const thinkingAvatarHtml = '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
             const thinkingDiv = document.createElement('div');
             thinkingDiv.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-            const thinkingAvatarHtml = avatarUrl
-                ? '<img src="' + escapeHtml(avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${avatarColor};color:#fff;font-size:14px;border-radius:50%;">${avatarEmoji}</div>`;
             thinkingDiv.innerHTML = `
-                <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:${avatarColor};">${thinkingAvatarHtml}</div>
+                <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--color-slate-100);">${thinkingAvatarHtml}</div>
                 <div style="flex:1;background:var(--color-slate-50);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--color-slate-400);">思考中...</div>
             `;
             msgWrap.appendChild(thinkingDiv);
@@ -2471,33 +2808,32 @@
             try {
                 if (!model) throw new Error('请先在表单中选择绑定模型');
 
-                // 构造 messages：systemPrompt + 对话历史
-                const messages = [{ role: 'system', content: persona.systemPrompt }];
+                const messages = [];
                 personaTestHistory.forEach(h => { if (h.role !== 'system') messages.push({ role: h.role, content: h.content }); });
-
-                const headers = { 'Content-Type': 'application/json' };
-                if (model.apiKey) headers['Authorization'] = 'Bearer ' + model.apiKey;
 
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), 30000);
-                const resp = await fetch(model.apiUrl, {
+                const resp = await fetch('/api/persona/chat', {
                     method: 'POST',
-                    headers,
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        model: model.modelName,
+                        systemPrompt: persona.systemPrompt || '',
+                        modelConfig: {
+                            apiUrl: model.apiUrl,
+                            apiKey: model.apiKey,
+                            modelName: model.modelName,
+                        },
                         messages,
-                        max_tokens: 300,
                     }),
                     signal: controller.signal,
                 });
                 clearTimeout(timer);
 
-                if (!resp.ok) {
-                    const errTxt = await resp.text();
-                    throw new Error('API 错误 ' + resp.status + ': ' + errTxt.slice(0, 100));
-                }
                 const data = await resp.json();
-                const reply = data?.choices?.[0]?.message?.content || '（未获取到回复内容）';
+                if (!resp.ok || !data?.success) {
+                    throw new Error(data?.error || ('API 错误 ' + resp.status));
+                }
+                const reply = data.reply || '（未获取到回复内容）';
 
                 thinkingDiv.remove();
                 appendMsg('assistant', reply);
@@ -3238,28 +3574,13 @@
             });
         });
 
-        // 日记
-        document.getElementById('btn-save-diary')?.addEventListener('click', saveDiary);
-        document.getElementById('btn-toggle-diary-list')?.addEventListener('click', () => toggleDiaryList());
-        document.getElementById('diary-content')?.addEventListener('input', updateWordCount);
-        document.querySelectorAll('.mood-btn').forEach(b => {
-            b.addEventListener('click', () => {
-                State.moodLevel = parseInt(b.getAttribute('data-level'));
-                document.querySelectorAll('.mood-btn').forEach(x => x.classList.toggle('selected', x === b));
-            });
-        });
-        document.querySelectorAll('.tag-btn').forEach(b => {
-            b.addEventListener('click', () => {
-                const tag = b.textContent;
-                if (State.selectedTags.includes(tag)) {
-                    State.selectedTags = State.selectedTags.filter(t => t !== tag);
-                    b.classList.remove('selected');
-                } else {
-                    State.selectedTags.push(tag);
-                    b.classList.add('selected');
-                }
-            });
-        });
+        // 日记编辑器的事件绑定由 static/js/pages/diary.js 接管
+        // （mood-btn / tag-btn / btn-save-diary / btn-toggle-diary-list /
+        //  diary-content / diary-title 等都在 #view-diary 容器内）
+
+        // 右侧侧栏新模块
+        window.DiarySidebar?.renderWeekMood?.();
+        window.DiarySidebar?.renderMonthlyStats?.();
 
         // 搭子
         initGameModeSelector();

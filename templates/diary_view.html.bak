@@ -1,0 +1,241 @@
+{# ============================================================
+   学习日记页面 - 完整视图
+   ============================================================ #}
+
+<div class="page-view active" id="view-diary">
+
+    {# ========================================================
+       主布局：左侧编辑区 + 右侧信息栏
+       ======================================================== #}
+    <div class="diary-shell">
+
+        {# -------------------- 左侧：编辑器区 -------------------- #}
+        <div class="diary-editor-area">
+
+            {# 顶部：标题 + 操作按钮 #}
+            <div class="diary-header">
+                <h1 class="diary-title-main">学习日记</h1>
+                <div class="diary-actions">
+                    <button class="btn-text" id="btn-history">历史记录</button>
+                    <button class="btn-primary" id="btn-save">保存日记</button>
+                </div>
+            </div>
+
+            {# 心情选择器（严格 8 格 2×4）#}
+            <div class="mood-section">
+                <div class="mood-header">
+                    <span class="section-title">今天的心情</span>
+                    <span class="mood-debug" id="mood-debug-count"></span>
+                </div>
+                <div class="mood-grid" id="mood-grid">
+                    {# JS 渲染 8 个 .mood-item #}
+                </div>
+                <div class="mood-add-link" id="mood-add-link">没有合适的心情？点击添加自定义 →</div>
+            </div>
+
+            {# 标题输入 #}
+            <input type="text" class="diary-title-input" id="diary-title"
+                   placeholder="给今天的日记起个标题..." maxlength="100">
+
+            {# 富文本编辑器（contenteditable）#}
+            <div class="diary-content" id="diary-content"
+                 contenteditable="true"
+                 placeholder="今天发生了什么？学习顺利吗？有什么收获？..."></div>
+
+            {# 工具栏：图片上传 #}
+            <div class="diary-toolbar">
+                <button class="btn-image" id="btn-image" title="插入图片">📎</button>
+                <input type="file" id="image-file-input" accept="image/*" multiple hidden>
+            </div>
+
+        </div><!-- /.diary-editor-area -->
+
+
+        {# -------------------- 右侧：信息栏 -------------------- #}
+        <aside class="diary-right-bar">
+
+            {# 1. 今日心情（8 格）#}
+            <div class="right-section">
+                <div class="section-title">今天的心情</div>
+                <div class="right-mood-grid" id="right-mood-grid">
+                    {# JS 渲染 8 个 .right-mood-item #}
+                </div>
+            </div>
+
+            {# 2. 标签 #}
+            <div class="right-section">
+                <div class="section-title">标签</div>
+                <div class="tag-list" id="tag-list">
+                    {# JS 渲染 .tag #}
+                </div>
+                <input type="text" class="tag-input" id="tag-input"
+                       placeholder="输入新标签，如「考研」..." maxlength="12">
+            </div>
+
+            {# 3. 本周心情 #}
+            <div class="right-section">
+                <div class="section-title">本周心情</div>
+                <div class="weekly-grid" id="weekly-grid">
+                    {# JS 渲染 7 个 .weekly-day #}
+                </div>
+                <div class="weekly-streak">连续记录 <span id="streak-count-side">0</span> 天，加油！</div>
+            </div>
+
+            {# 4. 字数统计 #}
+            <div class="right-section">
+                <div class="word-count-section">
+                    <div class="word-count-left">
+                        <span class="word-count-number" id="char-count">0</span>
+                        <span class="word-count-unit">字</span>
+                    </div>
+                    <div class="word-count-right" id="word-count-right">
+                        <span class="word-count-empty">选个心情标签吧</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside><!-- /.diary-right-bar -->
+
+    </div><!-- /.diary-shell -->
+
+
+    {# ========================================================
+       历史记录视图（切换视图，非 overlay）
+       ======================================================== #}
+    <div class="page-view" id="view-history">
+        <div class="history-header">
+            <button class="btn-back" id="history-back-btn">← 返回</button>
+            <h2 class="history-title-text">历史日记</h2>
+            <span class="history-count" id="diary-count">0 篇</span>
+        </div>
+
+        <div class="filter-bar">
+            <div class="search-wrap">
+                <input type="text" class="search-input" id="search-input" placeholder="搜索日记...">
+            </div>
+            <button class="filter-toggle-btn" id="filter-toggle">筛选</button>
+        </div>
+
+        <div class="filter-panel" id="filter-panel">
+            <div class="filter-group">
+                <div class="filter-label">按心情</div>
+                <div class="filter-chips" id="filter-emotions"></div>
+            </div>
+            <div class="filter-group">
+                <div class="filter-label">按标签</div>
+                <div class="filter-chips" id="filter-tags"></div>
+            </div>
+        </div>
+
+        <div class="history-list" id="diary-stream"></div>
+
+        <div class="load-more-wrap" id="load-more" style="display:none;">
+            <button class="load-more-btn" id="load-more-btn">加载更多</button>
+        </div>
+    </div>
+
+</div><!-- /#view-diary -->
+
+
+{# ========================================================
+   弹窗：自定义心情
+   ======================================================== #}
+<div class="modal-overlay" id="custom-mood-modal">
+    <div class="modal-card" style="max-width:400px">
+        <div class="modal-header">
+            <h3 class="modal-title">添加自定义心情</h3>
+            <button class="modal-close" id="custom-mood-close">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="emoji-picker" id="emoji-picker">
+                {# JS 渲染 emoji 网格 #}
+            </div>
+            <input type="text" class="mood-name-input" id="custom-label"
+                   placeholder="给心情起个名字（4字以内）" maxlength="4">
+            <div class="mood-value-slider">
+                <label>情绪等级（1-10）：<span id="mood-value-display">7</span></label>
+                <input type="range" id="mood-value" min="1" max="10" value="7">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal-cancel" id="custom-mood-cancel">取消</button>
+            <button class="btn-modal-confirm" id="custom-mood-save">添加</button>
+        </div>
+    </div>
+</div>
+
+
+{# ========================================================
+   弹窗：日记预览
+   ======================================================== #}
+<div class="modal-overlay" id="preview-modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 class="modal-title" id="preview-title">日记标题</h3>
+            <button class="modal-close" id="preview-close">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-meta">
+                <span class="modal-date" id="preview-date">2026-06-25</span>
+                <span class="modal-mood" id="preview-mood-info"></span>
+            </div>
+            <div class="modal-content" id="preview-body"></div>
+            <div class="modal-tags" id="preview-tags"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal-delete" id="preview-delete">🗑️ 删除</button>
+            <button class="btn-modal-edit" id="preview-edit">📝 编辑</button>
+        </div>
+    </div>
+</div>
+
+
+{# ========================================================
+   弹窗：删除确认
+   ======================================================== #}
+<div class="modal-overlay" id="delete-modal">
+    <div class="modal-card" style="max-width:360px">
+        <div class="modal-header">
+            <h3 class="modal-title">确定删除这篇日记吗？</h3>
+        </div>
+        <div class="modal-body">
+            <p class="delete-warning">删除后无法恢复。</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal-cancel" id="delete-cancel">取消</button>
+            <button class="btn-modal-delete" id="delete-confirm">删除</button>
+        </div>
+    </div>
+</div>
+
+
+{# ========================================================
+   弹窗：未保存确认
+   ======================================================== #}
+<div class="modal-overlay" id="unsaved-modal">
+    <div class="modal-card" style="max-width:360px">
+        <div class="modal-header">
+            <h3 class="modal-title">有未保存的内容</h3>
+        </div>
+        <div class="modal-body">
+            <p class="delete-warning">当前编辑的内容尚未保存，确定要离开吗？</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal-cancel" id="unsaved-cancel">继续编辑</button>
+            <button class="btn-modal-discard" id="unsaved-discard">放弃修改</button>
+        </div>
+    </div>
+</div>
+
+
+{# ========================================================
+   图片 Lightbox
+   ======================================================== #}
+<div class="lightbox-overlay" id="image-lightbox">
+    <button class="lightbox-close" id="lightbox-close">×</button>
+    <img class="lightbox-img" id="lightbox-img" alt="">
+</div>
+
+
+{# Toast #}
+<div class="diary-toast" id="diary-toast"></div>

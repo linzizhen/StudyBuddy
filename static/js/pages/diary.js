@@ -1,817 +1,899 @@
-/**
- * 日记模块 v5 - 完整重构
- * 采用组件化设计，清晰状态管理
- */
-
 class DiaryApp {
-    constructor() {
-        // 状态
-        this.state = {
-            todayEntry: null,
-            entries: [],
-            tags: [],
-            streak: 0,
-            currentMood: null,
-            selectedTags: [],
-            selectedWeather: '',
-            images: [],
-            isLoading: false,
-            isSaving: false,
-            filterOpen: false,
-            filterEmotion: null,
-            filterTag: null,
-            searchKeyword: '',
-            page: 0,
-            hasMore: true
-        };
+  constructor() {
+    this.state = {
+      isLoading: false,
+      todayEntry: null,
+      entries: [],
+      streak: 0,
+      tags: ['复习', '做题', '听课', '背诵'],   // 4 个预设（前端固定，不同步到后端）
+      customTags: [],                           // 用户自定义标签（同步到后端）
+      moodSlots: [],        // 后端 8 个槽位（5 预设 + 最多 3 自定义）
+      currentMood: null,    // 当前选中 mood_id
+      currentMoodValue: null,
+      selectedTags: [],
+      images: [],           // [{url, uploading?}]
+      isDirty: false,
+      deleteTargetId: null,
+      deleteTargetTitle: '',
+      activeFilter: 'all',
+      pendingNavigation: null,
+    };
 
-        // 情绪配置
-        this.moods = [
-            { level: 1, emoji: '😢', label: '难过' },
-            { level: 2, emoji: '😔', label: '低落' },
-            { level: 3, emoji: '😌', label: '平静' },
-            { level: 4, emoji: '🤔', label: '思考' },
-            { level: 5, emoji: '😊', label: '愉快' },
-            { level: 6, emoji: '😀', label: '开心' },
-            { level: 7, emoji: '🥳', label: '兴奋' },
-            { level: 8, emoji: '❤️', label: '感恩' },
-            { level: 9, emoji: '🌈', label: '希望' },
-            { level: 10, emoji: '😴', label: '疲惫' }
-        ];
+    // emoji 选择器候选（覆盖常见心情场景）
+    this.emojiOptions = [
+      '😊','😄','😁','🥰','😘','🤩','😎','🥳',
+      '😌','🙂','😉','😋','😏','🤗','😇','🤔',
+      '😐','😑','😶','🤨','😴','🥱','😪','😜',
+      '😢','😭','😔','😞','😟','😰','😨','😱',
+      '😡','😠','🤬','😤','🥵','🥶','🤯','😵',
+      '🤒','🤕','🤧','😷','🤢','🤮','🤠','🥺',
+      '😈','👻','💀','🤖','💪','👍','👎','✌️',
+      '🌟','⭐','🔥','💧','🌈','☀️','🌙','⚡',
+    ];
 
-        this.defaultTags = ['学习', '生活', '运动', '旅行', '工作', '朋友', '家庭', '健康', '娱乐', '其他'];
+    this.EMOJI_LABEL_HINT = {
+      '😢':'难过','😭':'难过','😔':'低落','😞':'低落','😟':'低落',
+      '😰':'焦虑','😨':'害怕','😱':'惊恐',
+      '😴':'疲惫','🥱':'疲惫','😪':'疲惫',
+      '😐':'一般','😑':'一般','😶':'一般',
+      '🤔':'思考','😌':'平静','🙂':'不错','😉':'轻松',
+      '😊':'开心','😄':'开心','😁':'开心','🥰':'幸福','😘':'幸福',
+      '🤩':'兴奋','🥳':'兴奋','😎':'自信',
+      '🤒':'难受','🤕':'不适','🤧':'不适','😷':'不适','🤢':'不适',
+      '😡':'愤怒','😠':'愤怒','🤬':'愤怒','😤':'不甘',
+      '🥵':'燥热','🥶':'寒冷','🤯':'震惊','😵':'迷茫',
+      '🤠':'调皮','🥺':'委屈','😈':'坏笑','👻':'古怪',
+      '💀':'崩溃','🤖':'冷酷','💪':'自信','👍':'认可','👎':'否定',
+      '🌟':'闪耀','⭐':'珍贵','🔥':'热血','💧':'冷静',
+      '🌈':'多彩','☀️':'阳光','🌙':'夜晚','⚡':'灵感',
+    };
 
-        // 等待 DOM 就绪
-        this._waitForDOM();
+    // 心情格：固定 8 格（6 系统预设 + 2 自定义槽位）
+    this.fallbackMoods = [
+      { id: 'happy', emoji: '😊', label: '开心', value: 5, isSystem: true },
+      { id: 'calm', emoji: '😌', label: '平静', value: 4, isSystem: true },
+      { id: 'tired', emoji: '😴', label: '疲惫', value: 3, isSystem: true },
+      { id: 'anxious', emoji: '😰', label: '焦虑', value: 2, isSystem: true },
+      { id: 'sad', emoji: '😢', label: '难过', value: 1, isSystem: true },
+      { id: 'excited', emoji: '🤩', label: '兴奋', value: 6, isSystem: true },
+      null,  // 自定义槽位 1
+      null   // 自定义槽位 2
+    ];
+    // 记录自定义心情添加顺序，用于 LRU 淘汰最旧
+    this.customMoods = [];
+  }
+
+  init() {
+    this._renderMoods();
+    this._renderTags();
+    this._renderWeekly();
+    this._updateCharCount();
+    this._bindEvents();
+    this._loadAll();
+  }
+
+  // ==================== 心情渲染 ====================
+
+  _renderMoods() {
+    const grid = document.getElementById('mood-grid');
+    const moodAdd = document.getElementById('mood-add');
+    if (!grid) return;
+    const moods = this.fallbackMoods;
+    grid.innerHTML = moods.map((m, i) => {
+      if (!m) {
+        return `<div class="mood-item mood-placeholder" data-index="${i}" title="添加自定义心情"></div>`;
+      }
+      const active = this.state.currentMood === m.id ? 'active' : '';
+      const customDot = !m.isSystem ? '<span class="mood-custom-dot" title="自定义">●</span>' : '';
+      return `<div class="mood-item ${active}" data-mood-id="${m.id}" data-value="${m.value}" title="${m.label}">
+        <span class="mood-emoji">${m.emoji}</span>
+        <span class="mood-label">${m.label}${customDot}</span>
+      </div>`;
+    }).join('');
+
+    grid.querySelectorAll('.mood-item:not(.mood-placeholder)').forEach(item => {
+      item.addEventListener('click', () => {
+        grid.querySelectorAll('.mood-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        this.state.currentMood = item.dataset.moodId;
+        this.state.currentMoodValue = parseInt(item.dataset.value);
+        this.state.isDirty = true;
+        this._renderWeekly();
+      });
+    });
+
+    grid.querySelectorAll('.mood-placeholder').forEach(item => {
+      item.addEventListener('click', () => this._addCustomMood());
+    });
+
+    // 文字链接点击 → 打开弹窗（每次重渲需重新绑定，因 innerHTML 不会清空 #mood-add，但安全起见）
+    if (moodAdd && !moodAdd.dataset.bound) {
+      moodAdd.addEventListener('click', () => this._addCustomMood());
+      moodAdd.style.cursor = 'pointer';
+      moodAdd.dataset.bound = '1';
+    }
+  }
+
+  _addCustomMood() {
+    // 不管 8 格是否满，无条件打开弹窗
+    this._pendingCustomMood = null;
+    this._openModal('custom-mood-modal');
+    this._renderEmojiGrid();
+    document.getElementById('custom-mood-name').value = '';
+    const levelInput = document.getElementById('custom-mood-level');
+    if (levelInput) levelInput.value = 5;
+    document.getElementById('custom-mood-level-display').textContent = '5';
+    this._bindCustomMoodEventsOnce();
+  }
+
+  _renderEmojiGrid() {
+    const grid = document.getElementById('emoji-grid');
+    if (!grid) return;
+
+    // 70% 表情 + 30% 其他
+    const faceEmojis = [
+      '😊','😂','🥰','😎','🤗','😋','🤩','🥳','😇','🤠',
+      '🤡','👻','👽','🤖','😍','🤔','😏','😌','😜','🤪',
+      '😬','🥺','😭','😤','😠','🤬','😷','🤒','🤕','🤢',
+      '🤮','🥴','😵','🤯','🤓','🧐','😕','😟','🙁','☹️',
+      '😮','😯','😲','😳','🥱','😴','🤤','😪','😈','👿',
+      '💀','☠️','😱','😨','😰','🥵','🥶','😡',
+    ];
+    const otherEmojis = [
+      '🎉','💪','🔥','⭐','🌈','💖','🎊','✨','💯','🏆',
+      '🌟','💫','🎈','🎁','💐','🌸','❤️','🧡','💛','💚',
+      '💙','💜','🖤','🤍','🍎','🍊','🍋','🍌','🍉','🍇',
+      '🍓','🫐','🌞','🌝','🌛','🌜','☄️','🎯','🎨','🎬',
+    ];
+
+    // 80 个 = 56 表情 + 24 其他（70/30 比例）
+    const emojis = [
+      ...faceEmojis.slice(0, 56),
+      ...otherEmojis.slice(0, 24),
+    ];
+
+    grid.innerHTML = emojis.map(emoji =>
+      `<div class="emoji-option" data-emoji="${emoji}">${emoji}</div>`
+    ).join('');
+
+    grid.querySelectorAll('.emoji-option').forEach(el => {
+      el.addEventListener('click', (e) => {
+        grid.querySelectorAll('.emoji-option').forEach(o => o.classList.remove('selected'));
+        e.currentTarget.classList.add('selected');
+        this._pendingCustomMood = { emoji: e.currentTarget.dataset.emoji };
+      });
+    });
+  }
+
+  _bindCustomMoodEventsOnce() {
+    if (this._customMoodEventsBound) return;
+    this._customMoodEventsBound = true;
+
+    const close = () => this._closeModal('custom-mood-modal');
+    document.getElementById('custom-mood-close')?.addEventListener('click', close);
+    document.getElementById('btn-cancel-custom-mood')?.addEventListener('click', close);
+
+    document.getElementById('custom-mood-level')?.addEventListener('input', (e) => {
+      document.getElementById('custom-mood-level-display').textContent = e.target.value;
+    });
+
+    document.getElementById('btn-confirm-custom-mood')?.addEventListener('click', () => {
+      this._confirmAddCustomMood();
+    });
+  }
+
+  _confirmAddCustomMood() {
+    const name = document.getElementById('custom-mood-name')?.value.trim();
+    if (!name) { this._toast('请输入心情名称'); return; }
+    if (!this._pendingCustomMood || !this._pendingCustomMood.emoji) {
+      this._toast('请选择一个表情');
+      return;
     }
 
-    _waitForDOM() {
-        const tryInit = () => {
-            if (document.getElementById('diary-page')) {
-                this._init();
-            } else {
-                setTimeout(tryInit, 30);
-            }
-        };
-        tryInit();
+    const level = parseInt(document.getElementById('custom-mood-level')?.value || 5);
+    const newMood = {
+      id: 'custom_' + Date.now(),
+      emoji: this._pendingCustomMood.emoji,
+      label: name,
+      value: level,
+      isSystem: false,
+      createdAt: Date.now(),
+    };
+
+    const emptyIdx = this.fallbackMoods.findIndex(m => m === null);
+    let evicted = null;
+    if (emptyIdx !== -1) {
+      this.fallbackMoods[emptyIdx] = newMood;
+      this.customMoods.push(newMood.id);
+    } else {
+      // LRU：替换最早的自定义
+      const oldestId = this.customMoods.shift();
+      const oldestIdx = this.fallbackMoods.findIndex(m => m && m.id === oldestId);
+      if (oldestIdx !== -1) {
+        evicted = this.fallbackMoods[oldestIdx];
+        this.fallbackMoods[oldestIdx] = newMood;
+        this.customMoods.push(newMood.id);
+      }
     }
 
-    async _init() {
-        await this._loadData();
-        this._bindEvents();
-        this._render();
-    }
+    this.state.currentMood = newMood.id;
+    this.state.currentMoodValue = level;
+    this.state.isDirty = true;
 
-    // ==================== 数据加载 ====================
+    this._closeModal('custom-mood-modal');
+    this._renderMoods();
+    this._renderWeekly();
+    this._toast(evicted ? `已替换「${evicted.label}」` : '自定义心情添加成功');
+  }
 
-    async _loadData() {
-        this._setState({ isLoading: true });
+  // ==================== 自定义心情弹窗（已弃用，保留空方法以防兼容调用） ====================
 
-        try {
-            const [todayRes, listRes, statsRes, tagsRes] = await Promise.all([
-                fetch('/api/diary/today').then(r => r.json()).catch(() => ({ success: true, entry: null, streak: 0 })),
-                fetch('/api/diary?limit=20').then(r => r.json()).catch(() => ({ success: true, entries: [], streak: 0 })),
-                fetch('/api/diary/stats').then(r => r.json()).catch(() => ({ success: true, streak: 0, tags: [] })),
-                fetch('/api/diary/tags').then(r => r.json()).catch(() => ({ success: true, tags: [] }))
-            ]);
+  // ==================== 标签 ====================
 
-            const todayEntry = todayRes.entry || null;
-            const streak = statsRes.streak || todayRes.streak || 0;
+  _renderTags() {
+    const list = document.getElementById('tag-list');
+    if (!list) return;
 
-            this._setState({
-                todayEntry,
-                entries: listRes.entries || [],
-                streak,
-                tags: tagsRes.tags || this.defaultTags,
-                currentMood: todayEntry ? todayEntry.emotion_level : null,
-                selectedTags: todayEntry?.tags || [],
-                selectedWeather: todayEntry?.weather || '',
-                images: todayEntry?.images || [],
-                isLoading: false
-            });
+    const presetHtml = this.state.tags.map(tag => {
+      const active = this.state.selectedTags.includes(tag) ? 'active' : '';
+      return `<span class="tag ${active}" data-tag="${this._escape(tag)}" data-preset="true">${this._escape(tag)}</span>`;
+    }).join('');
 
-            // 回填表单
-            if (todayEntry) {
-                this._backfillForm(todayEntry);
-            }
-        } catch (e) {
-            console.error('[DiaryApp] 加载失败:', e);
-            this._setState({ isLoading: false });
-            this._toast('加载失败，请刷新重试');
+    const customHtml = this.state.customTags.map(tag => {
+      const active = this.state.selectedTags.includes(tag) ? 'active' : '';
+      return `<span class="tag tag-custom ${active}" data-tag="${this._escape(tag)}" data-preset="false">${this._escape(tag)}<button class="tag-delete" data-tag="${this._escape(tag)}" title="删除">×</button></span>`;
+    }).join('');
+
+    list.innerHTML = presetHtml + customHtml;
+
+    list.querySelectorAll('.tag').forEach(tag => {
+      tag.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tag-delete')) return;
+        const t = tag.dataset.tag;
+        if (this.state.selectedTags.includes(t)) {
+          this.state.selectedTags = this.state.selectedTags.filter(x => x !== t);
+        } else {
+          this.state.selectedTags.push(t);
         }
-    }
-
-    _backfillForm(entry) {
-        const titleEl = document.getElementById('diary-title');
-        const contentEl = document.getElementById('diary-content');
-        const charCountEl = document.getElementById('char-count');
-
-        if (titleEl) titleEl.value = entry.title || '';
-        if (contentEl) {
-            contentEl.value = entry.content || '';
-            if (charCountEl) charCountEl.textContent = (entry.content || '').length;
-        }
-
-        // 回填图片
-        this._renderImages();
-    }
-
-    // ==================== 事件绑定 ====================
-
-    _bindEvents() {
-        // 心情选择
-        document.getElementById('mood-grid')?.addEventListener('click', (e) => {
-            const item = e.target.closest('.mood-item');
-            if (item) {
-                this._setMood(parseInt(item.dataset.level));
-            }
-        });
-
-        // 标题输入
-        document.getElementById('diary-title')?.addEventListener('input', (e) => {
-            // 标题自动保存到草稿
-            this._saveDraft();
-        });
-
-        // 内容输入
-        document.getElementById('diary-content')?.addEventListener('input', (e) => {
-            const charCount = document.getElementById('char-count');
-            if (charCount) charCount.textContent = e.target.value.length;
-            this._saveDraft();
-        });
-
-        // 天气选择
-        document.getElementById('weather-selector')?.addEventListener('click', (e) => {
-            const item = e.target.closest('.weather-item');
-            if (item) {
-                const weather = item.dataset.weather;
-                this._setWeather(weather === this.state.selectedWeather ? '' : weather);
-            }
-        });
-
-        // 图片上传
-        document.getElementById('add-image-btn')?.addEventListener('click', () => {
-            if (this.state.images.length >= 9) {
-                this._toast('最多只能上传9张图片');
-                return;
-            }
-            document.getElementById('image-file-input')?.click();
-        });
-
-        document.getElementById('image-file-input')?.addEventListener('change', (e) => {
-            if (e.target.files?.length) {
-                this._uploadImages(Array.from(e.target.files));
-            }
-        });
-
-        // 标签点击
-        document.getElementById('tag-manager')?.addEventListener('click', (e) => {
-            const tagItem = e.target.closest('.tag-item');
-            const addBtn = e.target.closest('.add-tag-btn');
-            
-            if (tagItem && !e.target.closest('.remove-tag')) {
-                const tag = tagItem.dataset.tag;
-                this._toggleTag(tag);
-            } else if (addBtn) {
-                this._showAddTagInput();
-            }
-        });
-
-        // 搜索
-        document.getElementById('search-input')?.addEventListener('input', (e) => {
-            this._setState({ searchKeyword: e.target.value, page: 0 });
-            this._debounceSearch();
-        });
-
-        // 筛选按钮
-        document.getElementById('filter-btn')?.addEventListener('click', () => {
-            this._toggleFilter();
-        });
-
-        // 加载更多
-        document.getElementById('load-more-btn')?.addEventListener('click', () => {
-            this._loadMore();
-        });
-
-        // 保存按钮
-        document.getElementById('save-btn')?.addEventListener('click', () => {
-            this._save();
-        });
-
-        // 日记列表点击（删除）
-        document.getElementById('diary-list')?.addEventListener('click', (e) => {
-            const deleteBtn = e.target.closest('.delete-btn');
-            if (deleteBtn) {
-                const id = deleteBtn.dataset.id;
-                this._deleteEntry(id);
-            }
-        });
-
-        // 删除图片
-        document.getElementById('image-uploader')?.addEventListener('click', (e) => {
-            const removeBtn = e.target.closest('.remove-btn');
-            if (removeBtn) {
-                const index = parseInt(removeBtn.dataset.index);
-                this._removeImage(index);
-            }
-        });
-
-        // 点击空白关闭筛选
-        document.addEventListener('click', (e) => {
-            if (this.state.filterOpen && 
-                !e.target.closest('.filter-panel') && 
-                !e.target.closest('#filter-btn')) {
-                this._setState({ filterOpen: false });
-                this._renderFilterPanel();
-            }
-        });
-
-        // 页面离开前保存草稿
-        window.addEventListener('beforeunload', () => {
-            this._saveDraft(true);
-        });
-
-        // 定时保存草稿
-        setInterval(() => this._saveDraft(), 30000);
-    }
-
-    // ==================== 状态管理 ====================
-
-    _setState(updates) {
-        Object.assign(this.state, updates);
-        this._render();
-    }
-
-    // ==================== 渲染 ====================
-
-    _render() {
-        this._renderHeader();
-        this._renderMoods();
+        this.state.isDirty = true;
         this._renderTags();
-        this._renderWeather();
+      });
+    });
+
+    list.querySelectorAll('.tag-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const t = btn.dataset.tag;
+        this.state.customTags = this.state.customTags.filter(x => x !== t);
+        this.state.selectedTags = this.state.selectedTags.filter(x => x !== t);
+        this.state.isDirty = true;
+        // 同步到后端（异步，不阻塞 UI）
+        fetch(`/api/diary/tags/${encodeURIComponent(t)}`, { method: 'DELETE' }).catch(() => {});
+        this._renderTags();
+      });
+    });
+  }
+
+  // ==================== 本周心情 ====================
+
+  _renderWeekly() {
+    const grid = document.getElementById('weekly-grid');
+    if (!grid) return;
+    const days = ['一', '二', '三', '四', '五', '六', '日'];
+    const today = new Date();
+    const todayDow = today.getDay();
+    const todayIndex = todayDow === 0 ? 6 : todayDow - 1;
+
+    const weekData = this._getWeekMoodData();
+
+    grid.innerHTML = days.map((d, i) => {
+      const isToday = i === todayIndex ? 'is-today' : '';
+      const mood = weekData[i];
+      const emoji = mood?.emoji || '-';
+      const title = mood ? `${mood.emoji} ${mood.label || ''}` : '暂无记录';
+      return `<div class="weekly-day ${isToday}" title="${this._escape(title)}">
+        <span class="emoji">${emoji}</span>
+        <span class="day-name">周${d}</span>
+      </div>`;
+    }).join('');
+
+    document.getElementById('streak-count').textContent = this.state.streak;
+  }
+
+  _getWeekMoodData() {
+    const result = new Array(7).fill(null);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayDow = today.getDay();
+    const todayIndex = todayDow === 0 ? 6 : todayDow - 1;
+
+    // 在 fallbackMoods（含自定义）里按 id / value 查找
+    const findMood = (entry) => {
+      if (entry.mood_id) {
+        const m = this.fallbackMoods.find(x => x && x.id === entry.mood_id);
+        if (m) return m;
+      }
+      if (entry.emotion_level != null) {
+        const m = this.fallbackMoods.find(x => x && x.value === entry.emotion_level);
+        if (m) return m;
+      }
+      return { emoji: entry.emotion_emoji || '😊', label: entry.emotion_label || '' };
+    };
+
+    // 1) 历史 entries 填到对应日期
+    (this.state.entries || []).forEach(entry => {
+      if (!entry.date) return;
+      const entryDate = new Date(entry.date);
+      entryDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((today - entryDate) / 86400000);
+      if (diffDays < 0 || diffDays > 6) return;
+      const idx = todayIndex - diffDays;
+      if (idx < 0 || idx > 6) return;
+      result[idx] = findMood(entry);
+    });
+
+    // 2) 今天选中的心情（如果还没保存到 entries）覆盖今天位置
+    if (this.state.currentMood) {
+      const todayMood = this.fallbackMoods.find(m => m && m.id === this.state.currentMood);
+      if (todayMood) {
+        result[todayIndex] = todayMood;
+      }
+    }
+
+    return result;
+  }
+
+  // ==================== 字数统计 ====================
+
+  _updateCharCount() {
+    const content = document.getElementById('diary-content');
+    const countEl = document.getElementById('char-count');
+    const hintEl = document.getElementById('word-count-hint');
+    if (!content || !countEl) return;
+
+    const update = () => {
+      const text = content.innerText || '';
+      const len = text.length;
+      countEl.textContent = len;
+      if (hintEl) {
+        if (len === 0) hintEl.textContent = '开始记录吧，每一个字都算数';
+        else if (len < 50) hintEl.textContent = '继续写，灵感正在涌现';
+        else if (len < 200) hintEl.textContent = '写得不错，保持这个节奏';
+        else hintEl.textContent = '太棒了，今天的记录很充实';
+      }
+      this.state.isDirty = this.state.isDirty ||
+        (len > 0 || (document.getElementById('diary-title')?.value || '').length > 0);
+    };
+
+    content.addEventListener('input', update);
+    update();
+  }
+
+  // ==================== 事件绑定 ====================
+
+  _bindEvents() {
+    // 保存
+    document.getElementById('btn-save')?.addEventListener('click', () => this._save());
+
+    // 历史记录
+    document.getElementById('btn-history')?.addEventListener('click', () => this._openHistory());
+    document.getElementById('history-modal-close')?.addEventListener('click', () => {
+      this._maybeCloseWithUnsaved('history-modal');
+    });
+    // 点击历史弹窗外部关闭
+    document.getElementById('history-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'history-modal') {
+        this._maybeCloseWithUnsaved('history-modal');
+      }
+    });
+
+    // 筛选按钮
+    document.querySelectorAll('#view-diary .filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#view-diary .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.state.activeFilter = btn.dataset.filter;
         this._renderHistory();
-        this._renderFilterPanel();
-        this._updateSaveButton();
-    }
+      });
+    });
 
-    _renderHeader() {
-        const now = new Date();
-        const dateEl = document.getElementById('diary-current-date');
-        const weekdayEl = document.getElementById('diary-current-weekday');
-        const streakEl = document.getElementById('streak-count');
+    // 删除
+    document.getElementById('btn-cancel-delete')?.addEventListener('click', () => this._closeModal('delete-modal'));
+    document.getElementById('delete-modal-close')?.addEventListener('click', () => this._closeModal('delete-modal'));
+    document.getElementById('btn-confirm-delete')?.addEventListener('click', () => this._confirmDelete());
 
-        if (dateEl) {
-            dateEl.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+    // 未保存
+    document.getElementById('btn-continue-edit')?.addEventListener('click', () => this._closeModal('unsaved-modal'));
+    document.getElementById('unsaved-modal-close')?.addEventListener('click', () => this._closeModal('unsaved-modal'));
+    document.getElementById('btn-discard-edit')?.addEventListener('click', () => {
+      this._closeModal('unsaved-modal');
+      this._resetForm();
+      this._proceedNavigation();
+    });
+
+    // 自定义心情弹窗事件在 _bindCustomMoodEventsOnce 中单例绑定
+
+    // 图片
+    document.getElementById('btn-image')?.addEventListener('click', () => {
+      document.getElementById('image-file-input')?.click();
+    });
+    document.getElementById('image-file-input')?.addEventListener('change', (e) => this._handleImageUpload(e));
+
+    // Lightbox
+    document.getElementById('lightbox-close')?.addEventListener('click', () => this._closeLightbox());
+    document.getElementById('lightbox-overlay')?.addEventListener('click', (e) => {
+      if (e.target.id === 'lightbox-overlay') this._closeLightbox();
+    });
+
+    // 标题输入
+    document.getElementById('diary-title')?.addEventListener('input', () => {
+      this.state.isDirty = true;
+    });
+
+    // 标签输入
+    document.getElementById('tag-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = e.target.value.trim();
+        if (!val) return;
+        if (this.state.tags.includes(val) || this.state.customTags.includes(val)) {
+          this._toast('标签已存在');
+          return;
         }
+        this.state.customTags.push(val);
+        this.state.selectedTags.push(val);
+        this.state.isDirty = true;
+        // 同步到后端
+        fetch('/api/diary/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tag: val }),
+        }).catch(() => {});
+        this._renderTags();
+        e.target.value = '';
+      }
+    });
 
-        const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-        if (weekdayEl) weekdayEl.textContent = weekdays[now.getDay()];
+    // 浏览器关闭/刷新提示
+    window.addEventListener('beforeunload', (e) => {
+      if (this.state.isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    });
+  }
 
-        if (streakEl) streakEl.textContent = this.state.streak;
+  // ==================== 数据加载 ====================
 
-        // 更新问候语
-        const greetingEl = document.getElementById('top-greeting');
-        const hour = now.getHours();
-        let greeting = '你好';
-        if (hour >= 5 && hour < 9) greeting = '早上好';
-        else if (hour >= 9 && hour < 12) greeting = '上午好';
-        else if (hour >= 12 && hour < 14) greeting = '中午好';
-        else if (hour >= 14 && hour < 18) greeting = '下午好';
-        else if (hour >= 18 && hour < 22) greeting = '晚上好';
-        else greeting = '夜深了';
-        if (greetingEl) greetingEl.textContent = greeting;
+  async _loadAll() {
+    // 心情格纯前端维护，不需要从后端加载槽位
+    await Promise.all([
+      this._loadTags(),
+      this._loadToday(),
+    ]);
+    await this._loadHistory();
+  }
 
-        const topDateEl = document.getElementById('top-date');
-        if (topDateEl) topDateEl.textContent = `${weekdays[now.getDay()]} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  // _loadMoods 已弃用：心情格全部由 fallbackMoods + customMoods 前端维护
+
+  async _loadTags() {
+    try {
+      const res = await fetch('/api/diary/tags').then(r => r.json());
+      if (res.success && Array.isArray(res.tags)) {
+        const presets = this.state.tags;
+        // 后端返回的标签扣掉前端预设，剩下的就是自定义标签
+        this.state.customTags = res.tags.filter(t => !presets.includes(t));
+        this._renderTags();
+      }
+    } catch (e) {
+      console.warn('[Diary] 加载标签失败:', e);
     }
+  }
 
-    _renderMoods() {
-        const container = document.getElementById('mood-grid');
-        if (!container) return;
-
-        container.innerHTML = this.moods.map(mood => `
-            <div class="mood-item ${this.state.currentMood === mood.level ? 'active' : ''}" 
-                 data-level="${mood.level}">
-                <div class="mood-emoji">${mood.emoji}</div>
-                <div class="mood-label">${mood.label}</div>
-            </div>
-        `).join('');
+  async _loadToday() {
+    try {
+      const res = await fetch('/api/diary/today').then(r => r.json());
+      if (res.entry) {
+        this.state.todayEntry = res.entry;
+        this._fillFormFromEntry(res.entry);
+      }
+      if (typeof res.streak === 'number') {
+        this.state.streak = res.streak;
+        this._renderWeekly();
+      }
+    } catch (e) {
+      console.warn('[Diary] 加载今日日记失败:', e);
     }
+  }
 
-    _renderTags() {
-        const container = document.getElementById('tag-manager');
-        if (!container) return;
-
-        const allTags = [...new Set([...this.defaultTags, ...this.state.tags])];
-
-        container.innerHTML = allTags.map(tag => `
-            <div class="tag-item ${this.state.selectedTags.includes(tag) ? 'active' : ''}" data-tag="${this._esc(tag)}">
-                ${this._esc(tag)}
-            </div>
-        `).join('') + `
-            <button class="add-tag-btn">+ 添加标签</button>
-        `;
-    }
-
-    _renderWeather() {
-        const container = document.getElementById('weather-selector');
-        if (!container) return;
-
-        container.querySelectorAll('.weather-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.weather === this.state.selectedWeather);
-        });
-    }
-
-    _renderImages() {
-        const container = document.getElementById('image-uploader');
-        if (!container) return;
-
-        const addBtn = document.getElementById('add-image-btn');
-
-        // 清除现有图片（保留添加按钮）
-        container.innerHTML = '';
-
-        // 渲染已上传图片
-        this.state.images.forEach((img, index) => {
-            const div = document.createElement('div');
-            div.className = 'image-preview';
-            div.innerHTML = `
-                <img src="${img}" alt="日记图片">
-                <button class="remove-btn" data-index="${index}">&#10005;</button>
-            `;
-            container.appendChild(div);
-        });
-
-        // 重新添加添加按钮
-        container.appendChild(addBtn);
-        addBtn.style.display = this.state.images.length >= 9 ? 'none' : '';
-    }
-
-    _renderHistory() {
-        const container = document.getElementById('diary-list');
-        const loadMoreEl = document.getElementById('load-more');
-        if (!container) return;
-
-        if (this.state.entries.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon">&#128221;</div>
-                    <div class="empty-title">还没有日记</div>
-                    <div class="empty-desc">从今天开始记录吧~</div>
-                </div>
-            `;
-            if (loadMoreEl) loadMoreEl.style.display = 'none';
-            return;
+  async _loadHistory() {
+    try {
+      const res = await fetch('/api/diary?limit=100').then(r => r.json());
+      if (res.success) {
+        this.state.entries = res.entries || [];
+        this.state.streak = res.streak ?? this.state.streak;
+        this._renderWeekly();
+        // 顺手渲染一次历史（如果弹窗已打开）
+        if (document.getElementById('history-modal')?.classList.contains('active')) {
+          this._renderHistory();
         }
+      }
+    } catch (e) {
+      console.warn('[Diary] 加载历史失败:', e);
+    }
+  }
 
-        container.innerHTML = this.state.entries.map(entry => this._renderDiaryCard(entry)).join('');
-        if (loadMoreEl) loadMoreEl.style.display = this.state.hasMore ? '' : 'none';
+  _fillFormFromEntry(entry) {
+    document.getElementById('diary-title').value = entry.title || '';
+    document.getElementById('diary-content').innerHTML = entry.content || '';
+    // 心情：优先 mood_id（前端 ID），否则按 emotion_level 找 fallbackMoods
+    if (entry.mood_id) {
+      this.state.currentMood = entry.mood_id;
+    } else if (entry.emotion_level) {
+      const matched = this.fallbackMoods.find(m => m && m.value === entry.emotion_level);
+      this.state.currentMood = matched?.id || null;
+    }
+    this.state.currentMoodValue = entry.emotion_level || null;
+    this.state.selectedTags = entry.tags || [];
+    this.state.images = (entry.images || []).map(url => ({ url, uploaded: true }));
+    this.state.isDirty = false;
+    this._renderMoods();
+    this._renderTags();
+    this._renderImagePreviews();
+    this._updateCharCount();
+  }
+
+  // ==================== 保存 ====================
+
+  async _save() {
+    const title = document.getElementById('diary-title')?.value?.trim() || '';
+    // 提取纯文本（避免存一堆 HTML 噪音）
+    const contentEl = document.getElementById('diary-content');
+    const contentHtml = contentEl?.innerHTML || '';
+    const contentText = (contentEl?.innerText || '').trim();
+
+    if (!title && !contentText && this.state.images.length === 0) {
+      this._toast('日记内容不能为空');
+      return;
     }
 
-    _renderDiaryCard(entry) {
-        const date = new Date(entry.date);
-        const dateStr = `${date.getMonth() + 1}月${date.getDate()}日`;
-        const contentPreview = entry.content 
-            ? entry.content.substring(0, 80) + (entry.content.length > 80 ? '...' : '')
-            : (entry.title || '点击查看详情');
-
-        const mood = this.moods.find(m => m.level === entry.emotion_level) || this.moods[4];
-
-        return `
-            <div class="diary-card level-${entry.emotion_level} animate-fadeIn">
-                <div class="diary-card-header">
-                    <div class="diary-card-date">${dateStr}</div>
-                    <div class="diary-card-mood">
-                        <span class="emoji">${mood.emoji}</span>
-                        <span>${mood.label}</span>
-                    </div>
-                </div>
-                ${entry.title ? `<div class="diary-card-title">${this._esc(entry.title)}</div>` : ''}
-                <div class="diary-card-content">${this._esc(contentPreview)}</div>
-                <div class="diary-card-footer">
-                    <div class="diary-card-tags">
-                        ${entry.tags?.map(tag => `<span class="diary-card-tag">${this._esc(tag)}</span>`).join('') || ''}
-                    </div>
-                    <div class="diary-card-actions">
-                        <button class="diary-card-action delete-btn" data-id="${entry.id}">删除</button>
-                    </div>
-                </div>
-            </div>
-        `;
+    const btn = document.getElementById('btn-save');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '保存中...';
     }
 
-    _renderFilterPanel() {
-        const panel = document.getElementById('filter-panel');
-        const filterBtn = document.getElementById('filter-btn');
+    try {
+      const data = {
+        title,
+        content: contentHtml,
+        // 前端心情完全本地化：只传 emotion_level 给后端
+        emotion_level: this.state.currentMoodValue || 5,
+        tags: this.state.selectedTags,
+        images: this.state.images.filter(i => i.uploaded).map(i => i.url),
+      };
 
-        if (panel) panel.classList.toggle('show', this.state.filterOpen);
-        if (filterBtn) filterBtn.classList.toggle('active', this.state.filterOpen);
+      const res = await fetch('/api/diary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then(r => r.json());
 
-        // 渲染筛选选项
-        const emotionsContainer = document.getElementById('filter-emotions');
-        if (emotionsContainer) {
-            emotionsContainer.innerHTML = this.moods.map(m => `
-                <div class="filter-option ${this.state.filterEmotion === m.level ? 'active' : ''}" 
-                     data-emotion="${m.level}">
-                    ${m.emoji} ${m.label}
-                </div>
-            `).join('');
+      if (res.success) {
+        this.state.isDirty = false;
+        if (res.entry) {
+          this.state.todayEntry = res.entry;
+          this._fillFormFromEntry(res.entry);
         }
-
-        const tagsContainer = document.getElementById('filter-tags');
-        if (tagsContainer) {
-            const allTags = [...new Set([...this.defaultTags, ...this.state.tags])];
-            tagsContainer.innerHTML = allTags.map(tag => `
-                <div class="filter-option ${this.state.filterTag === tag ? 'active' : ''}" 
-                     data-tag="${this._esc(tag)}">
-                    ${this._esc(tag)}
-                </div>
-            `).join('');
+        if (typeof res.streak === 'number') {
+          this.state.streak = res.streak;
         }
+        this._toast('日记保存成功');
+        this._loadHistory();
+      } else {
+        this._toast(res.error || '保存失败');
+      }
+    } catch (e) {
+      console.error('[Diary] 保存失败:', e);
+      this._toast('保存失败，请检查网络');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '保存日记';
+      }
+    }
+  }
 
-        // 绑定筛选点击
-        emotionsContainer?.addEventListener('click', (e) => {
-            const opt = e.target.closest('.filter-option');
-            if (opt) {
-                const level = parseInt(opt.dataset.emotion);
-                this._setState({ 
-                    filterEmotion: this.state.filterEmotion === level ? null : level,
-                    page: 0
-                });
-                this._searchEntries();
-            }
-        });
+  // ==================== 历史记录弹窗 ====================
 
-        tagsContainer?.addEventListener('click', (e) => {
-            const opt = e.target.closest('.filter-option');
-            if (opt) {
-                const tag = opt.dataset.tag;
-                this._setState({ 
-                    filterTag: this.state.filterTag === tag ? null : tag,
-                    page: 0
-                });
-                this._searchEntries();
-            }
-        });
+  async _openHistory() {
+    const modal = document.getElementById('history-modal');
+    if (!modal) return;
+    modal.classList.add('active');
+    await this._loadHistory();
+    this._renderHistory();
+  }
+
+  _filterEntries(entries, filter) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (filter === 'week') {
+      const monday = new Date(today);
+      const dow = today.getDay() || 7;
+      monday.setDate(today.getDate() - (dow - 1));
+      return entries.filter(e => {
+        if (!e.date) return false;
+        const d = new Date(e.date);
+        return d >= monday && d <= today;
+      });
+    }
+    if (filter === 'month') {
+      const y = today.getFullYear();
+      const m = today.getMonth();
+      return entries.filter(e => {
+        if (!e.date) return false;
+        const d = new Date(e.date);
+        return d.getFullYear() === y && d.getMonth() === m;
+      });
+    }
+    return entries;
+  }
+
+  _renderHistory() {
+    const list = document.getElementById('history-list');
+    if (!list) return;
+    const filtered = this._filterEntries(this.state.entries, this.state.activeFilter);
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="history-empty">暂无符合条件的记录</div>';
+      return;
     }
 
-    _updateSaveButton() {
-        const btn = document.getElementById('save-btn');
-        const btnText = document.getElementById('save-btn-text');
+    list.innerHTML = filtered.map(entry => {
+      const title = entry.title || '(无标题)';
+      const date = entry.date || '';
+      const mood = entry.emotion_emoji ? `${entry.emotion_emoji} ${entry.emotion_label || ''}` : '未记录心情';
+      const tagsHtml = (entry.tags || []).slice(0, 3).map(t =>
+        `<span class="history-tag" style="font-size:11px;color:#999;">#${this._escape(t)}</span>`
+      ).join(' ');
+      const isToday = entry.date === new Date().toISOString().slice(0, 10);
+      return `<div class="history-item" data-id="${entry.id}">
+        <div class="history-item-title">${this._escape(title)} ${isToday ? '<span style="font-size:11px;color:#999;">· 今天</span>' : ''}</div>
+        <div class="history-item-meta">
+          <span class="history-mood">${mood}</span> · ${date} ${tagsHtml}
+        </div>
+        <div class="history-item-actions">
+          <button class="history-item-btn" data-action="view" data-id="${entry.id}">查看</button>
+          <button class="history-item-btn danger" data-action="delete" data-id="${entry.id}" data-title="${this._escape(title)}">删除</button>
+        </div>
+      </div>`;
+    }).join('');
 
-        if (btn) {
-            btn.disabled = this.state.isSaving;
-            btn.classList.toggle('saving', this.state.isSaving);
+    list.querySelectorAll('[data-action="view"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._viewHistoryEntry(btn.dataset.id);
+      });
+    });
+    list.querySelectorAll('[data-action="delete"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._askDelete(btn.dataset.id, btn.dataset.title);
+      });
+    });
+  }
+
+  async _viewHistoryEntry(id) {
+    try {
+      const res = await fetch(`/api/diary/${id}`).then(r => r.json());
+      if (res.success && res.entry) {
+        this._closeModal('history-modal');
+        // 询问是否覆盖当前编辑
+        if (this.state.isDirty) {
+          this._openUnsavedModal(() => {
+            this._fillFormFromEntry(res.entry);
+            this.state.isDirty = false;
+            this._toast('已加载历史日记');
+          });
+        } else {
+          this._fillFormFromEntry(res.entry);
+          this.state.isDirty = false;
+          this._toast('已加载历史日记');
         }
-
-        const isUpdate = !!this.state.todayEntry;
-        if (btnText) btnText.textContent = isUpdate ? '更新日记' : '保存日记';
+      } else {
+        this._toast('加载失败');
+      }
+    } catch (e) {
+      console.error('[Diary] 加载历史详情失败:', e);
+      this._toast('网络错误');
     }
+  }
 
-    // ==================== 交互逻辑 ====================
-
-    _setMood(level) {
-        this._setState({ currentMood: level });
+  _askDelete(id, title) {
+    this.state.deleteTargetId = id;
+    this.state.deleteTargetTitle = title || '';
+    const titleEl = document.getElementById('delete-target-title');
+    if (titleEl) {
+      titleEl.textContent = title ? `《${title}》` : '';
+      titleEl.style.display = title ? 'block' : 'none';
     }
+    this._openModal('delete-modal');
+  }
 
-    _setWeather(weather) {
-        this._setState({ selectedWeather: weather });
-    }
-
-    _toggleTag(tag) {
-        const tags = this.state.selectedTags.includes(tag)
-            ? this.state.selectedTags.filter(t => t !== tag)
-            : [...this.state.selectedTags, tag];
-        this._setState({ selectedTags: tags });
-    }
-
-    async _showAddTagInput() {
-        const tag = prompt('请输入新标签名称：');
-        if (tag && tag.trim()) {
-            const newTag = tag.trim();
-            // 添加到标签列表
-            if (!this.state.tags.includes(newTag)) {
-                const newTags = [...this.state.tags, newTag];
-                this._setState({ tags: newTags });
-            }
-            // 选中新标签
-            if (!this.state.selectedTags.includes(newTag)) {
-                this._setState({ selectedTags: [...this.state.selectedTags, newTag] });
-            }
-            // 保存到服务器
-            try {
-                await fetch('/api/diary/tags', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${this._getToken()}`
-                    },
-                    body: JSON.stringify({ tag: newTag })
-                });
-            } catch (e) {
-                console.error('[DiaryApp] 保存标签失败:', e);
-            }
+  async _confirmDelete() {
+    const id = this.state.deleteTargetId;
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/diary/${id}`, { method: 'DELETE' }).then(r => r.json());
+      if (res.success) {
+        this._toast('已删除');
+        this._closeModal('delete-modal');
+        this.state.deleteTargetId = null;
+        // 如果删的是当前正在编辑的日记，清空编辑器
+        if (this.state.todayEntry?.id === id) {
+          this._resetForm();
         }
+        await this._loadHistory();
+        this._renderHistory();
+        // 刷新今日
+        await this._loadToday();
+      } else {
+        this._toast(res.error || '删除失败');
+      }
+    } catch (e) {
+      console.error('[Diary] 删除失败:', e);
+      this._toast('网络错误');
     }
+  }
 
-    async _uploadImages(files) {
-        const maxFiles = 9 - this.state.images.length;
-        const filesToUpload = files.slice(0, maxFiles);
+  // ==================== 未保存拦截 ====================
 
-        for (const file of filesToUpload) {
-            if (file.size > 5 * 1024 * 1024) {
-                this._toast(`${file.name} 超过5MB限制`);
-                continue;
-            }
+  _openUnsavedModal(onDiscard) {
+    this._pendingDiscard = onDiscard;
+    this._openModal('unsaved-modal');
+  }
 
-            try {
-                const formData = new FormData();
-                formData.append('image', file);
+  _proceedNavigation() {
+    if (this._pendingDiscard) {
+      const fn = this._pendingDiscard;
+      this._pendingDiscard = null;
+      fn();
+    }
+  }
 
-                const res = await fetch('/api/diary/upload-image', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${this._getToken()}`
-                    },
-                    body: formData
-                });
+  _maybeCloseWithUnsaved(modalId) {
+    if (this.state.isDirty && (modalId === 'history-modal')) {
+      // 关闭历史弹窗不需要拦截；如果是离开日记视图则另说
+      this._closeModal(modalId);
+      return;
+    }
+    this._closeModal(modalId);
+  }
 
-                const data = await res.json();
-                if (data.success) {
-                    this._setState({ images: [...this.state.images, data.image_url] });
-                    this._renderImages();
-                } else {
-                    this._toast(data.error || '上传失败');
-                }
-            } catch (e) {
-                console.error('[DiaryApp] 图片上传失败:', e);
-                this._toast('图片上传失败');
-            }
+  // ==================== 图片上传 ====================
+
+  async _handleImageUpload(e) {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue;
+      // 添加占位
+      const placeholder = { url: '', uploading: true, name: file.name };
+      this.state.images.push(placeholder);
+      this._renderImagePreviews();
+      try {
+        const form = new FormData();
+        form.append('image', file);
+        const res = await fetch('/api/diary/upload-image', {
+          method: 'POST',
+          body: form,
+        }).then(r => r.json());
+        if (res.success && res.image_url) {
+          // 替换占位
+          const idx = this.state.images.indexOf(placeholder);
+          if (idx >= 0) {
+            this.state.images[idx] = { url: res.image_url, uploaded: true };
+          }
+          this.state.isDirty = true;
+        } else {
+          // 移除占位
+          this.state.images = this.state.images.filter(i => i !== placeholder);
+          this._toast(res.error || '上传失败');
         }
+      } catch (err) {
+        this.state.images = this.state.images.filter(i => i !== placeholder);
+        console.error('[Diary] 上传失败:', err);
+        this._toast('网络错误');
+      }
     }
+    this._renderImagePreviews();
+    // 清空 input，允许重复选同一文件
+    e.target.value = '';
+  }
 
-    _removeImage(index) {
-        const images = [...this.state.images];
-        images.splice(index, 1);
-        this._setState({ images });
-        this._renderImages();
-    }
+  _renderImagePreviews() {
+    const list = document.getElementById('image-preview-list');
+    if (!list) return;
+    list.innerHTML = this.state.images.map((img, i) => {
+      const isUploading = img.uploading && !img.url;
+      if (isUploading) {
+        return `<div class="image-preview-item-wrap">
+          <div class="image-preview-item" style="background:#f5f5f0;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">上传中</div>
+        </div>`;
+      }
+      return `<div class="image-preview-item-wrap">
+        <img class="image-preview-item" src="${this._escape(img.url)}" data-index="${i}" alt="">
+        <button class="image-remove-btn" data-index="${i}" title="移除">✕</button>
+      </div>`;
+    }).join('');
 
-    _toggleFilter() {
-        this._setState({ filterOpen: !this.state.filterOpen });
-    }
+    list.querySelectorAll('.image-preview-item').forEach(img => {
+      img.addEventListener('click', (e) => {
+        if (e.currentTarget.dataset.index === undefined) return;
+        document.getElementById('lightbox-img').src = img.src;
+        document.getElementById('lightbox-overlay').classList.add('active');
+      });
+    });
+    list.querySelectorAll('.image-remove-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index);
+        this.state.images.splice(idx, 1);
+        this.state.isDirty = true;
+        this._renderImagePreviews();
+      });
+    });
+  }
 
-    _debounceSearch() {
-        clearTimeout(this._searchTimer);
-        this._searchTimer = setTimeout(() => this._searchEntries(), 300);
-    }
+  // ==================== 弹窗工具 ====================
 
-    async _searchEntries() {
-        const { searchKeyword, filterEmotion, filterTag, page } = this.state;
+  _closeModal(id) {
+    document.getElementById(id)?.classList.remove('active');
+  }
+  _openModal(id) {
+    document.getElementById(id)?.classList.add('active');
+  }
+  _closeLightbox() {
+    document.getElementById('lightbox-overlay')?.classList.remove('active');
+  }
 
-        try {
-            const params = new URLSearchParams();
-            if (searchKeyword) params.set('keyword', searchKeyword);
-            if (filterEmotion) params.set('emotion', filterEmotion);
-            if (filterTag) params.set('tag', filterTag);
-            params.set('limit', 20);
-            params.set('offset', page * 20);
+  _resetForm() {
+    document.getElementById('diary-title').value = '';
+    document.getElementById('diary-content').innerHTML = '';
+    this.state.currentMood = null;
+    this.state.currentMoodValue = null;
+    this.state.selectedTags = [];
+    this.state.images = [];
+    this.state.isDirty = false;
+    this._renderMoods();
+    this._renderTags();
+    this._renderImagePreviews();
+    this._updateCharCount();
+  }
 
-            const res = await fetch(`/api/diary?${params.toString()}`);
-            const data = await res.json();
+  _toast(msg) {
+    const toast = document.getElementById('diary-toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+  }
 
-            this._setState({
-                entries: data.entries || [],
-                hasMore: (data.entries?.length || 0) >= 20
-            });
-        } catch (e) {
-            console.error('[DiaryApp] 搜索失败:', e);
-        }
-    }
-
-    async _loadMore() {
-        const { searchKeyword, filterEmotion, filterTag, page } = this.state;
-        const nextPage = page + 1;
-
-        try {
-            const params = new URLSearchParams();
-            if (searchKeyword) params.set('keyword', searchKeyword);
-            if (filterEmotion) params.set('emotion', filterEmotion);
-            if (filterTag) params.set('tag', filterTag);
-            params.set('limit', 20);
-            params.set('offset', nextPage * 20);
-
-            const res = await fetch(`/api/diary?${params.toString()}`);
-            const data = await res.json();
-
-            this._setState({
-                entries: [...this.state.entries, ...(data.entries || [])],
-                page: nextPage,
-                hasMore: (data.entries?.length || 0) >= 20
-            });
-        } catch (e) {
-            console.error('[DiaryApp] 加载更多失败:', e);
-        }
-    }
-
-    // ==================== 保存 ====================
-
-    async _save() {
-        if (this.state.isSaving) {
-            this._toast('正在保存...');
-            return;
-        }
-
-        const title = document.getElementById('diary-title')?.value.trim() || '';
-        const content = document.getElementById('diary-content')?.value.trim() || '';
-
-        if (!content && !title) {
-            this._toast('请写点什么吧~');
-            return;
-        }
-
-        if (!this.state.currentMood) {
-            this._toast('请选择今天的心情~');
-            return;
-        }
-
-        this._setState({ isSaving: true });
-
-        try {
-            const res = await fetch('/api/diary', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this._getToken()}`
-                },
-                body: JSON.stringify({
-                    emotion_level: this.state.currentMood,
-                    title,
-                    content,
-                    images: this.state.images,
-                    tags: this.state.selectedTags,
-                    weather: this.state.selectedWeather
-                })
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-                this._setState({
-                    todayEntry: data.entry,
-                    streak: data.streak,
-                    isSaving: false
-                });
-
-                const action = data.action === 'create' ? '已保存' : '已更新';
-                this._toast(`✅ 日记${action}~`, 'success');
-
-                // 清空草稿
-                this._clearDraft();
-
-                // 刷新历史列表
-                await this._loadData();
-            } else {
-                this._toast(data.error || '保存失败');
-                this._setState({ isSaving: false });
-            }
-        } catch (e) {
-            console.error('[DiaryApp] 保存失败:', e);
-            this._toast('保存失败，请重试');
-            this._setState({ isSaving: false });
-        }
-    }
-
-    async _deleteEntry(entryId) {
-        if (!confirm('确定要删除这篇日记吗？')) return;
-
-        try {
-            const res = await fetch(`/api/diary/${entryId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${this._getToken()}`
-                }
-            });
-
-            const data = await res.json();
-
-            if (data.success) {
-                this._toast('🗑️ 日记已删除', 'success');
-
-                // 如果删除的是今日日记，重置状态
-                if (this.state.todayEntry?.id === entryId) {
-                    this._setState({
-                        todayEntry: null,
-                        currentMood: null,
-                        selectedTags: [],
-                        selectedWeather: '',
-                        images: []
-                    });
-                    // 清空表单
-                    const titleEl = document.getElementById('diary-title');
-                    const contentEl = document.getElementById('diary-content');
-                    if (titleEl) titleEl.value = '';
-                    if (contentEl) contentEl.value = '';
-                    const charCountEl = document.getElementById('char-count');
-                    if (charCountEl) charCountEl.textContent = '0';
-                    this._renderImages();
-                }
-
-                // 刷新列表
-                await this._loadData();
-            } else {
-                this._toast(data.error || '删除失败');
-            }
-        } catch (e) {
-            console.error('[DiaryApp] 删除失败:', e);
-            this._toast('删除失败');
-        }
-    }
-
-    // ==================== 草稿 ====================
-
-    _saveDraft(silent = false) {
-        const title = document.getElementById('diary-title')?.value || '';
-        const content = document.getElementById('diary-content')?.value || '';
-
-        localStorage.setItem('diary_draft', JSON.stringify({
-            title,
-            content,
-            mood: this.state.currentMood,
-            tags: this.state.selectedTags,
-            weather: this.state.selectedWeather,
-            images: this.state.images,
-            savedAt: Date.now()
-        }));
-    }
-
-    _loadDraft() {
-        try {
-            const draft = localStorage.getItem('diary_draft');
-            if (!draft) return;
-
-            const data = JSON.parse(draft);
-            const savedAt = new Date(data.savedAt);
-            const now = new Date();
-
-            // 草稿超过24小时清除
-            if (now - savedAt > 24 * 60 * 60 * 1000) {
-                this._clearDraft();
-                return;
-            }
-
-            // 如果没有今日日记，恢复草稿
-            if (!this.state.todayEntry && (data.title || data.content)) {
-                const titleEl = document.getElementById('diary-title');
-                const contentEl = document.getElementById('diary-content');
-                const charCountEl = document.getElementById('char-count');
-
-                if (titleEl) titleEl.value = data.title || '';
-                if (contentEl) {
-                    contentEl.value = data.content || '';
-                    if (charCountEl) charCountEl.textContent = (data.content || '').length;
-                }
-
-                if (data.mood) this._setState({ currentMood: data.mood });
-                if (data.tags?.length) this._setState({ selectedTags: data.tags });
-                if (data.weather) this._setState({ selectedWeather: data.weather });
-                if (data.images?.length) {
-                    this._setState({ images: data.images });
-                    this._renderImages();
-                }
-            }
-        } catch (e) {
-            console.error('[DiaryApp] 加载草稿失败:', e);
-        }
-    }
-
-    _clearDraft() {
-        localStorage.removeItem('diary_draft');
-    }
-
-    // ==================== 工具 ====================
-
-    _getToken() {
-        return localStorage.getItem('token') || App?.token || '';
-    }
-
-    _toast(msg, type = '') {
-        const toast = document.getElementById('diary-toast');
-        if (toast) {
-            toast.textContent = msg;
-            toast.className = 'diary-toast show' + (type ? ' ' + type : '');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2500);
-        }
-    }
-
-    _esc(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+  _escape(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
 }
 
-window.DiaryApp = DiaryApp;
+window.DiaryView = {
+  init: () => {
+    if (!window.__diaryAppInstance) {
+      window.__diaryAppInstance = new DiaryApp();
+    }
+    window.__diaryAppInstance.init();
+  }
+};

@@ -1,0 +1,182 @@
+/**
+ * Diary Sidebar - 右栏日记数据展示
+ *
+ * 职责：渲染 dashboard 右栏的 5 个 diary 区块
+ *   1. 本周心情 7 天格子
+ *   2. 连续记录天数
+ *   3. 本月日记数 / 总字数 / 平均字数
+ *   4. 当前编辑器字数（实时）
+ *   5. 当前心情 + 标签摘要
+ *
+ * 数据来源：
+ *   - window.dashboardState.diaryEntries  (来自 dashboard.js loadDiary)
+ *   - window.dashboardState.todayDiary
+ *   - window.dashboardState.moodLevel / selectedTags
+ *
+ * 暴露 API：
+ *   - DiarySidebar.renderWeekMood()
+ *   - DiarySidebar.renderMonthlyStats()
+ *   - DiarySidebar.renderCurrentDraft({ words, moodLabel, tags })
+ *   - DiarySidebar.renderAll()  ← 一次性全部刷新
+ */
+
+(function () {
+    'use strict';
+
+    const WEEK_DAYS = ['一', '二', '三', '四', '五', '六', '日'];
+    const MOOD_EMOJI_MAP = [
+        { min: 9, emoji: '😄' },
+        { min: 7, emoji: '🙂' },
+        { min: 5, emoji: '😐' },
+        { min: 3, emoji: '😔' },
+        { min: 1, emoji: '😢' },
+    ];
+
+    function moodEmoji(level) {
+        if (!level) return '😐';
+        return (MOOD_EMOJI_MAP.find(m => level >= m.min) || MOOD_EMOJI_MAP[MOOD_EMOJI_MAP.length - 1]).emoji;
+    }
+
+    function getMondayOf(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        d.setDate(d.getDate() + diff);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+
+    function sameDay(a, b) {
+        return a.getFullYear() === b.getFullYear()
+            && a.getMonth() === b.getMonth()
+            && a.getDate() === b.getDate();
+    }
+
+    function localDateKey(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    function getState() {
+        return window.dashboardState || {};
+    }
+
+    function isNewDiaryLayout() {
+        // 新版 diary.js v7 使用 #view-diary
+        return !!document.getElementById('view-diary');
+    }
+
+    function renderWeekMood() {
+        // 如果是新布局，diary.js 自己渲染，不冲突
+        if (isNewDiaryLayout()) return;
+
+        const grid = document.getElementById('week-mood-grid');
+        if (!grid) return;
+        const entries = getState().diaryEntries || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const monday = getMondayOf(today);
+
+        const byDate = {};
+        entries.forEach(e => {
+            const d = new Date(e.date);
+            if (!isNaN(d.getTime())) byDate[localDateKey(d)] = e;
+        });
+
+        let streak = 0;
+        grid.innerHTML = WEEK_DAYS.map((label, i) => {
+            const cellDate = new Date(monday);
+            cellDate.setDate(monday.getDate() + i);
+            const key = localDateKey(cellDate);
+            const entry = byDate[key];
+            const isFuture = cellDate > today;
+            const isToday = sameDay(cellDate, today);
+
+            let emoji = '?';
+            let cls = 'week-mood-cell';
+            if (entry) {
+                emoji = moodEmoji(entry.emotion_level);
+                streak++;
+            } else if (isFuture) {
+                cls += ' is-future';
+            }
+
+            const mmdd = `${String(cellDate.getMonth() + 1).padStart(2, '0')}-${String(cellDate.getDate()).padStart(2, '0')}`;
+            if (isToday) cls += ' is-today';
+
+            return `<div class="${cls}" title="${mmdd}">
+                <div class="week-mood-emoji">${emoji}</div>
+                <div class="week-mood-day">${label}</div>
+                <div class="week-mood-date">${mmdd}</div>
+            </div>`;
+        }).join('');
+
+        const streakEl = document.getElementById('streak-count');
+        if (streakEl) streakEl.textContent = streak;
+    }
+
+    function renderMonthlyStats() {
+        if (isNewDiaryLayout()) return;
+        const state = getState();
+        const entries = state.diaryEntries || [];
+        const now = new Date();
+        const thisMonth = entries.filter(e => {
+            const d = new Date(e.date);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+        const totalWords = thisMonth.reduce((a, e) => a + ((e.content || '').length), 0);
+        const avg = thisMonth.length > 0 ? Math.round(totalWords / thisMonth.length) : 0;
+
+        const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        };
+        setText('diary-rs-days', thisMonth.length);
+        setText('diary-rs-words', totalWords);
+        setText('diary-rs-avg', avg);
+    }
+
+    function renderCurrentDraft(opts = {}) {
+        const state = getState();
+        const mood = state.moodLevel;
+        const tags = state.selectedTags || [];
+
+        // 字数
+        const wordEl = document.getElementById('diary-word-count');
+        if (wordEl && typeof opts.words === 'number') {
+            wordEl.textContent = opts.words;
+        }
+
+        // 心情+标签摘要
+        const box = document.getElementById('diary-mood-tags');
+        if (!box) return;
+        const parts = [];
+        if (mood) parts.push(`<span class="word-summary-mood">${moodEmoji(mood)}</span>`);
+        const moodLabel = opts.moodLabel || '';
+        if (moodLabel) parts.push(`<span class="word-summary-tag">${escapeHtml(moodLabel)}</span>`);
+        tags.slice(0, 2).forEach(t => parts.push(`<span class="word-summary-tag">${escapeHtml(t)}</span>`));
+        box.innerHTML = parts.length ? parts.join('') : '<span class="word-summary-empty">-</span>';
+    }
+
+    function renderAll(opts) {
+        renderWeekMood();
+        renderMonthlyStats();
+        renderCurrentDraft(opts || {});
+    }
+
+    window.DiarySidebar = {
+        renderWeekMood,
+        renderMonthlyStats,
+        renderCurrentDraft,
+        renderAll,
+        moodEmoji,
+    };
+})();

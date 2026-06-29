@@ -110,7 +110,7 @@ def atomic_read_json(filepath: str, default: Optional[Any] = None) -> Any:
         return default if default is not None else {}
 
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, 'r', encoding='utf-8', newline='') as f:
             if _file_lock:
                 _lock_file(f, 'shared')
             data = json.load(f)

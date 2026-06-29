@@ -1,234 +1,140 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#FF9A9E">
-    <title>日记 - StudyPal</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <script>
-        (function() {
-            var l = document.createElement('link');
-            l.rel = 'stylesheet';
-            l.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap';
-            var n = document.querySelector('link[rel="stylesheet"]');
-            n.parentNode.insertBefore(l, n);
-        })();
-    </script>
-    <link rel="stylesheet" href="/static/css/variables.css">
-    <link rel="stylesheet" href="/static/css/app.css">
-    <link rel="stylesheet" href="/static/css/diary.css">
-</head>
-<body>
+<div class="diary-container">
+  <div class="diary-main">
+    <div class="diary-header">
+      <h1 class="diary-title">学习日记</h1>
+      <div class="diary-actions">
+        <button class="btn-history" id="btn-history">历史记录</button>
+        <button class="btn-save" id="btn-save">保存日记</button>
+      </div>
+    </div>
+    <input type="text" class="diary-title-input" id="diary-title" placeholder="给今天的日记起个标题..." maxlength="100">
+    <div class="diary-content" id="diary-content" contenteditable="true" placeholder="今天发生了什么？记录下你的学习点滴..."></div>
+    <div class="diary-toolbar">
+      <button class="btn-image" id="btn-image" title="插入图片">
+        <span>📎</span>
+        <span>插入图片</span>
+      </button>
+      <input type="file" id="image-file-input" accept="image/*" multiple hidden>
+    </div>
+    <div class="image-preview-list" id="image-preview-list"></div>
+  </div>
 
-    <header class="top-bar">
-        <div class="top-bar-left">
-            <div>
-                <div class="top-bar-greeting" id="top-greeting">你好</div>
-                <div class="top-bar-date" id="top-date"></div>
-            </div>
+  <aside class="diary-sidebar">
+    <div class="sidebar-card">
+      <h3 class="sidebar-title">今天的心情</h3>
+      <div class="mood-grid" id="mood-grid"></div>
+      <div class="mood-add" id="mood-add">没有合适的？点击添加自定义 →</div>
+    </div>
+    <div class="sidebar-card">
+      <h3 class="sidebar-title">标签</h3>
+      <div class="tag-list" id="tag-list"></div>
+      <input type="text" class="tag-input" id="tag-input" placeholder="输入新标签..." maxlength="12">
+    </div>
+    <div class="sidebar-card">
+      <h3 class="sidebar-title">本周心情</h3>
+      <div class="weekly-grid" id="weekly-grid"></div>
+      <div class="weekly-streak">连续记录 <span id="streak-count">0</span> 天，加油！</div>
+    </div>
+    <div class="sidebar-card">
+      <h3 class="sidebar-title">字数统计</h3>
+      <div class="word-count">
+        <span class="word-count-number" id="char-count">0</span>
+        <span class="word-count-unit">字</span>
+      </div>
+      <div class="word-count-hint" id="word-count-hint">开始记录吧，每一个字都算数</div>
+    </div>
+  </aside>
+</div>
+
+<!-- 历史记录弹窗 -->
+<div class="modal-overlay" id="history-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>历史记录</h3>
+      <button class="modal-close" id="history-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="history-filter">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="week">本周</button>
+        <button class="filter-btn" data-filter="month">本月</button>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal-container modal-small">
+    <div class="modal-header">
+      <h3>确认删除</h3>
+      <button class="modal-close" id="delete-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>确定要删除这篇日记吗？此操作不可撤销。</p>
+      <p class="delete-target-title" id="delete-target-title"></p>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="btn-cancel-delete">取消</button>
+        <button class="btn-danger" id="btn-confirm-delete">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 未保存提示弹窗 -->
+<div class="modal-overlay" id="unsaved-modal">
+  <div class="modal-container modal-small">
+    <div class="modal-header">
+      <h3>有未保存的内容</h3>
+      <button class="modal-close" id="unsaved-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>当前编辑的内容尚未保存，确定要离开吗？</p>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="btn-continue-edit">继续编辑</button>
+        <button class="btn-danger" id="btn-discard-edit">放弃修改</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 自定义心情弹窗 -->
+<div class="modal-overlay" id="custom-mood-modal">
+  <div class="modal-container modal-large">
+    <div class="modal-header">
+      <h3>添加自定义心情</h3>
+      <button class="modal-close" id="custom-mood-close">✕</button>
+    </div>
+    <div class="modal-body modal-scrollable">
+      <div class="custom-mood-emoji-section">
+        <label>选择表情（点击选中）</label>
+        <div class="emoji-grid-scrollable" id="emoji-grid"></div>
+      </div>
+      <div class="custom-mood-name-section">
+        <label>心情名称</label>
+        <input type="text" id="custom-mood-name" placeholder="如：超棒" maxlength="10">
+      </div>
+      <div class="custom-mood-level-section">
+        <label>心情等级（1-10）</label>
+        <div class="value-slider">
+          <input type="range" id="custom-mood-level" min="1" max="10" value="5">
+          <span class="value-display" id="custom-mood-level-display">5</span>
         </div>
-        <div class="top-bar-right">
-            <button class="btn-icon" onclick="window.location.href='/settings'" title="设置">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-            </button>
-        </div>
-    </header>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="btn-cancel-custom-mood">取消</button>
+      <button class="btn-primary" id="btn-confirm-custom-mood">添加</button>
+    </div>
+  </div>
+</div>
 
-    <main class="diary-page">
-        <div class="diary-container">
+<!-- 图片 Lightbox -->
+<div class="lightbox-overlay" id="lightbox-overlay">
+  <button class="lightbox-close" id="lightbox-close">✕</button>
+  <img class="lightbox-img" id="lightbox-img" src="" alt="">
+</div>
 
-            <!-- ===== 头部：日期 + 连续天数 ===== -->
-            <section class="diary-hero animate-slideUp">
-                <div class="diary-date-wrap">
-                    <div class="diary-current-date" id="diary-current-date">2026年6月11日</div>
-                    <div class="diary-current-weekday" id="diary-current-weekday">星期四</div>
-                </div>
-                <div class="diary-streak-badge" id="diary-streak">
-                    <span class="streak-fire">&#128293;</span>
-                    <span class="streak-text">连续 <span id="streak-count">0</span> 天</span>
-                </div>
-            </section>
-
-            <!-- ===== 心情选择 ===== -->
-            <section class="mood-section card animate-slideUp" style="animation-delay: 50ms">
-                <div class="mood-header">
-                    <span class="mood-title">今天心情如何？</span>
-                </div>
-                <div class="mood-track" id="mood-track">
-                    <!-- 动态生成 -->
-                </div>
-            </section>
-
-            <!-- ===== 快速记录卡片 ===== -->
-            <section class="diary-editor-card card animate-slideUp" style="animation-delay: 100ms">
-                <div class="editor-quick-prompt" id="editor-prompt">
-                    今天想记录什么...
-                </div>
-
-                <div class="editor-form">
-                    <!-- 标题 -->
-                    <div class="editor-field">
-                        <input type="text" class="title-input" id="diary-title" placeholder="标题（选填）" maxlength="100">
-                    </div>
-
-                    <!-- 内容 -->
-                    <div class="editor-field">
-                        <textarea class="content-textarea" id="diary-content" placeholder="写下此刻的想法..." rows="4"></textarea>
-                        <div class="word-count-bar">
-                            <span class="char-count" id="char-count">0</span> 字
-                        </div>
-                    </div>
-
-                    <!-- 标签 -->
-                    <div class="editor-field">
-                        <div class="tag-cloud" id="tag-cloud">
-                            <!-- 动态生成 -->
-                        </div>
-                    </div>
-
-                    <!-- 底部工具栏 -->
-                    <div class="editor-toolbar">
-                        <div class="toolbar-left">
-                            <button class="tool-btn" id="weather-btn" title="天气">
-                                <span id="selected-weather">&#9728;</span>
-                            </button>
-                            <button class="tool-btn" id="image-btn" title="添加图片">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                                    <polyline points="21 15 16 10 5 21"></polyline>
-                                </svg>
-                            </button>
-                        </div>
-                        <button class="save-btn" id="save-btn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                            <span>保存</span>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ===== 历史日记 ===== -->
-            <section class="history-section animate-slideUp" style="animation-delay: 150ms">
-                <div class="history-header">
-                    <h2 class="history-title">过往日记</h2>
-                    <span class="history-count" id="diary-count">0 篇</span>
-                </div>
-
-                <!-- 搜索和筛选 -->
-                <div class="filter-bar">
-                    <div class="search-wrap">
-                        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" class="search-input" id="search-input" placeholder="搜索日记...">
-                    </div>
-                    <button class="filter-toggle-btn" id="filter-toggle">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- 筛选面板 -->
-                <div class="filter-panel" id="filter-panel">
-                    <div class="filter-group">
-                        <div class="filter-label">按心情</div>
-                        <div class="filter-chips" id="filter-emotions">
-                            <!-- 动态生成 -->
-                        </div>
-                    </div>
-                    <div class="filter-group">
-                        <div class="filter-label">按标签</div>
-                        <div class="filter-chips" id="filter-tags">
-                            <!-- 动态生成 -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 日记卡片流 -->
-                <div class="diary-stream" id="diary-stream">
-                    <!-- 动态生成 -->
-                </div>
-
-                <!-- 加载更多 -->
-                <div class="load-more-wrap" id="load-more" style="display:none;">
-                    <button class="load-more-btn" id="load-more-btn">加载更多</button>
-                </div>
-            </section>
-
-        </div>
-    </main>
-
-    <nav class="bottom-nav">
-        <a class="nav-item" href="/home">
-            <span class="nav-item-icon">&#127968;</span>
-            <span class="nav-item-label">首页</span>
-        </a>
-        <a class="nav-item" href="/chat">
-            <span class="nav-item-icon">&#128172;</span>
-            <span class="nav-item-label">搭话</span>
-        </a>
-        <a class="nav-item active" href="/diary">
-            <span class="nav-item-icon">&#128221;</span>
-            <span class="nav-item-label">日记</span>
-        </a>
-        <a class="nav-item" href="/tasks">
-            <span class="nav-item-icon">&#9745;</span>
-            <span class="nav-item-label">任务</span>
-        </a>
-        <a class="nav-item" href="/settings">
-            <span class="nav-item-icon">&#9881;</span>
-            <span class="nav-item-label">设置</span>
-        </a>
-    </nav>
-
-    <!-- Toast -->
-    <div class="toast-container" id="toast-container"></div>
-
-    <script src="/static/js/constants.js" defer></script>
-    <script src="/static/js/api.js" defer></script>
-    <script src="/static/js/state.js" defer></script>
-    <script src="/static/js/pages/diary.js" defer></script>
-    <script src="/static/js/app.js" defer></script>
-    <script>
-    (function() {
-        if (!localStorage.getItem('token')) {
-            window.location.href = '/login';
-            return;
-        }
-        var theme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', theme);
-
-        function initDiaryPage() {
-            if (!window.App || !window.DiaryApp) {
-                setTimeout(initDiaryPage, 50);
-                return;
-            }
-            App._isSPA = false;
-            App.token = localStorage.getItem('token');
-            App.user = JSON.parse(localStorage.getItem('user') || 'null');
-            if (App.applyTheme) App.applyTheme(theme);
-            App.init();
-
-            if (!window.diaryApp) {
-                window.diaryApp = new DiaryApp();
-            }
-        }
-
-        initDiaryPage();
-    })();
-    </script>
-</body>
-</html>
-
-</html>
-</html>
+<!-- Toast -->
+<div class="diary-toast" id="diary-toast"></div>

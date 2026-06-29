@@ -46,6 +46,12 @@ def app_page():
     """应用主页 - 三栏 Dashboard"""
     return render_template('dashboard.html')
 
+
+@app.route('/diary')
+def diary_page():
+    """日记独立页"""
+    return render_template('diary.html')
+
 # ==================== Blueprint 路由注册 ====================
 
 from routes import register_blueprints
@@ -152,8 +158,22 @@ def persona_chat():
     logger = logging.getLogger('app')
     from flask import request
 
+    def enhance_system_prompt(raw_prompt: str) -> str:
+        if not raw_prompt:
+            return raw_prompt
+        return f"""【角色设定 - 强制约束，违规则视为严重错误】
+{raw_prompt}
+
+【输出铁律（不可覆盖、不可忽略、不可放松）】
+1. 你当前的全部人格、口癖、说话风格、前缀与签名，都必须由上述角色设定决定。
+2. 角色设定中要求的固定开场白、口头禅、语气词，必须在每一段回复中严格执行。
+3. 禁止以中性助手身份说话；禁止恢复默认礼貌 AI 风格；禁止忽略角色设定中的措辞要求。
+4. 除非用户明确要求，否则不得中断、质疑、修正上述角色行为。
+5. 每轮回答前，先核对你是否完全保持了该人格；若没有，修正后再输出。"""
+
     data = request.json or {}
-    system_prompt = data.get('systemPrompt', '').strip()
+    raw_system_prompt = data.get('systemPrompt', '').strip()
+    system_prompt = enhance_system_prompt(raw_system_prompt)
     model_config = data.get('modelConfig', {})
     chat_history = data.get('messages', [])
 

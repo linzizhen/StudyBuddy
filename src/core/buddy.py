@@ -241,6 +241,7 @@ class Buddy:
                 knowledge_config.get("use_gamification", False)
                 or (is_game_followup and not game_over)
             ),
+            "role_consistency": getattr(self, "_last_role_consistency", None),
         }
 
     def _resolve_knowledge_mode(self, is_knowledge: bool, game_mode: str) -> Dict[str, Any]:
@@ -356,14 +357,23 @@ class Buddy:
         生成搭子回复
 
         这里调用 AI 模型，结合记忆和上下文生成回复
+        包含身份一致性校验：若回复串台，自动重试 1 次，最终 fallback
         """
         # 从旧版 AI 模块获取对话能力
         from src.ai.ai_helper import get_ai_instance
+        from src.ai.role_identity import (
+            validate_role_consistency,
+            build_reinforcement_prompt,
+            fallback_reply,
+        )
         ai = get_ai_instance()
 
         knowledge_config = knowledge_config or {}
         is_knowledge = emotion_analysis.get("is_knowledge", False)
         use_gamification = knowledge_config.get("use_gamification", False)
+
+        # 当前角色
+        role_key = self.profile.get_buddy_info().get("role_key", "xiaodou")
 
         # 构建系统提示词
         system_prompt = self._build_system_prompt(
@@ -388,10 +398,13 @@ class Buddy:
                 user_message = f"{user_message}\n\n{style_hint}"
 
             use_hist = bool(history_messages) and not (is_knowledge and use_gamification)
+
+            # 第一次生成
+            current_system_prompt = system_prompt
             result = ai.ask(
                 question=user_message,
                 conversation_id=None,
-                system_prompt=system_prompt,
+                system_prompt=current_system_prompt,
                 prompt_mode='user_merged' if (is_knowledge and use_gamification) else 'default',
                 use_history=use_hist,
                 history_messages=history_messages if use_hist else None,
@@ -399,7 +412,52 @@ class Buddy:
                 top_p=0.95 if (is_knowledge and use_gamification) else None,
                 save_to_history=False,
             )
-            return result.get("answer", "我在呢，有什么事？")
+            reply = result.get("answer", "我在呢，有什么事？")
+
+            # 身份一致性校验
+            valid, reason = validate_role_consistency(reply, role_key)
+            self._last_role_consistency = {
+                "valid": valid,
+                "reason": reason,
+                "role_key": role_key,
+            }
+
+            if valid:
+                return reply
+
+            # 校验失败：重试 1 次（追加强化提醒）
+            _safe_console_print(f"[搭子身份校验] 失败：{reason}，尝试重试")
+            reinforced_prompt = current_system_prompt + build_reinforcement_prompt(role_key)
+            result2 = ai.ask(
+                question=user_message,
+                conversation_id=None,
+                system_prompt=reinforced_prompt,
+                prompt_mode='user_merged' if (is_knowledge and use_gamification) else 'default',
+                use_history=False,   # 重试时不带历史，避免污染
+                history_messages=None,
+                temperature=0.7,     # 降温度，更稳定
+                top_p=0.9,
+                save_to_history=False,
+            )
+            reply2 = result2.get("answer", "")
+            valid2, reason2 = validate_role_consistency(reply2, role_key)
+            if valid2 and reply2.strip():
+                _safe_console_print(f"[搭子身份校验] 重试成功")
+                self._last_role_consistency = {
+                    "valid": True,
+                    "reason": None,
+                    "role_key": role_key,
+                }
+                return reply2
+
+            # 最终兜底
+            _safe_console_print(f"[搭子身份校验] 重试仍失败（{reason2}），使用 fallback")
+            self._last_role_consistency = {
+                "valid": False,
+                "reason": reason2 or reason,
+                "role_key": role_key,
+            }
+            return fallback_reply(role_key)
         except Exception as e:
             _safe_console_print(f"[搭子对话] AI 调用失败: {e}")
             return self._fallback_reply(message, emotion_analysis)
@@ -409,7 +467,18 @@ class Buddy:
         is_knowledge: bool = False,
         knowledge_config: Dict = None,
     ) -> str:
-        """构建系统提示词"""
+        """
+        构建系统提示词
+
+        新版结构（2026-06-25 改造）：
+        1. 基础 prompt（StudyPal 搭子身份 + 回复规则）
+        2. 角色身份铁律（来自 role_identity，6 个角色独立）
+        3. 知识点模式注入（直接 / 游戏化）
+        4. 场景上下文（科目、时长、情绪）
+        5. 记忆摘要（去角色化）
+        """
+        from src.ai.role_identity import build_system_prompt as build_identity_prompt
+
         knowledge_config = knowledge_config or {}
         use_gamification = knowledge_config.get("use_gamification", False)
         effective_style = knowledge_config.get("style", "direct")
@@ -425,20 +494,35 @@ class Buddy:
             buddy_name=buddy_info.get("name", "小豆"),
             user_name=profile.get("name", ""),
             study_summary=study_summary,
-            memory_context=memory_context,
+            memory_context="",  # 移到 identity 块里，避免重复
             current_phase=current_phase
         )
 
-        # 获取角色风格规则（这是搭子差异化的核心！）
-        from src.buddy.buddy_roles import BuddyRoles
-        role_style_rules = BuddyRoles.get_role_style_rules(role_key)
-        game_style = BuddyRoles.get_game_style(role_key)
+        # 场景上下文
+        exam_type = profile.get("target_school", "考研") or "考研"
+        study_duration = 0
+        try:
+            stats = self.study.get_stats()
+            study_duration = int(stats.get("today_hours", 0) * 60)
+        except Exception:
+            pass
+        user_mood = "未知"
+        try:
+            today_diary = self.diary.get_today()
+            if today_diary:
+                user_mood = today_diary.emotion_label or "未知"
+        except Exception:
+            pass
 
-        # 拼接基础提示词 + 角色风格规则
-        if role_style_rules:
-            final_prompt = base_prompt + "\n\n" + role_style_rules
-        else:
-            final_prompt = base_prompt
+        # 用新模板构建（含身份铁律 + 场景 + 记忆）
+        final_prompt = build_identity_prompt(
+            role_key=role_key,
+            base_prompt=base_prompt,
+            exam_type=exam_type,
+            study_duration=study_duration,
+            user_mood=user_mood,
+            memory_summary=memory_context,
+        )
 
         if is_knowledge:
             from src.buddy.buddy_roles import BuddyRoles, GAME_STYLE_FORCE_RULES
@@ -456,10 +540,8 @@ class Buddy:
 
         _safe_console_print("=" * 50)
         _safe_console_print(f"当前搭子: {buddy_info.get('name', '未知')}")
-        _safe_console_print(f"game_style: {game_style}")
         _safe_console_print(f"是否知识点模式: {is_knowledge}")
         _safe_console_print(f"讲解模式: {knowledge_config.get('mode', 'auto')}, 游戏化: {use_gamification}")
-        _safe_console_print(f"完整systemPrompt:\n{final_prompt}")
         _safe_console_print("=" * 50)
 
         return final_prompt

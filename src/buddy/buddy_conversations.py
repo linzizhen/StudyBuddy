@@ -94,6 +94,124 @@ class BuddyConversationStore:
         active["updated_at"] = datetime.now().isoformat()
         self._save()
 
+    def switch_role_with_isolation(
+        self,
+        new_role_key: str,
+        new_role_name: str,
+        new_role_emoji: str,
+        new_role_avatar: str = "",
+        user_name: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """
+        切换角色 + 上下文隔离
+
+        规则：
+        1. 把当前对话摘要保存到长期记忆（去角色化）
+        2. 清空当前对话的 messages
+        3. 注入新角色的开场白（用"我"作为 assistant 消息，但**不**标记历史来源）
+        4. 更新对话的搭子元数据
+        5. 新角色**不知道**之前和其他角色的对话内容
+
+        返回: 切换后的活跃对话 dict（含新 messages）
+        """
+        from src.buddy.buddy_memory import get_buddy_memory
+
+        active = self.get_active()
+        if not active:
+            # 没有活跃对话时新建一个
+            conv_id = self.create_new(
+                buddy_role_key=new_role_key,
+                buddy_name=new_role_name,
+                buddy_emoji=new_role_emoji,
+                title="新对话",
+            )
+            return self.get_by_id(conv_id)
+
+        # 1. 保存旧对话摘要到长期记忆（去角色化）
+        old_messages = active.get("messages", [])
+        if old_messages and len(old_messages) >= 2:
+            try:
+                summary_text = self._make_role_neutral_summary(old_messages)
+                if summary_text:
+                    memory = get_buddy_memory()
+                    memory.add_scene(
+                        summary=summary_text,
+                        scene_type="conversation",
+                        details="",
+                        tags=["对话摘要"],
+                    )
+            except Exception:
+                pass
+
+        # 2. 物理清空 messages
+        active["messages"] = []
+
+        # 3. 更新搭子元数据
+        active["buddy_role_key"] = new_role_key
+        active["buddy_name"] = new_role_name
+        active["buddy_emoji"] = new_role_emoji
+        active["buddy_avatar_url"] = new_role_avatar
+        active["updated_at"] = datetime.now().isoformat()
+
+        # 4. 注入新角色开场白（强制 assistant 身份，不告诉用户"之前是别人"）
+        greeting = self._build_role_greeting(new_role_key, new_role_name, user_name)
+        if greeting:
+            active["messages"].append({
+                "role": "assistant",
+                "content": greeting,
+                "timestamp": datetime.now().isoformat(),
+                "buddy_role_key": new_role_key,
+                "buddy_name": new_role_name,
+                "buddy_emoji": new_role_emoji,
+                "buddy_avatar_url": new_role_avatar,
+                "is_greeting": True,
+            })
+
+        self._save()
+        return active
+
+    @staticmethod
+    def _make_role_neutral_summary(messages: List[Dict[str, Any]]) -> str:
+        """
+        把对话历史生成"去角色化"摘要
+        不提及任何搭子名字，只记录客观事件
+        """
+        user_msgs = [m for m in messages if m.get("role") == "user"]
+        if not user_msgs:
+            return ""
+
+        # 简单取最近 3 条用户消息拼接
+        recent = user_msgs[-3:]
+        topics = []
+        for m in recent:
+            text = (m.get("content") or "").strip()
+            if text:
+                # 截断
+                if len(text) > 40:
+                    text = text[:40] + "…"
+                topics.append(text)
+
+        if not topics:
+            return ""
+        return f"用户近期聊到：{'；'.join(topics)}"
+
+    @staticmethod
+    def _build_role_greeting(role_key: str, role_name: str, user_name: str = "") -> str:
+        """
+        构建新角色的开场白
+        强调自我介绍 + 锚定身份，**不**提及之前任何角色
+        """
+        user_part = f"，{user_name}" if user_name else ""
+        greetings = {
+            "xiaodou": f"嗨~ 我是小豆呀{user_part}，从现在起陪你学习啦~ 有什么想聊的尽管跟我说哦 💕",
+            "aran": f"哟！我是阿燃{user_part}！准备好了吗？给我燃起来！⚡",
+            "senior": f"你好，我是学姐{user_part}。学习上有问题尽管问，学姐当年也是这么走过来的 📚",
+            "xiaoye": f"夜深了... 我是小夜{user_part}。今晚有什么心事想聊吗？ 🌙",
+            "xj": f"Hey！我是戏精{user_part}！今天也要快乐学习哦~ 🎭",
+            "azheng": f"你好，我是阿正{user_part}。让我们用数据说话。📊",
+        }
+        return greetings.get(role_key, f"你好，我是{role_name}{user_part}，接下来陪你一起学习。")
+
     def add_message(
         self,
         conv_id: str,

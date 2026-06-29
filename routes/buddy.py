@@ -96,6 +96,7 @@ def buddy_chat():
         'game_mode': result.get('game_mode', game_mode),
         'use_gamification': result.get('use_gamification', False),
         'buddy': buddy_payload,
+        'role_consistency': result.get('role_consistency'),
     })
 
 
@@ -222,28 +223,52 @@ def get_buddy_roles():
 
 @buddy_bp.route('/switch/<role_key>', methods=['POST'])
 def switch_buddy_role(role_key):
-    """切换搭子角色（保留当前对话消息）"""
+    """切换搭子角色（清空旧上下文 + 隔离对话历史）"""
     from src.buddy.buddy_roles import BuddyRoles, BUDDY_ROLES
     from src.buddy.buddy_conversations import get_buddy_conversations
+    from src.buddy.buddy_profile import get_buddy_profile
+
     if role_key not in BUDDY_ROLES:
         return jsonify({'success': False, 'error': '角色不存在'}), 400
     role = BUDDY_ROLES[role_key]
     buddy = get_buddy()
     success = buddy.switch_role(role_key)
-    if success:
-        store = get_buddy_conversations()
-        store.update_active_buddy(role_key, role['name'], role['emoji'])
-        return jsonify({
-            'success': True,
-            'name': role['name'],
-            'emoji': role['emoji'],
-            'personality': role['personality'],
-            'greeting': role['greeting'],
-            'avatar_url': role.get('avatar_url', ''),
-            'game_style': role.get('game_style', 'direct'),
-            'message': f'已切换到 {role["name"]}'
-        })
-    return jsonify({'success': False, 'error': '角色切换失败'}), 400
+    if not success:
+        return jsonify({'success': False, 'error': '角色切换失败'}), 400
+
+    # 用户名（用于开场白）
+    user_name = ""
+    try:
+        profile = get_buddy_profile()
+        user_name = profile.get_user().get("name", "") or ""
+    except Exception:
+        pass
+
+    # 上下文隔离：清空旧 messages + 注入新角色开场白
+    store = get_buddy_conversations()
+    store.update_active_buddy(role_key, role['name'], role['emoji'])
+    new_conv = store.switch_role_with_isolation(
+        new_role_key=role_key,
+        new_role_name=role['name'],
+        new_role_emoji=role['emoji'],
+        new_role_avatar=role.get('avatar_url', ''),
+        user_name=user_name,
+    )
+
+    return jsonify({
+        'success': True,
+        'role_key': role_key,
+        'name': role['name'],
+        'emoji': role['emoji'],
+        'personality': role['personality'],
+        'greeting': role['greeting'],
+        'avatar_url': role.get('avatar_url', ''),
+        'game_style': role.get('game_style', 'direct'),
+        'history_cleared': True,
+        'conversation_id': new_conv['id'] if new_conv else None,
+        'messages': new_conv.get('messages', []) if new_conv else [],
+        'message': f'已切换到 {role["name"]}，对话上下文已重置',
+    })
 
 
 @buddy_bp.route('/current-role', methods=['GET'])

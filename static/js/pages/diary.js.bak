@@ -1,0 +1,1081 @@
+/**
+ * 日记模块 v7 - 原始风格重设计
+ * - 心情 .mood-item（不是 .mood-option）
+ * - 标签 .tag（不是 .tag-chip）
+ * - contenteditable 编辑器
+ * - 新模态弹窗 ID
+ * - 右侧栏本周心情 / 标签 / 字数
+ */
+
+class DiaryApp {
+    constructor() {
+        this.state = {
+            todayEntry: null,
+            entries: [],
+            tags: [],
+            streak: 0,
+            currentMood: null,
+            currentMoodValue: null,
+            selectedTags: [],
+            images: [],
+            isLoading: false,
+            isSaving: false,
+            filterOpen: false,
+            filterEmotion: null,
+            filterTag: null,
+            searchKeyword: '',
+            page: 0,
+            hasMore: true,
+            moodSlots: [],
+        };
+
+        this.ui = {
+            view: 'editor',
+            previewEntry: null,
+            pendingDeleteId: null,
+            dirty: false,
+            snapshot: '',
+            selectedEmoji: '',
+        };
+
+        this.fallbackMoods = [
+            { level: 1, emoji: '😢', label: '难过' },
+            { level: 2, emoji: '😔', label: '低落' },
+            { level: 3, emoji: '😌', label: '平静' },
+            { level: 4, emoji: '🤔', label: '思考' },
+            { level: 5, emoji: '😊', label: '愉快' },
+            { level: 6, emoji: '😀', label: '开心' },
+            { level: 7, emoji: '🥳', label: '兴奋' },
+            { level: 8, emoji: '❤️', label: '感恩' },
+            { level: 9, emoji: '🌈', label: '希望' },
+            { level: 10, emoji: '😴', label: '疲惫' },
+        ];
+
+        this.defaultTags = ['学习', '生活', '运动', '旅行', '工作', '朋友', '家庭', '健康', '娱乐', '其他'];
+
+        if (!window.__DIARY_SPA_MODE__) {
+            this._waitForDOM();
+        }
+    }
+
+    static getInstance() {
+        if (!DiaryApp._instance) {
+            DiaryApp._instance = new DiaryApp();
+        }
+        return DiaryApp._instance;
+    }
+
+    init() { this._waitForDOM(); }
+
+    _waitForDOM() {
+        const tryInit = () => {
+            if (document.getElementById('view-diary')) {
+                this._init();
+            } else {
+                setTimeout(tryInit, 30);
+            }
+        };
+        tryInit();
+    }
+
+    async _init() {
+        await this._loadData();
+        this._bindEvents();
+        this._render();
+        this._updateCharCount();
+    }
+
+    // ==================== 数据加载 ====================
+
+    async _loadData() {
+        this._setState({ isLoading: true });
+        try {
+            const [todayRes, listRes, statsRes, tagsRes, moodsRes] = await Promise.all([
+                fetch('/api/diary/today').then(r => r.json()).catch(() => ({ entry: null, streak: 0 })),
+                fetch('/api/diary?limit=20').then(r => r.json()).catch(() => ({ entries: [] })),
+                fetch('/api/diary/stats').then(r => r.json()).catch(() => ({ streak: 0 })),
+                fetch('/api/diary/tags').then(r => r.json()).catch(() => ({ tags: [] })),
+                fetch('/api/diary/moods').then(r => r.json()).catch(() => ({ mood_slots: [] })),
+            ]);
+
+            const todayEntry = todayRes.entry || null;
+            const moodSlots = (moodsRes.mood_slots) ? moodsRes.mood_slots : [];
+
+            let currentMood = null, currentMoodValue = null;
+            if (todayEntry) {
+                currentMoodValue = todayEntry.emotion_level;
+                const found = moodSlots.find(m => !m.is_placeholder && m.value === todayEntry.emotion_level);
+                currentMood = found ? found.id : null;
+            }
+
+            this._setState({
+                todayEntry,
+                entries: listRes.entries || [],
+                streak: statsRes.streak || todayRes.streak || 0,
+                tags: tagsRes.tags || this.defaultTags,
+                moodSlots,
+                currentMood,
+                currentMoodValue,
+                selectedTags: todayEntry?.tags || [],
+                images: todayEntry?.images || [],
+                isLoading: false,
+            });
+
+            if (todayEntry) this._backfillForm(todayEntry);
+        } catch (e) {
+            console.error('[DiaryApp] 加载失败:', e);
+            this._setState({ isLoading: false });
+            this._toast('加载失败，请刷新重试');
+        }
+    }
+
+    _backfillForm(entry) {
+        const titleEl = document.getElementById('diary-title');
+        const contentEl = document.getElementById('diary-content');
+        const charCountEl = document.getElementById('char-count');
+
+        if (titleEl) titleEl.value = entry.title || '';
+        if (contentEl) {
+            contentEl.innerHTML = this._entryContentToHtml(entry);
+            if (charCountEl) {
+                const text = (entry.content || '').replace(/<[^>]+>/g, '').trim();
+                charCountEl.textContent = text.length;
+            }
+        }
+        this._captureSnapshot();
+        this._setDirty(false);
+    }
+
+    _entryContentToHtml(entry) {
+        const parts = [];
+        if (entry.content && entry.content.trim()) {
+            parts.push(entry.content);
+        }
+        if (Array.isArray(entry.images) && entry.images.length) {
+            entry.images.forEach(url => {
+                if (url && !parts.join('').includes(url)) {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = '日记图片';
+                    img.setAttribute('data-img-url', url);
+                    parts.push(img.outerHTML);
+                }
+            });
+        }
+        return parts.join('');
+    }
+
+    // ==================== 事件绑定 ====================
+
+    _bindEvents() {
+        // 心情选择（左侧主区域）
+        document.getElementById('mood-grid')?.addEventListener('click', e => {
+            const item = e.target.closest('.mood-item');
+            if (!item) return;
+            if (item.classList.contains('mood-placeholder')) {
+                this._showCustomMoodModal();
+                return;
+            }
+            this._setMood(item.dataset.moodId, parseInt(item.dataset.value));
+        });
+
+        // 自定义心情链接
+        document.getElementById('mood-add-link')?.addEventListener('click', () => {
+            this._showCustomMoodModal();
+        });
+
+        // 右侧心情选择（同步）
+        document.getElementById('right-mood-grid')?.addEventListener('click', e => {
+            const item = e.target.closest('.right-mood-item');
+            if (!item || item.classList.contains('mood-placeholder')) return;
+            this._setMood(item.dataset.moodId, parseInt(item.dataset.value));
+        });
+
+        // 标题输入
+        document.getElementById('diary-title')?.addEventListener('input', () => {
+            this._setDirty(true);
+        });
+
+        // contenteditable 输入
+        const contentEl = document.getElementById('diary-content');
+        contentEl?.addEventListener('input', () => {
+            this._updateCharCount();
+            this._setDirty(true);
+        });
+
+        // 编辑器内图片点击 → lightbox
+        contentEl?.addEventListener('click', e => {
+            const img = e.target.closest('img');
+            if (img && img.src) {
+                e.preventDefault();
+                this._openLightbox(img.src);
+            }
+        });
+
+        // 图片上传
+        document.getElementById('btn-image')?.addEventListener('click', () => {
+            document.getElementById('image-file-input')?.click();
+        });
+        document.getElementById('image-file-input')?.addEventListener('change', e => {
+            const files = Array.from(e.target.files || []);
+            if (files.length) this._uploadImages(files);
+            e.target.value = '';
+        });
+
+        // 标签点击
+        document.getElementById('tag-list')?.addEventListener('click', e => {
+            const tag = e.target.closest('.tag');
+            if (tag) this._toggleTag(tag.dataset.tag);
+        });
+
+        // 标签输入
+        document.getElementById('tag-input')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const v = e.target.value.trim();
+                if (!v) return;
+                if (v.length > 12) { this._toast('标签最多 12 字'); return; }
+                if (this.state.tags.includes(v)) { this._toast('标签已存在'); return; }
+                this._setState({ tags: [...this.state.tags, v] });
+                e.target.value = '';
+                this._setDirty(true);
+            }
+        });
+
+        // 保存按钮
+        document.getElementById('btn-save')?.addEventListener('click', () => {
+            this._save();
+        });
+
+        // 历史记录
+        document.getElementById('btn-history')?.addEventListener('click', () => {
+            this._showHistoryView();
+        });
+        document.getElementById('history-back-btn')?.addEventListener('click', () => {
+            this._tryLeaveHistoryView();
+        });
+
+        // 历史列表（删除 + 预览）
+        document.getElementById('diary-stream')?.addEventListener('click', e => {
+            const delBtn = e.target.closest('.history-delete');
+            if (delBtn) { e.stopPropagation(); this._askDelete(delBtn.dataset.id); return; }
+            const item = e.target.closest('.diary-history-item');
+            if (item) this._openPreview(item.dataset.id);
+        });
+
+        // 搜索
+        document.getElementById('search-input')?.addEventListener('input', e => {
+            this._setState({ searchKeyword: e.target.value, page: 0 });
+            this._debounceSearch();
+        });
+
+        // 筛选
+        document.getElementById('filter-toggle')?.addEventListener('click', e => {
+            e.stopPropagation();
+            this._setState({ filterOpen: !this.state.filterOpen });
+            this._renderFilterPanel();
+        });
+
+        // 加载更多
+        document.getElementById('load-more-btn')?.addEventListener('click', () => {
+            this._loadMore();
+        });
+
+        // ============ 模态弹窗 ============
+        // 自定义心情弹窗
+        document.getElementById('custom-mood-close')?.addEventListener('click', () => this._hideCustomMoodModal());
+        document.getElementById('custom-mood-cancel')?.addEventListener('click', () => this._hideCustomMoodModal());
+        document.getElementById('custom-mood-save')?.addEventListener('click', () => this._submitCustomMood());
+        document.getElementById('mood-value')?.addEventListener('input', e => {
+            document.getElementById('mood-value-display').textContent = e.target.value;
+        });
+        document.getElementById('custom-mood-modal')?.addEventListener('click', e => {
+            if (e.target.id === 'custom-mood-modal') this._hideCustomMoodModal();
+        });
+
+        // 预览弹窗
+        document.getElementById('preview-close')?.addEventListener('click', () => this._closePreview());
+        document.getElementById('preview-edit')?.addEventListener('click', () => this._editFromPreview());
+        document.getElementById('preview-delete')?.addEventListener('click', () => {
+            if (this.ui.previewEntry) this._askDelete(this.ui.previewEntry.id);
+        });
+        document.getElementById('preview-modal')?.addEventListener('click', e => {
+            if (e.target.id === 'preview-modal') this._closePreview();
+        });
+        // 预览内图片 lightbox
+        document.getElementById('preview-body')?.addEventListener('click', e => {
+            const img = e.target.closest('img');
+            if (img && img.src) this._openLightbox(img.src);
+        });
+
+        // 删除确认弹窗
+        document.getElementById('delete-cancel')?.addEventListener('click', () => this._closeConfirm());
+        document.getElementById('delete-confirm')?.addEventListener('click', () => {
+            const id = this.ui.pendingDeleteId;
+            this._closeConfirm();
+            if (id) this._deleteEntry(id);
+        });
+        document.getElementById('delete-modal')?.addEventListener('click', e => {
+            if (e.target.id === 'delete-modal') this._closeConfirm();
+        });
+
+        // 未保存确认弹窗
+        document.getElementById('unsaved-cancel')?.addEventListener('click', () => this._closeUnsaved());
+        document.getElementById('unsaved-discard')?.addEventListener('click', () => {
+            this._closeUnsaved();
+            this._setDirty(false);
+            this._showEditorView(false);
+        });
+        document.getElementById('unsaved-modal')?.addEventListener('click', e => {
+            if (e.target.id === 'unsaved-modal') this._closeUnsaved();
+        });
+
+        // Lightbox
+        document.getElementById('lightbox-close')?.addEventListener('click', () => this._closeLightbox());
+        document.getElementById('image-lightbox')?.addEventListener('click', e => {
+            if (e.target.id === 'image-lightbox') this._closeLightbox();
+        });
+
+        // ESC 关闭弹窗
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                if (document.getElementById('image-lightbox')?.classList.contains('active')) {
+                    this._closeLightbox();
+                } else if (document.getElementById('preview-modal')?.classList.contains('active')) {
+                    this._closePreview();
+                } else if (document.getElementById('delete-modal')?.classList.contains('active')) {
+                    this._closeConfirm();
+                } else if (document.getElementById('unsaved-modal')?.classList.contains('active')) {
+                    this._closeUnsaved();
+                } else if (document.getElementById('custom-mood-modal')?.classList.contains('active')) {
+                    this._hideCustomMoodModal();
+                }
+            }
+        });
+
+        // 点击空白关闭筛选面板
+        document.addEventListener('click', e => {
+            if (this.state.filterOpen &&
+                !e.target.closest('.filter-panel') &&
+                !e.target.closest('#filter-toggle')) {
+                this._setState({ filterOpen: false });
+                this._renderFilterPanel();
+            }
+        });
+
+        // 离开页面保存草稿
+        window.addEventListener('beforeunload', () => this._saveDraft(true));
+
+        // 粘贴图片
+        contentEl?.addEventListener('paste', e => this._handlePaste(e));
+        contentEl?.addEventListener('drop', e => this._handleDrop(e));
+        contentEl?.addEventListener('dragover', e => e.preventDefault());
+    }
+
+    // ==================== 状态管理 ====================
+
+    _setState(updates) {
+        Object.assign(this.state, updates);
+        this._render();
+    }
+
+    _setDirty(v) { this.ui.dirty = !!v; }
+
+    _captureSnapshot() {
+        const t = document.getElementById('diary-title')?.value || '';
+        const c = document.getElementById('diary-content')?.innerHTML || '';
+        this.ui.snapshot = JSON.stringify({ title: t, content: c });
+    }
+
+    _isDirty() {
+        const t = document.getElementById('diary-title')?.value || '';
+        const c = document.getElementById('diary-content')?.innerHTML || '';
+        return JSON.stringify({ title: t, content: c }) !== this.ui.snapshot;
+    }
+
+    // ==================== 视图切换 ====================
+
+    _showHistoryView() {
+        if (this.ui.view === 'history') return;
+        this.ui.view = 'history';
+        document.getElementById('view-diary')?.classList.remove('active');
+        document.getElementById('view-history')?.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        this._searchEntries();
+    }
+
+    _showEditorView(checkDirty = true) {
+        if (this.ui.view === 'editor') return;
+        if (checkDirty && this._isDirty()) {
+            this._openUnsaved(() => this._showEditorView(false));
+            return;
+        }
+        this.ui.view = 'editor';
+        document.getElementById('view-history')?.classList.remove('active');
+        document.getElementById('view-diary')?.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    _tryLeaveHistoryView() { this._showEditorView(true); }
+
+    // ==================== 渲染 ====================
+
+    _render() {
+        this._renderMoods();
+        this._renderTags();
+        this._renderWeekly();
+        this._renderWordCount();
+        this._renderHistory();
+        this._renderFilterPanel();
+    }
+
+    /** 心情选择器（左侧 8 格 + 右侧 8 格） */
+    _renderMoods() {
+        const container = document.getElementById('mood-grid');
+        const rightContainer = document.getElementById('right-mood-grid');
+        const dbg = document.getElementById('mood-debug-count');
+        const slots = (this.state.moodSlots || []).slice(0, 8);
+
+        if (dbg) dbg.textContent = slots.length > 0 ? `共 ${this.state.moodSlots?.length || 0}` : '';
+
+        const renderItem = (m) => {
+            if (m.is_placeholder === true) {
+                return `<div class="mood-item mood-placeholder">
+                    <div class="mood-emoji"></div>
+                </div>`;
+            }
+            const isActive = this.state.currentMood === m.id;
+            return `<div class="mood-item ${isActive ? 'active' : ''}"
+                         data-mood-id="${this._esc(m.id)}"
+                         data-value="${m.value}">
+                <div class="mood-emoji">${this._esc(m.emoji || '')}</div>
+                <div class="mood-label">${this._esc(m.label || '')}</div>
+            </div>`;
+        };
+
+        const html = slots.map(renderItem).join('');
+        if (container) container.innerHTML = html;
+        if (rightContainer) {
+            rightContainer.innerHTML = slots.map(m => {
+                if (m.is_placeholder === true) {
+                    return `<div class="right-mood-item mood-placeholder"></div>`;
+                }
+                const isActive = this.state.currentMood === m.id;
+                return `<div class="right-mood-item ${isActive ? 'active' : ''}"
+                             data-mood-id="${this._esc(m.id)}"
+                             data-value="${m.value}">
+                    <div class="mood-emoji">${this._esc(m.emoji || '')}</div>
+                    <div class="mood-label">${this._esc(m.label || '')}</div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    /** 标签 */
+    _renderTags() {
+        const container = document.getElementById('tag-list');
+        if (!container) return;
+        const allTags = [...new Set([...this.defaultTags, ...this.state.tags])];
+        container.innerHTML = allTags.map(tag =>
+            `<span class="tag ${this.state.selectedTags.includes(tag) ? 'active' : ''}" data-tag="${this._esc(tag)}">${this._esc(tag)}</span>`
+        ).join('');
+    }
+
+    /** 本周心情（7 天） */
+    _renderWeekly() {
+        const container = document.getElementById('weekly-grid');
+        if (!container) return;
+        const today = new Date();
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        const entriesByDate = {};
+        (this.state.entries || []).forEach(e => {
+            if (e.date) entriesByDate[e.date] = e;
+        });
+
+        const cells = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const isToday = i === 0;
+            const entry = entriesByDate[dateKey];
+            const mood = entry ? this.fallbackMoods.find(m => m.level === entry.emotion_level) : null;
+            cells.push(`<div class="weekly-day ${isToday ? 'is-today' : ''}">
+                <span class="emoji">${mood ? mood.emoji : '·'}</span>
+                <span class="day-name">${weekdays[d.getDay()]}</span>
+                <span class="day-date">${d.getMonth() + 1}/${d.getDate()}</span>
+            </div>`);
+        }
+        container.innerHTML = cells.join('');
+
+        const sideStreak = document.getElementById('streak-count-side');
+        if (sideStreak) sideStreak.textContent = this.state.streak || 0;
+    }
+
+    /** 字数统计 */
+    _renderWordCount() {
+        const charCountEl = document.getElementById('char-count');
+        const rightEl = document.getElementById('word-count-right');
+        if (charCountEl) charCountEl.textContent = '0';
+
+        const contentEl = document.getElementById('diary-content');
+        if (contentEl && charCountEl) {
+            const text = (contentEl.innerText || '').trim();
+            charCountEl.textContent = text.length;
+        }
+
+        if (!rightEl) return;
+        const mood = (this.state.moodSlots || []).find(m => m.id === this.state.currentMood);
+        if (!mood) {
+            rightEl.innerHTML = '<span class="word-count-empty">选个心情标签吧</span>';
+        } else {
+            rightEl.innerHTML = `<div class="word-count-mood">
+                <span class="emoji">${this._esc(mood.emoji || '')}</span>
+                <span class="word-count-mood-tag">${this._esc(mood.label || '')}</span>
+            </div>`;
+        }
+    }
+
+    /** 历史列表 */
+    _renderHistory() {
+        const container = document.getElementById('diary-stream');
+        const loadMoreEl = document.getElementById('load-more');
+        const countEl = document.getElementById('diary-count');
+        if (!container) return;
+        if (countEl) countEl.textContent = `${this.state.entries.length} 篇`;
+
+        if (this.state.entries.length === 0) {
+            container.innerHTML = `<div class="history-empty">
+                <div class="empty-icon">📔</div>
+                <div class="empty-title">还没有日记</div>
+                <div class="empty-desc">还没有日记，快去记录第一篇吧～</div>
+            </div>`;
+            if (loadMoreEl) loadMoreEl.style.display = 'none';
+            return;
+        }
+
+        container.innerHTML = this.state.entries.map(e => {
+            const mood = this.fallbackMoods.find(m => m.level === e.emotion_level) || this.fallbackMoods[4];
+            const summary = this._summarizeContent(e);
+            const tagsHtml = (e.tags || []).map(t => `<span class="history-tag">${this._esc(t)}</span>`).join('');
+            return `<div class="diary-history-item" data-id="${this._esc(e.id)}">
+                <div class="history-emoji">${mood.emoji}</div>
+                <div class="history-content">
+                    <div class="history-title-text-item">${this._esc(e.title || '（无标题）')}</div>
+                    <div class="history-date">${this._esc(e.date || '')}</div>
+                    <div class="history-summary">${this._esc(summary)}</div>
+                    ${tagsHtml ? `<div class="history-tags">${tagsHtml}</div>` : ''}
+                </div>
+                <button class="history-delete" data-id="${this._esc(e.id)}" title="删除">🗑️</button>
+            </div>`;
+        }).join('');
+
+        if (loadMoreEl) loadMoreEl.style.display = this.state.hasMore ? '' : 'none';
+    }
+
+    _summarizeContent(entry) {
+        const raw = (entry.content || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+        return (raw || entry.title || '点击查看详情').slice(0, 50) + (raw.length > 50 ? '...' : '');
+    }
+
+    _renderFilterPanel() {
+        const panel = document.getElementById('filter-panel');
+        const filterBtn = document.getElementById('filter-toggle');
+        if (panel) panel.classList.toggle('show', this.state.filterOpen);
+        if (filterBtn) filterBtn.classList.toggle('active', this.state.filterOpen);
+
+        const emotionsContainer = document.getElementById('filter-emotions');
+        if (emotionsContainer) {
+            emotionsContainer.innerHTML = this.fallbackMoods.map(m =>
+                `<div class="filter-chip ${this.state.filterEmotion === m.level ? 'active' : ''}" data-emotion="${m.level}">
+                    ${m.emoji} ${m.label}
+                </div>`
+            ).join('');
+            emotionsContainer.onclick = e => {
+                const opt = e.target.closest('.filter-chip');
+                if (!opt) return;
+                const level = parseInt(opt.dataset.emotion);
+                this._setState({ filterEmotion: this.state.filterEmotion === level ? null : level, page: 0 });
+                this._searchEntries();
+            };
+        }
+
+        const tagsContainer = document.getElementById('filter-tags');
+        if (tagsContainer) {
+            const allTags = [...new Set([...this.defaultTags, ...this.state.tags])];
+            tagsContainer.innerHTML = allTags.map(tag =>
+                `<div class="filter-chip ${this.state.filterTag === tag ? 'active' : ''}" data-tag="${this._esc(tag)}">${this._esc(tag)}</div>`
+            ).join('');
+            tagsContainer.onclick = e => {
+                const opt = e.target.closest('.filter-chip');
+                if (!opt) return;
+                const tag = opt.dataset.tag;
+                this._setState({ filterTag: this.state.filterTag === tag ? null : tag, page: 0 });
+                this._searchEntries();
+            };
+        }
+    }
+
+    _updateCharCount() {
+        const contentEl = document.getElementById('diary-content');
+        const charCountEl = document.getElementById('char-count');
+        if (!contentEl || !charCountEl) return;
+        const text = (contentEl.innerText || '').trim();
+        charCountEl.textContent = text.length;
+    }
+
+    // ==================== 预览弹窗 ====================
+
+    _openPreview(entryId) {
+        const entry = this.state.entries.find(e => e.id === entryId);
+        if (!entry) { this._toast('日记不存在'); return; }
+        this.ui.previewEntry = entry;
+
+        const mood = this.fallbackMoods.find(m => m.level === entry.emotion_level) || this.fallbackMoods[4];
+        document.getElementById('preview-title').textContent = entry.title || '（无标题）';
+        document.getElementById('preview-date').textContent = entry.date;
+        document.getElementById('preview-mood-info').innerHTML = `<span class="emoji">${mood.emoji}</span> ${mood.label}`;
+
+        const bodyEl = document.getElementById('preview-body');
+        bodyEl.innerHTML = this._buildPreviewHtml(entry);
+
+        const tagsEl = document.getElementById('preview-tags');
+        tagsEl.innerHTML = (entry.tags || []).map(t => `<span class="modal-tag">${this._esc(t)}</span>`).join('');
+
+        document.getElementById('preview-modal').classList.add('active');
+    }
+
+    _buildPreviewHtml(entry) {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = this._entryContentToHtml(entry);
+        wrap.querySelectorAll('img').forEach(img => {
+            img.addEventListener('error', () => {
+                img.outerHTML = '<span style="color:#cc3333;font-size:13px">图片加载失败</span>';
+            }, { once: true });
+        });
+        return wrap.innerHTML;
+    }
+
+    _closePreview() {
+        document.getElementById('preview-modal').classList.remove('active');
+        this.ui.previewEntry = null;
+    }
+
+    _editFromPreview() {
+        const entry = this.ui.previewEntry;
+        this._closePreview();
+        if (!entry) return;
+        this._loadEntryIntoEditor(entry);
+        this._showEditorView(false);
+        this._toast('已加载到编辑器，编辑后记得保存～');
+    }
+
+    _loadEntryIntoEditor(entry) {
+        const titleEl = document.getElementById('diary-title');
+        const contentEl = document.getElementById('diary-content');
+        if (titleEl) titleEl.value = entry.title || '';
+        if (contentEl) contentEl.innerHTML = this._entryContentToHtml(entry);
+
+        this._setState({
+            currentMood: null,
+            currentMoodValue: entry.emotion_level,
+            selectedTags: [...(entry.tags || [])],
+            images: [...(entry.images || [])],
+        });
+
+        // 回填心情选中
+        this._renderMoods();
+        const rightGrid = document.getElementById('right-mood-grid');
+        rightGrid?.querySelectorAll('.right-mood-item').forEach(opt => {
+            if (parseInt(opt.dataset.value) === entry.emotion_level) {
+                opt.classList.add('active');
+                this.state.currentMood = opt.dataset.moodId;
+            } else {
+                opt.classList.remove('active');
+            }
+        });
+
+        this._renderTags();
+        this._updateCharCount();
+        this._captureSnapshot();
+        this._setDirty(false);
+    }
+
+    // ==================== 删除确认 ====================
+
+    _askDelete(entryId) {
+        const entry = this.state.entries.find(e => e.id === entryId);
+        if (!entry) return;
+        this.ui.pendingDeleteId = entryId;
+        document.getElementById('delete-modal').classList.add('active');
+    }
+
+    _closeConfirm() {
+        document.getElementById('delete-modal').classList.remove('active');
+        this.ui.pendingDeleteId = null;
+    }
+
+    // ==================== 未保存确认 ====================
+
+    _openUnsaved(onDiscard) {
+        this._pendingDiscard = onDiscard;
+        document.getElementById('unsaved-modal').classList.add('active');
+    }
+
+    _closeUnsaved() {
+        document.getElementById('unsaved-modal').classList.remove('active');
+        if (this._pendingDiscard) {
+            const cb = this._pendingDiscard;
+            this._pendingDiscard = null;
+            cb();
+        }
+    }
+
+    // ==================== Lightbox ====================
+
+    _openLightbox(src) {
+        const lb = document.getElementById('image-lightbox');
+        const img = document.getElementById('lightbox-img');
+        if (img) img.src = src;
+        if (lb) lb.classList.add('active');
+    }
+
+    _closeLightbox() {
+        document.getElementById('image-lightbox').classList.remove('active');
+        const img = document.getElementById('lightbox-img');
+        if (img) img.src = '';
+    }
+
+    // ==================== 交互逻辑 ====================
+
+    _setMood(moodId, value) {
+        this._setState({ currentMood: moodId, currentMoodValue: value });
+        this._setDirty(true);
+        this._renderMoods();
+        this._renderWordCount();
+
+        fetch('/api/diary/moods/touch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this._getToken()}` },
+            body: JSON.stringify({ mood_id: moodId }),
+        }).then(r => r.json()).then(data => {
+            if (data.success && data.mood_slots) {
+                this._setState({ moodSlots: data.mood_slots });
+            }
+        }).catch(() => {});
+    }
+
+    _showCustomMoodModal() {
+        const modal = document.getElementById('custom-mood-modal');
+        if (!modal) return;
+        document.getElementById('custom-label').value = '';
+        document.getElementById('mood-value').value = 7;
+        document.getElementById('mood-value-display').textContent = '7';
+        this.ui.selectedEmoji = '';
+        this._renderEmojiPicker();
+        modal.classList.add('active');
+        setTimeout(() => document.getElementById('custom-label')?.focus(), 50);
+    }
+
+    _renderEmojiPicker() {
+        const picker = document.getElementById('emoji-picker');
+        if (!picker) return;
+        const emojis = ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗',
+                        '😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑',
+                        '😶','😏','😒','🙄','😬','😮‍💨','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮',
+                        '🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯',
+                        '😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫',
+                        '🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖',
+                        '🌈','❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❣️','💕','💞','💓','💗','💖','💘'];
+        picker.innerHTML = emojis.map(e =>
+            `<div class="emoji-item ${this.ui.selectedEmoji === e ? 'selected' : ''}" data-emoji="${e}">${e}</div>`
+        ).join('');
+        picker.onclick = e => {
+            const item = e.target.closest('.emoji-item');
+            if (!item) return;
+            this.ui.selectedEmoji = item.dataset.emoji;
+            picker.querySelectorAll('.emoji-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+        };
+    }
+
+    _hideCustomMoodModal() {
+        document.getElementById('custom-mood-modal').classList.remove('active');
+    }
+
+    async _submitCustomMood() {
+        const emoji = this.ui.selectedEmoji || '';
+        const label = document.getElementById('custom-label')?.value.trim() || '';
+        const value = parseInt(document.getElementById('mood-value')?.value || '7');
+
+        if (!emoji) { this._toast('请在表情网格中选择一个 emoji'); return; }
+        if (!label) { this._toast('请给心情起个名字'); return; }
+        if (label.length > 4) { this._toast('名字最多 4 个字'); return; }
+
+        try {
+            const res = await fetch('/api/diary/moods/custom', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this._getToken()}` },
+                body: JSON.stringify({ emoji, label, value }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                this._setState({ moodSlots: data.mood_slots || [] });
+                this._hideCustomMoodModal();
+                if (data.evicted) {
+                    this._toast(`「${data.evicted.label}」已被替换`);
+                } else {
+                    this._toast('已添加自定义心情');
+                }
+            } else {
+                this._toast(data.error || '添加失败');
+            }
+        } catch (e) {
+            console.error('[DiaryApp] 添加自定义心情失败:', e);
+            this._toast('添加失败，请重试');
+        }
+    }
+
+    _toggleTag(tag) {
+        const tags = this.state.selectedTags.includes(tag)
+            ? this.state.selectedTags.filter(t => t !== tag)
+            : [...this.state.selectedTags, tag];
+        this._setState({ selectedTags: tags });
+        this._setDirty(true);
+        this._renderTags();
+    }
+
+    async _uploadImages(files) {
+        if (this.state.images.length >= 9) { this._toast('最多上传 9 张图片'); return; }
+        const remaining = 9 - this.state.images.length;
+        const filesToUpload = files.slice(0, remaining);
+
+        for (const file of filesToUpload) {
+            if (file.size > 5 * 1024 * 1024) { this._toast('图片过大，请压缩后上传'); continue; }
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+                const res = await fetch('/api/diary/upload-image', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${this._getToken()}` },
+                    body: formData,
+                });
+                const data = await res.json();
+                if (data.success) {
+                    this._insertImageIntoEditor(data.image_url);
+                    this._setState({ images: [...this.state.images, data.image_url] });
+                } else {
+                    this._toast(data.error || '上传失败');
+                }
+            } catch (e) {
+                console.error('[DiaryApp] 图片上传失败:', e);
+                this._toast('图片上传失败');
+            }
+        }
+    }
+
+    _insertImageIntoEditor(url) {
+        const contentEl = document.getElementById('diary-content');
+        if (!contentEl) return;
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = '日记图片';
+        img.setAttribute('data-img-url', url);
+        img.addEventListener('error', () => {
+            img.outerHTML = '<span style="color:#cc3333;font-size:13px">图片加载失败</span>';
+        }, { once: true });
+        contentEl.appendChild(document.createElement('br'));
+        contentEl.appendChild(img);
+        contentEl.appendChild(document.createElement('br'));
+        this._setDirty(true);
+        this._updateCharCount();
+        contentEl.focus();
+    }
+
+    _handlePaste(e) {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (const item of items) {
+            if (item.kind === 'file' && item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (file) this._uploadImages([file]);
+                break;
+            }
+        }
+    }
+
+    _handleDrop(e) {
+        const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+        if (files.length) { e.preventDefault(); this._uploadImages(files); }
+    }
+
+    _debounceSearch() {
+        clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(() => this._searchEntries(), 300);
+    }
+
+    async _searchEntries() {
+        const { searchKeyword, filterEmotion, filterTag, page } = this.state;
+        try {
+            const params = new URLSearchParams();
+            if (searchKeyword) params.set('keyword', searchKeyword);
+            if (filterEmotion) params.set('emotion', filterEmotion);
+            if (filterTag) params.set('tag', filterTag);
+            params.set('limit', 20);
+            params.set('offset', page * 20);
+            const res = await fetch(`/api/diary?${params.toString()}`);
+            const data = await res.json();
+            this._setState({ entries: data.entries || [], hasMore: (data.entries?.length || 0) >= 20 });
+        } catch (e) {
+            console.error('[DiaryApp] 搜索失败:', e);
+        }
+    }
+
+    async _loadMore() {
+        const { searchKeyword, filterEmotion, filterTag, page } = this.state;
+        const nextPage = page + 1;
+        try {
+            const params = new URLSearchParams();
+            if (searchKeyword) params.set('keyword', searchKeyword);
+            if (filterEmotion) params.set('emotion', filterEmotion);
+            if (filterTag) params.set('tag', filterTag);
+            params.set('limit', 20);
+            params.set('offset', nextPage * 20);
+            const res = await fetch(`/api/diary?${params.toString()}`);
+            const data = await res.json();
+            this._setState({
+                entries: [...this.state.entries, ...(data.entries || [])],
+                page: nextPage,
+                hasMore: (data.entries?.length || 0) >= 20,
+            });
+        } catch (e) {
+            console.error('[DiaryApp] 加载更多失败:', e);
+        }
+    }
+
+    // ==================== 保存 ====================
+
+    async _save() {
+        if (this.state.isSaving) { this._toast('正在保存...'); return; }
+
+        const titleEl = document.getElementById('diary-title');
+        const contentEl = document.getElementById('diary-content');
+        const title = titleEl?.value.trim() || '';
+        const html = contentEl?.innerHTML || '';
+        const text = (contentEl?.innerText || '').trim();
+
+        if (!text && !title) { this._toast('请写点什么吧~'); return; }
+        if (!this.state.currentMood) { this._toast('请选择今天的心情~'); return; }
+        if (this.state.currentMoodValue == null) { this._toast('心情数据异常，请重新选择'); return; }
+
+        this._setState({ isSaving: true });
+
+        try {
+            const res = await fetch('/api/diary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this._getToken()}` },
+                body: JSON.stringify({
+                    emotion_level: this.state.currentMoodValue,
+                    mood_id: this.state.currentMood,
+                    title,
+                    content: html,
+                    images: this.state.images,
+                    tags: this.state.selectedTags,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                this._setState({ todayEntry: data.entry, streak: data.streak, isSaving: false });
+                this._setDirty(false);
+                this._toast(`日记${data.action === 'create' ? '已保存' : '已更新'}~`);
+                this._clearDraft();
+                await this._loadData();
+                this._captureSnapshot();
+            } else {
+                this._toast(data.error || '保存失败');
+                this._setState({ isSaving: false });
+            }
+        } catch (e) {
+            console.error('[DiaryApp] 保存失败:', e);
+            this._toast('保存失败，请重试');
+            this._setState({ isSaving: false });
+        }
+    }
+
+    async _deleteEntry(entryId) {
+        try {
+            const res = await fetch(`/api/diary/${entryId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${this._getToken()}` },
+            });
+            const data = await res.json();
+            if (data.success) {
+                this._toast('日记已删除');
+                this._closePreview();
+
+                if (this.state.todayEntry?.id === entryId) {
+                    this._setState({ todayEntry: null, currentMood: null, selectedTags: [], images: [] });
+                    const titleEl = document.getElementById('diary-title');
+                    const contentEl = document.getElementById('diary-content');
+                    if (titleEl) titleEl.value = '';
+                    if (contentEl) contentEl.innerHTML = '';
+                    document.getElementById('char-count').textContent = '0';
+                    this._captureSnapshot();
+                    this._setDirty(false);
+                }
+                await this._loadData();
+            } else {
+                this._toast(data.error || '删除失败');
+            }
+        } catch (e) {
+            console.error('[DiaryApp] 删除失败:', e);
+            this._toast('删除失败');
+        }
+    }
+
+    _saveDraft() {
+        const title = document.getElementById('diary-title')?.value || '';
+        const contentEl = document.getElementById('diary-content');
+        const content = contentEl?.innerHTML || '';
+        localStorage.setItem('diary_draft', JSON.stringify({
+            title, content,
+            mood: this.state.currentMood,
+            moodValue: this.state.currentMoodValue,
+            tags: this.state.selectedTags,
+            images: this.state.images,
+            savedAt: Date.now(),
+        }));
+    }
+
+    _clearDraft() { localStorage.removeItem('diary_draft'); }
+
+    // ==================== 工具 ====================
+
+    _getToken() {
+        return localStorage.getItem('token') || (window.App && window.App.token) || '';
+    }
+
+    _toast(msg) {
+        const toast = document.getElementById('diary-toast');
+        if (toast) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+    }
+
+    _esc(text) {
+        if (text == null) return '';
+        const div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+}
+
+window.DiaryApp = DiaryApp;
+window.DiaryView = {
+    init() { DiaryApp.getInstance().init(); },
+    getInstance: () => DiaryApp.getInstance(),
+};
