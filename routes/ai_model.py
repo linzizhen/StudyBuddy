@@ -184,7 +184,14 @@ def test_model():
     import traceback
 
     print(f"\n[DEBUG] === /api/ai-model/test Start ===", flush=True)
+    # 使用不读代理环境的 Session，避免公司/系统代理导致 SSL 错误
+    sess = requests.Session()
+    sess.trust_env = False
+
     try:
+        import os
+        print(f"[DEBUG] proxy env: HTTP_PROXY={os.environ.get('HTTP_PROXY','')!r} HTTPS_PROXY={os.environ.get('HTTPS_PROXY','')!r}", flush=True)
+
         data = request.json or {}
         print(f"[DEBUG] raw payload keys: {list(data.keys())}", flush=True)
 
@@ -233,7 +240,7 @@ def test_model():
         for endpoint in endpoints_to_try:
             try:
                 print(f"[DEBUG] POST {endpoint} model={model}", flush=True)
-                response = requests.post(
+                response = sess.post(
                     endpoint,
                     json=test_payload,
                     headers=headers,
