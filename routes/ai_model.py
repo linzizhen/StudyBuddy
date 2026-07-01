@@ -207,87 +207,91 @@ def test_model():
             print(f"[DEBUG] missing fields: url={bool(base_url)} key={bool(api_key)} model={bool(model)}", flush=True)
             return jsonify({"success": False, "error": "请填写完整的模型配置"}), 400
 
-    # 格式化 base_url
-    if not base_url.startswith(("http://", "https://")):
-        base_url = "https://" + base_url
-    if base_url.endswith("/"):
-        base_url = base_url[:-1]
+        # 格式化 base_url
+        if not base_url.startswith(("http://", "https://")):
+            base_url = "https://" + base_url
+        if base_url.endswith("/"):
+            base_url = base_url[:-1]  # 移除末尾斜杠
 
-    # 尝试确定 chat completions 端点
-    endpoints_to_try = [
-        f"{base_url}/chat/completions",
-        f"{base_url}/v1/chat/completions",
-    ]
+        # 尝试确定 chat completions 端点
+        endpoints_to_try = [
+            f"{base_url}/chat/completions",
+            f"{base_url}/v1/chat/completions",
+        ]
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
 
-    test_payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": "Hello, reply with just 'OK'. Respond in 3 words or less."}],
-        "max_tokens": 20,
-    }
+        test_payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": "Hello, reply with just 'OK'. Respond in 3 words or less."}],
+            "max_tokens": 20,
+        }
 
-    for endpoint in endpoints_to_try:
-        try:
-            print(f"[DEBUG] POST {endpoint} model={model}", flush=True)
-            response = requests.post(
-                endpoint,
-                json=test_payload,
-                headers=headers,
-                timeout=AI_TIMEOUT
-            )
-            print(f"[DEBUG] <- {response.status_code} {response.text[:300]}", flush=True)
-
-            if response.status_code == 200:
-                result = response.json()
-                reply = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-                return jsonify({
-                    "success": True,
-                    "message": "连接成功",
-                    "endpoint": endpoint,
-                    "test_reply": reply[:100]
-                })
-            elif response.status_code == 401:
-                return jsonify({"success": False, "error": "API Key 无效或已过期，请检查设置中的 API 密钥"}), 400
-            elif response.status_code == 403:
-                # 细化 403：尝试解析智谱等平台的 error.message
-                err_detail = ""
-                try:
-                    err_json = response.json()
-                    err_detail = (err_json.get("error", {}) or {}).get("message") or err_json.get("message") or ""
-                except Exception:
-                    err_detail = response.text[:200]
-                hint = (
-                    "权限被拒绝。可能原因：1) API Key 错误 2) 账户未开通该模型 3) 模型 ID 填写错误。"
-                    f" 详情：{err_detail}"
+        for endpoint in endpoints_to_try:
+            try:
+                print(f"[DEBUG] POST {endpoint} model={model}", flush=True)
+                response = requests.post(
+                    endpoint,
+                    json=test_payload,
+                    headers=headers,
+                    timeout=AI_TIMEOUT
                 )
-                return jsonify({"success": False, "error": hint, "status": 403}), 400
-            elif response.status_code == 429:
-                return jsonify({"success": False, "error": "请求过于频繁，请稍后再试（HTTP 429）"}), 400
-            elif response.status_code == 404:
-                continue  # 尝试下一个端点
-            elif response.status_code >= 500:
-                return jsonify({"success": False, "error": f"AI 服务器错误（HTTP {response.status_code}），请稍后再试"}), 400
-            else:
-                try:
-                    err = response.json().get("error", {}).get("message", response.text)
-                except:
-                    err = response.text
-                return jsonify({"success": False, "error": f"请求失败 ({response.status_code}): {err}"}), 400
+                print(f"[DEBUG] <- {response.status_code} {response.text[:300]}", flush=True)
 
-        except requests.exceptions.Timeout:
-            print(f"[DEBUG] timeout on {endpoint}", flush=True)
-            return jsonify({"success": False, "error": "请求超时，请检查网络或更换 API 地址"}), 400
-        except requests.exceptions.ConnectionError as e:
-            print(f"[DEBUG] connection error on {endpoint}: {e}", flush=True)
-            return jsonify({"success": False, "error": "无法连接到服务器，请检查 API 地址是否正确"}), 400
-        except Exception as e:
-            print(f"[DEBUG] exception on {endpoint}: {e}", flush=True)
-            traceback.print_exc()
-            return jsonify({"success": False, "error": f"连接失败: {str(e)}"}), 400
+                if response.status_code == 200:
+                    result = response.json()
+                    reply = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    return jsonify({
+                        "success": True,
+                        "message": "连接成功",
+                        "endpoint": endpoint,
+                        "test_reply": reply[:100]
+                    })
+                elif response.status_code == 401:
+                    return jsonify({"success": False, "error": "API Key 无效或已过期，请检查设置中的 API 密钥"}), 400
+                elif response.status_code == 403:
+                    # 细化 403：尝试解析智谱等平台的 error.message
+                    err_detail = ""
+                    try:
+                        err_json = response.json()
+                        err_detail = (err_json.get("error", {}) or {}).get("message") or err_json.get("message") or ""
+                    except Exception:
+                        err_detail = response.text[:200]
+                    hint = (
+                        "权限被拒绝。可能原因：1) API Key 错误 2) 账户未开通该模型 3) 模型 ID 填写错误。"
+                        f" 详情：{err_detail}"
+                    )
+                    return jsonify({"success": False, "error": hint, "status": 403}), 400
+                elif response.status_code == 429:
+                    return jsonify({"success": False, "error": "请求过于频繁，请稍后再试（HTTP 429）"}), 400
+                elif response.status_code == 404:
+                    continue  # 尝试下一个端点
+                elif response.status_code >= 500:
+                    return jsonify({"success": False, "error": f"AI 服务器错误（HTTP {response.status_code}），请稍后再试"}), 400
+                else:
+                    try:
+                        err = response.json().get("error", {}).get("message", response.text)
+                    except:
+                        err = response.text
+                    return jsonify({"success": False, "error": f"请求失败 ({response.status_code}): {err}"}), 400
 
-    print(f"[DEBUG] no endpoint matched, return 400", flush=True)
-    return jsonify({"success": False, "error": "未找到有效的 API 端点，请确认 API 地址"}), 400
+            except requests.exceptions.Timeout:
+                print(f"[DEBUG] timeout on {endpoint}", flush=True)
+                return jsonify({"success": False, "error": "请求超时，请检查网络或更换 API 地址"}), 400
+            except requests.exceptions.ConnectionError as e:
+                print(f"[DEBUG] connection error on {endpoint}: {e}", flush=True)
+                return jsonify({"success": False, "error": "无法连接到服务器，请检查 API 地址是否正确"}), 400
+            except Exception as e:
+                print(f"[DEBUG] exception on {endpoint}: {e}", flush=True)
+                traceback.print_exc()
+                return jsonify({"success": False, "error": f"连接失败: {str(e)}"}), 400
+
+        print(f"[DEBUG] no endpoint matched, return 400", flush=True)
+        return jsonify({"success": False, "error": "未找到有效的 API 端点，请确认 API 地址"}), 400
+    except Exception as e:
+        print(f"[DEBUG] outer exception: {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc()
+        return jsonify({"success": False, "error": f"服务器错误：{str(e)}"}), 500
