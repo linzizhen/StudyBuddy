@@ -753,18 +753,10 @@
             <div class="card">
                 <div class="card-header-title">🤖 AI配置</div>
                 <div class="ai-config-form">
-                    <div class="setting-item">
-                        <span>预设模型</span>
-                        <select id="ai-preset-select">
-                            <option value="">加载中...</option>
-                        </select>
-                    </div>
-                    <div class="ai-divider">
-                        <span>或使用自定义模型</span>
-                    </div>
+                    <div class="ai-config-hint">手动填入智谱开放平台的 API 信息即可使用。</div>
                     <div class="setting-item">
                         <span>API 地址</span>
-                        <input type="text" id="ai-base-url" placeholder="如 https://open.bigmodel.cn/api/paas/v4/">
+                        <input type="text" id="ai-base-url" placeholder="如 https://open.bigmodel.cn/api/paas/v4/" value="https://open.bigmodel.cn/api/paas/v4">
                     </div>
                     <div class="setting-item">
                         <span>API 密钥</span>
@@ -772,7 +764,7 @@
                     </div>
                     <div class="setting-item">
                         <span>模型名称</span>
-                        <input type="text" id="ai-model-name" placeholder="如 glm-4-flash / gpt-4o-mini">
+                        <input type="text" id="ai-model-name" placeholder="如 glm-4-flash / gpt-4o-mini" value="glm-4-flash">
                     </div>
                     <div class="ai-config-actions">
                         <button class="btn-secondary" id="btn-test-ai">测试连接</button>
