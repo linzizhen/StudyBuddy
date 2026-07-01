@@ -89,16 +89,16 @@ class BuddyProfile:
         # 合并数据库用户配置
         db_user = self._get_db_user()
         if db_user:
-            profile["user"]["ai_model_key"] = db_user.ai_model_key
-            profile["user"]["ai_custom_config"] = db_user.ai_custom_config
-            profile["user"]["current_role_id"] = db_user.current_role_id
-            profile["user"]["daily_goal_hours"] = db_user.daily_goal_hours
-            profile["user"]["target_school"] = db_user.target_school
-            profile["user"]["target_major"] = db_user.target_major
-            profile["user"]["target_score"] = db_user.target_score
-            profile["buddy"]["role_id"] = db_user.current_role_id
-            if db_user.custom_buddy_name:
-                profile["buddy"]["name"] = db_user.custom_buddy_name
+            profile["user"]["ai_model_key"] = db_user["ai_model_key"]
+            profile["user"]["ai_custom_config"] = db_user["ai_custom_config"]
+            profile["user"]["current_role_id"] = db_user.get("current_role_id")
+            profile["user"]["daily_goal_hours"] = db_user.get("daily_goal_hours")
+            profile["user"]["target_school"] = db_user.get("target_school")
+            profile["user"]["target_major"] = db_user.get("target_major")
+            profile["user"]["target_score"] = db_user.get("target_score")
+            profile["buddy"]["role_id"] = db_user.get("current_role_id")
+            if db_user.get("custom_buddy_name"):
+                profile["buddy"]["name"] = db_user["custom_buddy_name"]
         return profile
 
     def _get_db_user(self):

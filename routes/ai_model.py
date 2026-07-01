@@ -8,7 +8,7 @@ StudyPal AI 模型配置路由
 
 from flask import Blueprint, jsonify, request, g
 from config import MODELS_CONFIG, DEFAULT_MODEL_KEY
-from src.auth.auth import AuthService
+from src.auth.auth import AuthService, _load_users
 import time
 
 ai_model_bp = Blueprint('ai_model', __name__, url_prefix='/api/ai-model')
