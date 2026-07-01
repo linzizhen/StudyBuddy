@@ -148,7 +148,10 @@ class StudyPalAI:
 
     def _call_ollama(self, messages: List[Dict[str, str]]) -> str:
         """调用 Ollama API（向后兼容）"""
-        response = requests.post(
+        import requests as _req
+        _session = _req.Session()
+        _session.trust_env = False
+        response = _session.post(
             f"{self.base_url}/api/chat",
             json={
                 "model": self.model_name,
@@ -178,7 +181,10 @@ class StudyPalAI:
             "Authorization": f"Bearer {self.model_api_key}"
         }
 
-        response = requests.post(
+        import requests as _req
+        _session = _req.Session()
+        _session.trust_env = False  # 跳过系统代理/环境变量
+        response = _session.post(
             chat_url,
             json={
                 "model": self.model_name,
