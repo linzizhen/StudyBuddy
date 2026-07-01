@@ -73,8 +73,16 @@ def get_preset_models():
 
 @ai_model_bp.route('/current', methods=['GET'])
 def get_current_model():
-    """获取用户当前使用的模型配置"""
+    """获取用户当前使用的模型配置（未登录时返回第一个用户的）"""
     user = _get_current_user()
+    if not user:
+        users = _load_users()
+        if users:
+            for u in users.values():
+                user = u
+                break
+        if not user:
+            return jsonify({"success": True, "mode": "preset", "model_key": DEFAULT_MODEL_KEY}), 200
 
     if user and user.get('ai_custom_config'):
         return jsonify({

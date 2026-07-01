@@ -171,7 +171,7 @@ def buddy_quick_chat():
         }), 500
 
 
-@auth_required
+@auth_optional
 @buddy_bp.route('/profile', methods=['GET'])
 def get_buddy_profile():
     """获取用户档案"""
@@ -187,7 +187,7 @@ def get_buddy_profile():
     })
 
 
-@auth_required
+@auth_optional
 @buddy_bp.route('/profile', methods=['PUT', 'POST'])
 def update_buddy_profile():
     """更新用户档案"""
@@ -203,7 +203,7 @@ def update_buddy_profile():
     })
 
 
-@auth_required
+@auth_optional
 @buddy_bp.route('/memory', methods=['GET'])
 def get_buddy_memory():
     """获取搭子记忆"""
@@ -230,7 +230,7 @@ def get_buddy_memory():
     })
 
 
-@auth_required
+@auth_optional
 @buddy_bp.route('/memory', methods=['POST'])
 def add_buddy_memory():
     """添加场景记忆"""
@@ -466,7 +466,7 @@ def _ensure_history_list(user: dict):
 
 
 @buddy_bp.route('/conversations', methods=['GET'])
-@auth_required
+@auth_optional
 def list_conversations():
     """获取当前用户的历史对话列表"""
     user = get_current_user()
@@ -479,7 +479,7 @@ def list_conversations():
 
 
 @buddy_bp.route('/conversation', methods=['POST'])
-@auth_required
+@auth_optional
 def save_conversation():
     """保存当前对话到历史（追加到末尾，只保留最近 20 条）"""
     import uuid
@@ -541,7 +541,7 @@ def save_conversation():
 
 
 @buddy_bp.route('/conversation/<conv_id>', methods=['GET'])
-@auth_required
+@auth_optional
 def get_conversation(conv_id):
     """获取某条历史对话详情"""
     user = get_current_user()
@@ -556,7 +556,7 @@ def get_conversation(conv_id):
 
 
 @buddy_bp.route('/conversation/<conv_id>', methods=['DELETE'])
-@auth_required
+@auth_optional
 def delete_conversation(conv_id):
     """删除某条历史对话"""
     from src.auth.auth import _load_users, _save_users

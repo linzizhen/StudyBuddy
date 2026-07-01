@@ -102,13 +102,19 @@ class BuddyProfile:
         return profile
 
     def _get_db_user(self):
-        """从数据库获取当前登录用户"""
+        """从数据库获取当前用户（未登录时返回第一个用户）"""
         try:
             from flask import g, current_app
-            if hasattr(g, 'current_user'):
+            if hasattr(g, 'current_user') and g.current_user:
                 return g.current_user
-            if hasattr(current_app, '_user'):
+            if hasattr(current_app, '_user') and current_app._user:
                 return current_app._user
+            # 未登录时：取 users.json 第一个用户作为配置载体
+            from src.auth.auth import _load_users
+            users = _load_users()
+            if users:
+                for u in users.values():
+                    return u
         except Exception:
             pass
         return None
