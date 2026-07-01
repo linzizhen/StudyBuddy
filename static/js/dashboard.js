@@ -953,17 +953,32 @@ async function testAiConnection() {
     // key 为空时仍发送请求，由后端根据已登录用户回退到保存的自定义 key
     console.log('[DEBUG] testAiConnection: api_key 为空，交给后端回退处理');
   }
+  // 关键：/test 走原 fetch 绕开全局 401 拦截器，否则智谱 API 返回 401 会被当成登录失效跳页
+  var rawFetch = window.__SP_ORIGINAL_FETCH__ || window.fetch.bind(window);
+  var headers = { 'Content-Type': 'application/json' };
+  var tk = getToken();
+  if (tk) headers['Authorization'] = 'Bearer ' + tk;
   showToast('正在测试连接...');
   try {
-    var res = await fetch('/api/ai-model/test', {
+    var res = await rawFetch('/api/ai-model/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify({ api_key: key, base_url: baseUrl, model: model })
     });
-    var data = await res.json();
-    if (data.success) { showToast('连接成功！'); }
-    else { showToast('连接失败：' + (data.error || ('HTTP ' + res.status))); }
-  } catch(e) { showToast('测试失败：' + e.message); }
+    // 即使 status 非 2xx，response 也可能有 JSON body（后端 /test 会统一返 JSON）
+    var data = null;
+    try { data = await res.json(); } catch (e) { data = { success: false, error: '响应不是 JSON 格式' }; }
+    if (data && data.success) {
+      showToast('连接成功！');
+    } else {
+      // 优先显示后端提供的错误原因（"认证失败，请检查 API Key" / "连接超时" 等）
+      // 而不是裸 HTTP 401，避免用户把"智谱的鉴权失败"误解为"自己的 token 失效"
+      var msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
+      showToast('连接失败：' + msg);
+    }
+  } catch(e) {
+    showToast('测试失败：' + (e && e.message ? e.message : '未知错误'));
+  }
 }
 
 async function saveAiConfig() {
