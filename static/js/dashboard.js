@@ -1012,10 +1012,11 @@ async function saveAiConfig() {
       });
       var data = await res.json();
       if (data.success) { showToast('自定义模型已保存'); return; }
+      // 关键：401 是登录失效，全局拦截器会清 token 跳 login；这里只显示后端给的中文原因
       showToast('保存失败：' + (data.error || ('HTTP ' + res.status)));
       return;
     }
-    showToast('请选择预设或填写自定义模型');
+    showToast('请填写 API 地址、密钥和模型名称');
   } catch(e) { showToast('保存失败：' + e.message); }
 }
 
