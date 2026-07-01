@@ -57,18 +57,25 @@ def _generate_token(user_id: int) -> str:
 def _verify_token(token: str):
     """验证 Token"""
     try:
+        print(f"[VERIFY] token={repr(token[:60] if token else '')}")
         parts = token.split('.')
         if len(parts) < 2:
+            print(f"[VERIFY] split by '.' = {len(parts)} parts, < 2 -> None")
             return None
         # 前16位hex作为签名
         payload = '.'.join(parts[1:])
+        print(f"[VERIFY] payload={repr(payload[:80])}")
         user_id = int(payload.split(':')[0])
         ts = int(payload.split(':')[1])
+        print(f"[VERIFY] user_id={user_id} ts={ts} (now={int(time.time())})")
         # Token 有效期 24 小时
         if time.time() - ts > 86400:
+            print(f"[VERIFY] expired by {(time.time()-ts)/3600:.1f}h")
             return None
+        print(f"[VERIFY] OK -> user_id={user_id}")
         return user_id
-    except:
+    except Exception as e:
+        print(f"[VERIFY] exception: {e}")
         return None
 
 

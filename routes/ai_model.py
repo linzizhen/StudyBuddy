@@ -17,7 +17,7 @@ ai_model_bp = Blueprint('ai_model', __name__, url_prefix='/api/ai-model')
 def _get_current_user():
     """从 Authorization 头解析用户，与 @auth_optional 等效"""
     auth_header = request.headers.get('Authorization', '')
-    if not auth_header.startswith('Bearer '):
+    print(f"[AUTH DEBUG] /preset 收到 auth_header={repr(auth_header[:60] if auth_header else '')}")
         return None
     token = auth_header[7:]
     # 复用 auth.py 的 _verify_token
