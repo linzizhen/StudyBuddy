@@ -89,24 +89,32 @@ class StudyPalAI:
     def _load_model_config(self):
         """从配置中加载模型信息"""
         # 优先使用用户自定义配置
-        if self.custom_config:
+        if self.custom_config and (self.custom_config.get("api_key") or self.custom_config.get("base_url")):
             self.provider = "openai"  # 自定义模型假定为 OpenAI 兼容格式
             self.model_name = self.custom_config.get("model", "")
             self.base_url = self.custom_config.get("base_url", "")
             self.model_api_key = self.custom_config.get("api_key", "")
-        # 其次使用预设模型
+        # 其次使用预设模型（含用户在 users.json 里选择的 ai_model_key）
         elif self.model_key and self.model_key in MODELS_CONFIG:
             config = MODELS_CONFIG[self.model_key]
             self.provider = config.get("provider", "openai")
             self.model_name = config.get("model", "llama-3.3-70b-versatile")
             self.base_url = config.get("base_url", "https://api.groq.com/openai/v1")
             self.model_api_key = config.get("api_key", "") or API_KEY
-        # 最后使用系统默认配置
+        # 最后：用户未指定模型，回退到 DEFAULT_MODEL_KEY 对应的预设
         else:
-            self.provider = "openai"
-            self.model_name = ai_config.default_model
-            self.base_url = ai_config.base_url
-            self.model_api_key = API_KEY
+            default_key = DEFAULT_MODEL_KEY if DEFAULT_MODEL_KEY in MODELS_CONFIG else None
+            if default_key:
+                config = MODELS_CONFIG[default_key]
+                self.provider = config.get("provider", "openai")
+                self.model_name = config.get("model", ai_config.default_model)
+                self.base_url = config.get("base_url", ai_config.base_url)
+                self.model_api_key = config.get("api_key", "") or API_KEY or ai_config.api_key
+            else:
+                self.provider = "openai"
+                self.model_name = ai_config.default_model
+                self.base_url = ai_config.base_url
+                self.model_api_key = API_KEY or ai_config.api_key
 
         self.timeout = AI_TIMEOUT
 
@@ -307,6 +315,9 @@ class StudyPalAI:
                 f"可以尝试切换到响应更快的模型，如 Groq Llama"
             )
         except Exception as e:
+            import traceback as _tb
+            print(f"[DEBUG-ASK] AI 调用失败: {type(e).__name__}: {e}", flush=True)
+            _tb.print_exc()
             raise Exception(f"AI 请求失败：{str(e)}")
 
     def ask_simple(self, question: str) -> str:

@@ -181,14 +181,31 @@ def test_model():
     """测试模型连接（未登录也能用：直接根据前端传入的 api_url/api_key/model 测试）"""
     import requests
     from config import AI_TIMEOUT
+    import traceback
 
-    data = request.json or {}
-    base_url = data.get("base_url", "").strip()
-    api_key = data.get("api_key", "").strip()
-    model = data.get("model", "").strip()
+    print(f"\n[DEBUG] === /api/ai-model/test Start ===", flush=True)
+    try:
+        data = request.json or {}
+        print(f"[DEBUG] raw payload keys: {list(data.keys())}", flush=True)
 
-    if not base_url or not api_key or not model:
-        return jsonify({"success": False, "error": "请填写完整的模型配置"}), 400
+        base_url = data.get("base_url", "").strip()
+        api_key = data.get("api_key", "").strip()
+        model = data.get("model", "").strip()
+        print(f"[DEBUG] base_url='{base_url}' model='{model}' key_len={len(api_key)}", flush=True)
+
+        # 关键修复：未提供 api_key 时，若用户已登录且保存过自定义模型，使用保存的 key
+        user = get_current_user()
+        if not api_key and user:
+            existing_cfg = user.get('ai_custom_config') or {}
+            if existing_cfg.get('api_key'):
+                api_key = existing_cfg['api_key']
+                base_url = base_url or existing_cfg.get('base_url', '')
+                model = model or existing_cfg.get('model', '')
+                print(f"[DEBUG] fallback to user's saved custom config, key_len={len(api_key)}", flush=True)
+
+        if not base_url or not api_key or not model:
+            print(f"[DEBUG] missing fields: url={bool(base_url)} key={bool(api_key)} model={bool(model)}", flush=True)
+            return jsonify({"success": False, "error": "请填写完整的模型配置"}), 400
 
     # 格式化 base_url
     if not base_url.startswith(("http://", "https://")):
@@ -215,12 +232,14 @@ def test_model():
 
     for endpoint in endpoints_to_try:
         try:
+            print(f"[DEBUG] POST {endpoint} model={model}", flush=True)
             response = requests.post(
                 endpoint,
                 json=test_payload,
                 headers=headers,
                 timeout=AI_TIMEOUT
             )
+            print(f"[DEBUG] <- {response.status_code} {response.text[:300]}", flush=True)
 
             if response.status_code == 200:
                 result = response.json()
@@ -260,10 +279,15 @@ def test_model():
                 return jsonify({"success": False, "error": f"请求失败 ({response.status_code}): {err}"}), 400
 
         except requests.exceptions.Timeout:
+            print(f"[DEBUG] timeout on {endpoint}", flush=True)
             return jsonify({"success": False, "error": "请求超时，请检查网络或更换 API 地址"}), 400
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
+            print(f"[DEBUG] connection error on {endpoint}: {e}", flush=True)
             return jsonify({"success": False, "error": "无法连接到服务器，请检查 API 地址是否正确"}), 400
         except Exception as e:
+            print(f"[DEBUG] exception on {endpoint}: {e}", flush=True)
+            traceback.print_exc()
             return jsonify({"success": False, "error": f"连接失败: {str(e)}"}), 400
 
+    print(f"[DEBUG] no endpoint matched, return 400", flush=True)
     return jsonify({"success": False, "error": "未找到有效的 API 端点，请确认 API 地址"}), 400

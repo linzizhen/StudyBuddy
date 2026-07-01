@@ -942,7 +942,15 @@ async function testAiConnection() {
   var key = (document.getElementById('ai-api-key') || {}).value || '';
   var baseUrl = (document.getElementById('ai-base-url') || {}).value || '';
   var model = (document.getElementById('ai-model-name') || {}).value || '';
-  if (!key || !baseUrl || !model) { showToast('请填写完整的自定义模型配置'); return; }
+  // 前端做轻校验：若三个字段都空，多半是预设模式或没填，给出明确提示
+  if (!baseUrl || !model) {
+    showToast('请先选择预设或填写自定义模型地址/模型名');
+    return;
+  }
+  if (!key) {
+    // key 为空时仍发送请求，由后端根据已登录用户回退到保存的自定义 key
+    console.log('[DEBUG] testAiConnection: api_key 为空，交给后端回退处理');
+  }
   showToast('正在测试连接...');
   try {
     var res = await fetch('/api/ai-model/test', {
@@ -952,7 +960,7 @@ async function testAiConnection() {
     });
     var data = await res.json();
     if (data.success) { showToast('连接成功！'); }
-    else { showToast('连接失败：' + (data.error || '未知错误')); }
+    else { showToast('连接失败：' + (data.error || ('HTTP ' + res.status))); }
   } catch(e) { showToast('测试失败：' + e.message); }
 }
 

@@ -139,7 +139,14 @@ def buddy_quick_chat():
     buddy_name = role.get('name', '小豆')
 
     try:
+        import traceback as _tb
+        print(f"\n[DEBUG] === /api/buddy/quick-chat Start ===", flush=True)
+        print(f"[DEBUG] user={bool(user)} buddy_id={buddy_id} explain_mode={explain_mode} msg_len={len(message)}", flush=True)
+
         ai = build_ai_from_user(user or {})
+        info = ai.get_current_model_info()
+        print(f"[DEBUG] resolved model: key={info.get('key')} name={info.get('name')} url={info.get('base_url')} key_len={len(ai.model_api_key)} provider={ai.provider}", flush=True)
+
         result = ai.ask(
             question=message,
             system_prompt=system_prompt,
@@ -154,6 +161,9 @@ def buddy_quick_chat():
             'used_model': ai.get_current_model_info().get('name', ''),
         })
     except Exception as e:
+        import traceback as _tb
+        print(f"[DEBUG-QUICK-CHAT] exception: {type(e).__name__}: {e}", flush=True)
+        _tb.print_exc()
         return jsonify({
             'success': False,
             'error': f'AI 调用失败：{str(e)}',
