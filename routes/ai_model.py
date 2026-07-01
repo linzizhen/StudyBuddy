@@ -9,6 +9,7 @@ StudyPal AI 模型配置路由
 from flask import Blueprint, jsonify, request, g
 from config import MODELS_CONFIG, DEFAULT_MODEL_KEY
 from src.auth.auth import AuthService
+import time
 
 ai_model_bp = Blueprint('ai_model', __name__, url_prefix='/api/ai-model')
 
@@ -17,15 +18,38 @@ ai_model_bp = Blueprint('ai_model', __name__, url_prefix='/api/ai-model')
 def _get_current_user():
     """从 Authorization 头解析用户，与 @auth_optional 等效"""
     auth_header = request.headers.get('Authorization', '')
-    print(f"[AUTH DEBUG] /preset 收到 auth_header={repr(auth_header[:60] if auth_header else '')}")
+    if not auth_header.startswith('Bearer '):
         return None
     token = auth_header[7:]
-    # 复用 auth.py 的 _verify_token
     from src.auth.auth import _verify_token
     user_id = _verify_token(token)
     if not user_id:
         return None
     return AuthService.get_user_by_id(user_id)
+
+
+def _get_or_create_guest_user():
+    """获取或创建游客用户（用于无登录保存）"""
+    from src.auth.auth import _load_users, _save_users
+    users = _load_users()
+    if users:
+        for user in users.values():
+            return user
+    import uuid
+    guest = {
+        'id': int(time.time()),
+        'email': 'local_guest@study',
+        'password_hash': '',
+        'nickname': '游客',
+        'token': '',
+        'ai_model_key': None,
+        'ai_custom_config': None,
+        'created_at': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'ai_calls': 0
+    }
+    users['local_guest@study'] = guest
+    _save_users(users)
+    return guest
 
 
 # ---------- 路由定义 ----------
@@ -83,10 +107,10 @@ def get_current_model():
 
 @ai_model_bp.route('/preset', methods=['POST'])
 def set_preset_model():
-    """切换到预设模型（未登录时仅提示，不写入）"""
+    """切换到预设模型（未登录时写入游客用户）"""
     user = _get_current_user()
     if not user:
-        return jsonify({"success": False, "error": "请先登录后再保存预设模型"}), 401
+        user = _get_or_create_guest_user()
 
     data = request.json or {}
     model_key = data.get("model_key", "")
@@ -109,10 +133,10 @@ def set_preset_model():
 
 @ai_model_bp.route('/custom', methods=['POST'])
 def set_custom_model():
-    """保存用户自定义模型配置（未登录时需要登录）"""
+    """保存用户自定义模型配置（未登录时写入游客用户）"""
     user = _get_current_user()
     if not user:
-        return jsonify({"success": False, "error": "请先登录后再保存自定义模型"}), 401
+        user = _get_or_create_guest_user()
 
     data = request.json or {}
 
@@ -167,7 +191,7 @@ def delete_custom_model():
     """删除用户自定义模型配置"""
     user = _get_current_user()
     if not user:
-        return jsonify({"success": False, "error": "请先登录后再操作"}), 401
+        user = _get_or_create_guest_user()
 
     AuthService.update_user(user['id'], {
         'ai_custom_config': None,
