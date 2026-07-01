@@ -8,7 +8,7 @@ StudyPal AI 模型配置路由
 
 from flask import Blueprint, jsonify, request
 from config import MODELS_CONFIG, DEFAULT_MODEL_KEY
-from src.auth.auth import auth_required, get_current_user, AuthService
+from src.auth.auth import auth_required, auth_optional, get_current_user, AuthService
 
 ai_model_bp = Blueprint('ai_model', __name__, url_prefix='/api/ai-model')
 
@@ -32,8 +32,8 @@ def get_preset_models():
     })
 
 
+@auth_optional
 @ai_model_bp.route('/current', methods=['GET'])
-@auth_required
 def get_current_model():
     """获取用户当前使用的模型配置"""
     user = get_current_user()
@@ -69,13 +69,13 @@ def get_current_model():
     })
 
 
+@auth_optional
 @ai_model_bp.route('/preset', methods=['POST'])
-@auth_required
 def set_preset_model():
-    """切换到预设模型"""
+    """切换到预设模型（未登录时仅提示，不写入）"""
     user = get_current_user()
     if not user:
-        return jsonify({"success": False, "error": "未登录"}), 401
+        return jsonify({"success": False, "error": "请先登录后再保存预设模型"}), 401
 
     data = request.json or {}
     model_key = data.get("model_key", "")
@@ -96,13 +96,13 @@ def set_preset_model():
     })
 
 
+@auth_optional
 @ai_model_bp.route('/custom', methods=['POST'])
-@auth_required
 def set_custom_model():
-    """保存用户自定义模型配置"""
+    """保存用户自定义模型配置（未登录时需要登录）"""
     user = get_current_user()
     if not user:
-        return jsonify({"success": False, "error": "未登录"}), 401
+        return jsonify({"success": False, "error": "请先登录后再保存自定义模型"}), 401
 
     data = request.json or {}
 
@@ -113,8 +113,6 @@ def set_custom_model():
 
     if not base_url:
         return jsonify({"success": False, "error": "API 地址不能为空"}), 400
-    if not api_key:
-        return jsonify({"success": False, "error": "API Key 不能为空"}), 400
     if not model:
         return jsonify({"success": False, "error": "模型名称不能为空"}), 400
 
@@ -127,6 +125,14 @@ def set_custom_model():
     # 移除 /v1 后缀（如果有），保留基础地址
     if "/v1" in base_url:
         base_url = base_url.split("/v1")[0]
+
+    # 关键修复：api_key 为空时保留旧的真实 key，避免前端误传脱敏的假 key 把真实 key 覆盖掉
+    if not api_key:
+        existing_cfg = user.get('ai_custom_config') or {}
+        api_key = existing_cfg.get('api_key', '')
+
+    if not api_key:
+        return jsonify({"success": False, "error": "API Key 不能为空（首次保存需要输入）"}), 400
 
     AuthService.update_user(user['id'], {
         'ai_custom_config': {
@@ -150,13 +156,13 @@ def set_custom_model():
     })
 
 
+@auth_optional
 @ai_model_bp.route('/custom', methods=['DELETE'])
-@auth_required
 def delete_custom_model():
     """删除用户自定义模型配置"""
     user = get_current_user()
     if not user:
-        return jsonify({"success": False, "error": "未登录"}), 401
+        return jsonify({"success": False, "error": "请先登录后再操作"}), 401
 
     AuthService.update_user(user['id'], {
         'ai_custom_config': None,
@@ -169,10 +175,10 @@ def delete_custom_model():
     })
 
 
+@auth_optional
 @ai_model_bp.route('/test', methods=['POST'])
-@auth_required
 def test_model():
-    """测试模型连接"""
+    """测试模型连接（未登录也能用：直接根据前端传入的 api_url/api_key/model 测试）"""
     import requests
     from config import AI_TIMEOUT
 
@@ -226,9 +232,26 @@ def test_model():
                     "test_reply": reply[:100]
                 })
             elif response.status_code == 401:
-                return jsonify({"success": False, "error": "API Key 无效，请检查"}), 400
+                return jsonify({"success": False, "error": "API Key 无效或已过期，请检查设置中的 API 密钥"}), 400
+            elif response.status_code == 403:
+                # 细化 403：尝试解析智谱等平台的 error.message
+                err_detail = ""
+                try:
+                    err_json = response.json()
+                    err_detail = (err_json.get("error", {}) or {}).get("message") or err_json.get("message") or ""
+                except Exception:
+                    err_detail = response.text[:200]
+                hint = (
+                    "权限被拒绝。可能原因：1) API Key 错误 2) 账户未开通该模型 3) 模型 ID 填写错误。"
+                    f" 详情：{err_detail}"
+                )
+                return jsonify({"success": False, "error": hint, "status": 403}), 400
+            elif response.status_code == 429:
+                return jsonify({"success": False, "error": "请求过于频繁，请稍后再试（HTTP 429）"}), 400
             elif response.status_code == 404:
                 continue  # 尝试下一个端点
+            elif response.status_code >= 500:
+                return jsonify({"success": False, "error": f"AI 服务器错误（HTTP {response.status_code}），请稍后再试"}), 400
             else:
                 try:
                     err = response.json().get("error", {}).get("message", response.text)

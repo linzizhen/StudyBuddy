@@ -10,6 +10,7 @@ StudyPal Web 应用入口 v3.1
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
+from jinja2 import BaseLoader, ChoiceLoader, TemplateNotFound
 import os
 import logging
 
@@ -22,6 +23,47 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+
+class _MultiEncodingLoader(BaseLoader):
+    """尝试 UTF-8 / UTF-16 LE/ BE / GBK 多种编码读取模板。"""
+
+    def __init__(self, searchpath):
+        self.searchpath = searchpath
+
+    def get_source(self, environment, name):
+        path = os.path.join(self.searchpath, name)
+        if not os.path.isfile(path):
+            raise TemplateNotFound(name)
+        with open(path, 'rb') as f:
+            raw = f.read()
+        if raw.startswith(b'\xef\xbb\xbf'):
+            text = raw[3:].decode('utf-8-sig')
+        elif raw.startswith(b'\xff\xfe'):
+            text = raw.decode('utf-16')
+        elif raw.startswith(b'\xfe\xff'):
+            text = raw.decode('utf-16')
+        elif raw.startswith(b'\xfe'):
+            text = raw.decode('utf-16')
+        else:
+            for enc in ('utf-8', 'gbk', 'gb2312'):
+                try:
+                    text = raw.decode(enc)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                text = raw.decode('utf-8', errors='replace')
+        return text, path, lambda: False
+
+
+# 替换 Jinja loader 以兼容历史多编码模板
+import flask.templating as _ft
+_orig_get_source = _ft._default_template_ctx_processor if hasattr(_ft, '_default_template_template_ctx_processor') else None
+# 简单做法：直接设置一个自定义 loader
+from jinja2 import FileSystemLoader
+_default_loader = FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates'))
+app.jinja_loader = ChoiceLoader([_MultiEncodingLoader(os.path.join(os.path.dirname(__file__), 'templates')), _default_loader])
 
 # 安全配置
 app.secret_key = os.getenv('SECRET_KEY') or os.urandom(32)
@@ -61,9 +103,19 @@ def register_blueprints(app):
 
 # ==================== 基础路由 ====================
 
+PAGE_ROUTES = ('/', '/dashboard', '/pomodoro', '/tasks', '/diary', '/buddy', '/stats', '/goal', '/settings')
+
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('dashboard.html')
+
+
+@app.route('/<path:page>')
+def page(page):
+    if page in PAGE_ROUTES or page in ('pomodoro', 'tasks', 'diary', 'buddy', 'stats', 'goal', 'settings', 'dashboard'):
+        return render_template('dashboard.html')
+    return not_found(None)
 
 
 @app.route('/login')
@@ -98,7 +150,7 @@ def health_check():
 def not_found(error):
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': '资源不存在'}), 404
-    return render_template('index.html')
+    return render_template('dashboard.html')
 
 
 @app.errorhandler(500)

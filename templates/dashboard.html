@@ -1,0 +1,866 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyPal</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <!-- ==================== 左侧导航栏 ==================== -->
+    <aside class="sidebar">
+        <!-- Logo -->
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">📚</div>
+                <div class="logo-text">
+                    <div class="logo-title">StudyPal</div>
+                    <div class="logo-subtitle">学习伴侣</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户信息 -->
+        <div class="user-info">
+            <div class="user-avatar">
+                <div class="user-avatar-img">❤️</div>
+                <span class="status-dot"></span>
+            </div>
+            <div class="user-meta">
+                <div class="user-name">学习战士 <span class="level-badge">Lv.1</span></div>
+                <div class="user-status">准备学习中~</div>
+            </div>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="nav-menu">
+            <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                <span class="nav-icon">📊</span>
+                <span class="nav-text">仪表盘</span>
+            </a>
+            <a href="#pomodoro" class="nav-item" data-section="pomodoro">
+                <span class="nav-icon">⏱️</span>
+                <span class="nav-text">番茄专注</span>
+            </a>
+            <a href="#tasks" class="nav-item" data-section="tasks">
+                <span class="nav-icon">✅</span>
+                <span class="nav-text">待办任务</span>
+            </a>
+            <a href="#diary" class="nav-item" data-section="diary">
+                <span class="nav-icon">📝</span>
+                <span class="nav-text">学习日记</span>
+            </a>
+            <a href="#buddy" class="nav-item" data-section="buddy">
+                <span class="nav-icon">💬</span>
+                <span class="nav-text">学习搭子</span>
+            </a>
+            <a href="#statistics" class="nav-item" data-section="statistics">
+                <span class="nav-icon">📈</span>
+                <span class="nav-text">数据统计</span>
+            </a>
+            <a href="#exam-goal" class="nav-item" data-section="exam-goal">
+                <span class="nav-icon">🎯</span>
+                <span class="nav-text">考研目标</span>
+            </a>
+            <a href="#settings" class="nav-item" data-section="settings">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-text">设置</span>
+            </a>
+        </nav>
+
+        <!-- 底部按钮 -->
+        <div class="sidebar-footer">
+            <button class="btn-primary btn-full">
+                <span class="play-icon">▶</span>
+                一键番茄
+            </button>
+        </div>
+    </aside>
+
+    <!-- ==================== 右侧边栏 ==================== -->
+    <aside class="right-sidebar">
+        <!-- 默认边栏：首页 -->
+        <div class="rs-default" id="rs-default">
+            <div class="card">
+                <div class="card-title">本周学习时长趋势</div>
+                <div class="chart-placeholder">
+                    <div class="empty-chart"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">今日待办</div>
+                <div class="empty-state" id="rs-todo-list">暂无待办任务</div>
+            </div>
+
+            <div class="card buddy-card">
+                <div class="buddy-header">
+                    <div class="buddy-avatar">🐾</div>
+                    <div class="buddy-info">
+                        <div class="buddy-name">小豆 <span class="online-badge">在线</span></div>
+                        <div class="buddy-status">休息中~</div>
+                    </div>
+                </div>
+                <button class="btn-primary btn-full">和搭子聊聊</button>
+            </div>
+
+            <div class="card tip-card">
+                <div class="tip-content">
+                    <span class="tip-icon">💡</span>
+                    <span class="tip-text">番茄工作法：专注25分钟，休息5分钟，效率翻倍！</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 考研目标边栏 -->
+        <div class="rs-exam-goal hidden" id="rs-exam-goal">
+            <div class="card">
+                <div class="card-title">距离考研初试</div>
+                <div class="countdown-big" id="rs-countdown-days">175</div>
+                <div class="countdown-unit-big">天</div>
+            </div>
+
+            <div class="card">
+                <div class="sidebar-actions">
+                    <button class="sidebar-btn" id="btn-theme-toggle">🌙 深色</button>
+                    <button class="sidebar-btn" id="btn-sidebar-settings">⚙️ 设置</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">各科学习进度</div>
+                <div class="empty-state" id="rs-exam-progress">暂无</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ==================== 中间主内容区 ==================== -->
+    <main class="main-content">
+
+        <!-- ---- 仪表盘页 ---- -->
+        <div class="page-section hidden" id="section-dashboard">
+            <div class="page-header">
+                <div>
+                    <div class="greeting" id="greeting-text">早上好，学习战士</div>
+                </div>
+                <button class="btn-primary" id="btn-start-study">开始学习</button>
+            </div>
+
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="今天想学点什么？" id="search-input">
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value" id="stat-hours">0.0</div>
+                    <div class="stat-label">学习时长(H)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="stat-pomodoros">0</div>
+                    <div class="stat-label">番茄钟(个)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value" id="stat-tasks">0</div>
+                    <div class="stat-label">完成任务(项)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">👤</div>
+                    <div class="stat-value" id="stat-days">1</div>
+                    <div class="stat-label">学习天数(天)</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-header-title">今日目标</span>
+                    <span class="streak-badge" id="streak-badge">1天连续</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 11%"></div>
+                </div>
+                <div class="progress-text" id="progress-text">11%</div>
+                <div class="goals-grid">
+                    <div class="goal-item">
+                        <div class="goal-label">学习时长</div>
+                        <div class="goal-value" id="goal-hours">0.0/2h</div>
+                    </div>
+                    <div class="goal-item">
+                        <div class="goal-label">番茄钟</div>
+                        <div class="goal-value" id="goal-pomodoros">0/6个</div>
+                    </div>
+                    <div class="goal-item">
+                        <div class="goal-label">任务完成</div>
+                        <div class="goal-value" id="goal-tasks">0/3项</div>
+                    </div>
+                    <div class="goal-item">
+                        <div class="goal-label">日记</div>
+                        <div class="goal-value" id="goal-diary">未记录</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <div class="quick-card" data-section="buddy">
+                    <div class="quick-icon">💬</div>
+                    <div class="quick-title">和搭子聊聊</div>
+                    <div class="quick-desc">AI智能陪伴</div>
+                    <span class="quick-arrow">→</span>
+                </div>
+                <div class="quick-card" data-section="diary">
+                    <div class="quick-icon">📝</div>
+                    <div class="quick-title">写日记</div>
+                    <div class="quick-desc">记录今日心情</div>
+                    <span class="quick-arrow">→</span>
+                </div>
+                <div class="quick-card" data-section="tasks">
+                    <div class="quick-icon">✅</div>
+                    <div class="quick-title">待办事项</div>
+                    <div class="quick-desc">今日任务清单</div>
+                    <span class="quick-arrow">→</span>
+                </div>
+            </div>
+
+            <div class="card exam-goal-preview">
+                <div class="card-header">
+                    <span class="card-header-title">🎯 考研目标</span>
+                    <button class="btn-text" data-section="exam-goal">编辑</button>
+                </div>
+                <div class="exam-goal-stats">
+                    <div class="exam-stat">
+                        <div class="exam-stat-icon">🎓</div>
+                        <div class="exam-stat-value" id="exam-school">--</div>
+                        <div class="exam-stat-label">目标院校</div>
+                    </div>
+                    <div class="exam-stat">
+                        <div class="exam-stat-icon">📚</div>
+                        <div class="exam-stat-value" id="exam-major">--</div>
+                        <div class="exam-stat-label">目标专业</div>
+                    </div>
+                    <div class="exam-stat">
+                        <div class="exam-stat-icon">⚡</div>
+                        <div class="exam-stat-value" id="exam-score">376 分</div>
+                        <div class="exam-stat-label">目标分数</div>
+                    </div>
+                    <div class="exam-stat">
+                        <div class="exam-stat-icon">📅</div>
+                        <div class="exam-stat-value" id="exam-days">175 天</div>
+                        <div class="exam-stat-label">剩余天数</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header-title">📋 今日待办</div>
+                <div class="todo-empty" id="dashboard-todo-list">今日任务都完成啦 🎉</div>
+            </div>
+        </div>
+
+        <!-- ---- 考研目标页 ---- -->
+        <div class="page-section hidden" id="section-exam-goal">
+            <div class="page-header">
+                <div class="page-title">
+                    <span class="title-icon">🎯</span>
+                    <span>考研目标</span>
+                </div>
+                <button class="btn-primary" id="btn-add-subject">+ 添加科目</button>
+            </div>
+
+            <div class="exam-countdown-card">
+                <div class="countdown-label">⏱️ 距离考研初试</div>
+                <div class="countdown-number" id="countdown-days">175</div>
+                <div class="countdown-unit">天</div>
+                <div class="countdown-date">2026年12月21日 - 12月22日</div>
+            </div>
+
+            <div class="two-column">
+                <div class="card">
+                    <div class="card-header-title">📋 各科学习进度</div>
+                    <div class="empty-state-large" id="subject-progress-list">暂无科目数据</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header-title">🏆 历年分数线</div>
+                    <div class="empty-state-large">暂无分数线数据</div>
+                    <div class="score-target">
+                        <div>目标分数 380 分</div>
+                        <div class="score-diff">比去年分数线高 <span class="highlight">+15分</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header-title">📅 重要节点</div>
+                <div class="timeline-list" id="timeline-list">
+                    <div class="timeline-item">
+                        <div class="timeline-name">考研初试</div>
+                        <div class="timeline-badge">175天</div>
+                        <div class="timeline-date">2026-12-21</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---- 番茄钟页 ---- -->
+        <div class="page-section hidden" id="section-pomodoro">
+            <div class="page-header">
+                <div class="page-title">
+                    <span class="title-icon">⏱️</span>
+                    <span>番茄专注</span>
+                </div>
+            </div>
+            <div class="pomo-center">
+                <div class="pomo-ring-wrap">
+                    <svg class="pomo-ring" width="200" height="200" viewBox="0 0 200 200">
+                        <circle cx="100" cy="100" r="90" fill="none" stroke-width="10" class="pomo-ring-bg"/>
+                        <circle cx="100" cy="100" r="90" fill="none" stroke-width="10" stroke-linecap="round" class="pomo-ring-fill" id="pomo-ring-fill"
+                            stroke-dasharray="565.48" stroke-dashoffset="0"/>
+                    </svg>
+                    <div class="pomo-time-display">
+                        <div class="pomo-time" id="pomo-time">25:00</div>
+                        <div class="pomo-status" id="pomo-status">准备开始</div>
+                    </div>
+                </div>
+                <div class="pomo-controls">
+                    <button class="btn-primary btn-lg" id="btn-pomo-toggle">开始</button>
+                    <button class="btn-ghost btn-lg" id="btn-pomo-reset">重置</button>
+                </div>
+                <div class="pomo-config">
+                    <label>专注时长(分钟): <span id="pomo-duration-text">25</span></label>
+                    <input type="range" min="5" max="60" step="5" value="25" id="pomo-duration-input">
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header-title">📋 今日完成记录</div>
+                <div class="empty-state" id="pomo-history">暂无完成记录</div>
+            </div>
+        </div>
+
+        <!-- ---- 待办任务页 ---- -->
+        <div class="page-section hidden" id="section-tasks">
+            <div class="page-header">
+                <div class="page-title">
+                    <span class="title-icon">✅</span>
+                    <span>待办任务</span>
+                </div>
+                <div class="badge-row">
+                    <span class="tag" id="tasks-pending-count">0 待完成</span>
+                    <span class="tag" id="tasks-completed-count">0 已完成</span>
+                </div>
+            </div>
+            <div class="add-task-bar card">
+                <input type="text" id="new-task-input" placeholder="添加新任务..." class="task-input">
+                <button class="btn-primary" id="btn-add-task">添加</button>
+            </div>
+            <div class="task-filter-tabs" id="task-filter-tabs">
+                <button class="filter-tab active" data-filter="all">全部</button>
+                <button class="filter-tab" data-filter="pending">待完成</button>
+                <button class="filter-tab" data-filter="completed">已完成</button>
+            </div>
+            <div class="task-list" id="task-list">
+                <div class="empty-state">暂无任务</div>
+            </div>
+        </div>
+
+        <!-- ---- 学习日记页 ---- -->
+        <div class="page-section hidden" id="section-diary">
+            <div class="page-header">
+                <div class="page-title">
+                    <span class="title-icon">📝</span>
+                    <span>学习日记</span>
+                </div>
+                <div class="diary-actions">
+                    <button class="btn-ghost" id="btn-diary-history">📋 历史记录</button>
+                    <button class="btn-primary" id="btn-save-diary">保存日记</button>
+                </div>
+            </div>
+            <div class="diary-editor card">
+                <input type="text" class="diary-title-input" id="diary-title" placeholder="给今天的日记起个标题..." maxlength="100">
+                <div class="diary-content" id="diary-content" contenteditable="true" placeholder="今天发生了什么？记录下你的学习收获..."></div>
+                <div class="diary-toolbar">
+                    <div class="mood-selector">
+                        <span class="mood-label">今日心情:</span>
+                        <button class="mood-btn selected" data-mood="great">😊</button>
+                        <button class="mood-btn" data-mood="good">😄</button>
+                        <button class="mood-btn" data-mood="okay">😐</button>
+                        <button class="mood-btn" data-mood="bad">😢</button>
+                        <button class="mood-btn" data-mood="terrible">😭</button>
+                    </div>
+                    <div class="diary-word-count" id="diary-word-count">0 字</div>
+                </div>
+            </div>
+            <div class="diary-tags-bar">
+                <input type="text" class="tag-input" id="tag-input" placeholder="添加标签，回车确认..." maxlength="12">
+                <div class="tag-list" id="tag-list"></div>
+            </div>
+        </div>
+
+        <!-- ---- 学习搭子页 ---- -->
+        <div class="page-section hidden" id="section-buddy">
+            <div class="buddy-layout">
+                <!-- 左侧：对话管理 -->
+                <aside class="buddy-left-sidebar">
+                    <button class="btn-new-conversation" id="btn-new-conversation"><span>+</span> 新对话</button>
+                    <div class="conversation-list" id="buddy-history-list">
+                        <div class="history-empty">加载中...</div>
+                    </div>
+                </aside>
+
+                <!-- 中间：聊天区 -->
+                <main class="buddy-chat-main">
+                    <!-- 头部 -->
+                    <div class="chat-header">
+                        <div class="chat-header-left">
+                            <div class="buddy-avatar-emoji" id="chat-buddy-avatar" style="background:#FFD93D;">🌸</div>
+                            <div class="buddy-header-info">
+                                <div class="buddy-header-name">
+                                    <span id="chat-buddy-name">小豆</span>
+                                    <span class="buddy-level-badge">Lv.1</span>
+                                </div>
+                                <div class="buddy-header-status">
+                                    <span class="status-dot online"></span>
+                                    <span id="chat-buddy-status">在线 · 温柔陪伴型</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-header-right">
+                            <button class="header-btn" title="历史记录" id="btn-chat-history">📋</button>
+                        </div>
+                    </div>
+
+                    <!-- 亲密度条 -->
+                    <div class="intimacy-bar">
+                        <div class="intimacy-info">
+                            <span class="intimacy-label">亲密度</span>
+                            <span class="intimacy-value">Lv.1</span>
+                        </div>
+                        <div class="intimacy-progress">
+                            <div class="intimacy-fill" id="intimacy-fill" style="width:0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- 消息区域 -->
+                    <div class="messages-container" id="buddy-messages">
+                        <div class="message message-buddy">
+                            <div class="message-avatar-emoji" style="background:#FFD93D;">🌸</div>
+                            <div class="message-content">
+                                <div class="message-author">小豆</div>
+                                <div class="message-bubble">嗨！我是小豆，你的学习搭子~ 🌟 有什么想聊的吗？</div>
+                                <div class="message-time">现在</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 快捷操作栏（只保留知识点讲解入口，其他移到右侧栏） -->
+                    <div class="quick-actions-bar">
+                        <button class="quick-chip" id="btn-open-explain-panel">📘 知识点讲解</button>
+                    </div>
+
+                    <!-- 输入区域 -->
+                    <div class="input-area">
+                        <div class="input-toolbar">
+                            <button class="input-tool" title="表情">😊</button>
+                            <button class="input-tool" title="图片">🖼️</button>
+                        </div>
+                        <div class="input-row">
+                            <textarea placeholder="和搭子聊聊，或输入知识点让搭子讲解..." id="buddy-input" rows="1"></textarea>
+                            <button class="btn-send" id="btn-send-message">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                            </button>
+                        </div>
+                        <div class="input-hint-row">按 Enter 发送 · Shift + Enter 换行</div>
+                    </div>
+
+                    <!-- 知识点讲解区（搭子专属加载动画 + 游戏 + 讲解） -->
+                    <div class="buddy-explain-section hidden" id="buddy-explain-section">
+                        <div class="explain-section-header">
+                            <span class="explain-section-title">📘 知识点讲解</span>
+                            <button class="header-btn" id="btn-close-explain" title="关闭">✕</button>
+                        </div>
+                        <div class="explain-input-row">
+                            <input type="text" id="explain-topic-input" placeholder="输入知识点，例如：一元二次方程求根公式" maxlength="200">
+                            <button class="btn-primary" id="btn-start-explain">开始讲解</button>
+                        </div>
+
+                        <!-- 加载区 -->
+                        <div class="explain-loading hidden" id="explain-loading">
+                            <div class="buddy-loader" id="buddy-loader-icon">
+                                <span class="buddy-loader-emoji" id="buddy-loader-emoji">🌸</span>
+                            </div>
+                            <div class="buddy-loader-text" id="buddy-loader-text">小豆正在浇灌知识花园...</div>
+                        </div>
+
+                        <!-- 结果区 -->
+                        <div class="explain-result hidden" id="explain-result">
+                            <div class="explain-game-card" id="explain-game-card">
+                                <div class="explain-card-label">🎮 闯关游戏</div>
+                                <div class="explain-card-content" id="explain-game-content"></div>
+                            </div>
+                            <div class="explain-text-card" id="explain-explain-card">
+                                <div class="explain-card-label">📖 知识点讲解</div>
+                                <div class="explain-card-content" id="explain-explain-content"></div>
+                            </div>
+                            <div class="explain-meta" id="explain-meta"></div>
+                        </div>
+                    </div>
+                </main>
+
+                <!-- 右侧：搭子侧栏（新顺序：状态 → 讲解模式 → 快捷功能 → 我的搭子 → 今日统计） -->
+                <aside class="buddy-right-sidebar">
+
+                    <!-- 1. 当前搭子状态卡 -->
+                    <div class="card buddy-status-card">
+                        <div class="buddy-status-header">
+                            <div class="buddy-status-avatar" id="profile-avatar" style="background:#FFD93D;">🌸</div>
+                            <div class="buddy-status-info">
+                                <div class="buddy-status-name" id="profile-name">小豆</div>
+                                <div class="buddy-status-type" id="profile-type">温柔陪伴型</div>
+                                <div class="buddy-status-level">Lv.<span id="profile-level">1</span></div>
+                            </div>
+                        </div>
+                        <div class="buddy-intimacy-bar">
+                            <div class="intimacy-label">亲密度</div>
+                            <div class="intimacy-progress">
+                                <div class="intimacy-fill" id="intimacy-fill" style="width: 20%"></div>
+                            </div>
+                            <div class="intimacy-level">Lv.<span id="intimacy-level">1</span></div>
+                        </div>
+                        <div class="buddy-status-badge" id="buddy-status-badge">在线</div>
+                    </div>
+
+                    <!-- 2. 讲解模式选择 -->
+                    <div class="card explain-mode-card">
+                        <div class="card-title">🎮 讲解模式</div>
+                        <div class="mode-list">
+                            <label class="mode-item">
+                                <input type="radio" name="explain-mode" value="auto" checked>
+                                <div class="mode-info">
+                                    <div class="mode-name">🧠 智能适配</div>
+                                    <div class="mode-desc">搭子自动选择最佳方式</div>
+                                </div>
+                            </label>
+                            <label class="mode-item">
+                                <input type="radio" name="explain-mode" value="game">
+                                <div class="mode-info">
+                                    <div class="mode-name">🎮 冒险探索</div>
+                                    <div class="mode-desc">游戏化讲解，趣味学习</div>
+                                </div>
+                            </label>
+                            <label class="mode-item">
+                                <input type="radio" name="explain-mode" value="speed">
+                                <div class="mode-info">
+                                    <div class="mode-name">📖 学霸速读</div>
+                                    <div class="mode-desc">直接讲解，高效获取</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3. 快捷功能 -->
+                    <div class="card quick-actions-card">
+                        <div class="card-title">🎯 快捷功能</div>
+                        <div class="quick-actions-grid">
+                            <button class="quick-action-btn" data-prompt="请帮我讲解一个知识点">
+                                <span class="qa-icon">📖</span>
+                                <span class="qa-text">知识点讲解</span>
+                            </button>
+                            <button class="quick-action-btn" data-prompt="请帮我制定学习计划">
+                                <span class="qa-icon">🎯</span>
+                                <span class="qa-text">学习计划</span>
+                            </button>
+                            <button class="quick-action-btn" data-prompt="请推荐学习方法">
+                                <span class="qa-icon">💡</span>
+                                <span class="qa-text">学习方法</span>
+                            </button>
+                            <button class="quick-action-btn" data-prompt="请生成学习报告">
+                                <span class="qa-icon">📊</span>
+                                <span class="qa-text">学习报告</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 4. 我的搭子列表 -->
+                    <div class="card my-buddies-card">
+                        <div class="card-title">👥 我的搭子</div>
+                        <div class="my-buddies-list" id="buddy-roster">
+                            <div class="my-buddy-item active" data-buddy="xiaodou">
+                                <div class="my-buddy-avatar" style="background:#FFD93D;">🌸</div>
+                                <div class="my-buddy-info">
+                                    <div class="my-buddy-name">小豆</div>
+                                    <div class="my-buddy-level">Lv.1</div>
+                                </div>
+                            </div>
+                            <div class="my-buddy-item" data-buddy="aran">
+                                <div class="my-buddy-avatar" style="background:#FF6B6B;">🔥</div>
+                                <div class="my-buddy-info">
+                                    <div class="my-buddy-name">阿燃</div>
+                                    <div class="my-buddy-level">Lv.1</div>
+                                </div>
+                            </div>
+                            <div class="my-buddy-item" data-buddy="xuejie">
+                                <div class="my-buddy-avatar" style="background:#4D96FF;">📚</div>
+                                <div class="my-buddy-info">
+                                    <div class="my-buddy-name">学姐</div>
+                                    <div class="my-buddy-level">Lv.1</div>
+                                </div>
+                            </div>
+                            <div class="my-buddy-item" data-buddy="xiaoye">
+                                <div class="my-buddy-avatar" style="background:#C9B1FF;">🌙</div>
+                                <div class="my-buddy-info">
+                                    <div class="my-buddy-name">小夜</div>
+                                    <div class="my-buddy-level">Lv.1</div>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-create-buddy" id="btn-open-buddy-designer-settings">+ 创建新搭子</button>
+                    </div>
+
+                    <!-- 5. 今日统计 -->
+                    <div class="card today-stats-card">
+                        <div class="card-title">📊 今日学习</div>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-hours">0h</div>
+                                <div class="stat-label">陪伴时长</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-chats">0</div>
+                                <div class="stat-label">对话次数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-knowledge">0</div>
+                                <div class="stat-label">知识点</div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ---- 数据统计页 ---- -->
+        <div class="page-section hidden" id="section-statistics">
+            <div class="page-header">
+                <div class="page-title">
+                    <span class="title-icon">📈</span>
+                    <span>数据统计</span>
+                </div>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-value" id="stats-hours">0.0</div>
+                    <div class="stat-label">本周学习(h)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-value" id="stats-streak">0</div>
+                    <div class="stat-label">连续学习(天)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-value" id="stats-total-pomo">0</div>
+                    <div class="stat-label">番茄钟总数(个)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-value" id="stats-completion">0%</div>
+                    <div class="stat-label">任务完成率</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header-title">📈 本周学习时长趋势</div>
+                <div class="empty-chart" id="stats-line-chart"></div>
+            </div>
+        </div>
+
+        <!-- ---- 设置页 ---- -->
+        <div class="page-section hidden" id="section-settings">
+            <div class="page-header">
+                <h1 class="page-title">⚙️ 设置</h1>
+            </div>
+
+            <!-- 用户设置 -->
+            <div class="card">
+                <div class="card-header-title">用户设置</div>
+                <div class="settings-list">
+                    <div class="setting-item">
+                        <span>每日学习目标（小时）</span>
+                        <input type="number" id="settings-hours-target" value="2" min="0.5" max="12" step="0.5">
+                    </div>
+                    <div class="setting-item">
+                        <span>每日番茄目标（个）</span>
+                        <input type="number" id="settings-pomo-target" value="6" min="1" max="20">
+                    </div>
+                    <div class="setting-item">
+                        <span>番茄专注时长（分钟）</span>
+                        <select id="settings-pomo-duration">
+                            <option value="25">25 分钟</option>
+                            <option value="30">30 分钟</option>
+                            <option value="45">45 分钟</option>
+                            <option value="60">60 分钟</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary mt-4" id="btn-save-settings">保存设置</button>
+                </div>
+            </div>
+
+            <!-- 搭子设计器 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-header-title">🎨 搭子设计器</span>
+                    <button class="btn-primary btn-sm" id="btn-open-buddy-designer">+ 创建新搭子</button>
+                </div>
+                <div class="buddy-designer-list" id="buddy-designer-list">
+                    <div class="designer-buddy-item" data-buddy="xiaodou">
+                        <div class="designer-buddy-avatar" style="background:#FFD93D;">🌸</div>
+                        <div class="designer-buddy-info">
+                            <div class="designer-buddy-name">小豆</div>
+                            <div class="designer-buddy-type">温柔陪伴型</div>
+                            <div class="designer-buddy-desc">像朋友一样陪伴你学习，给你温暖的鼓励</div>
+                        </div>
+                    </div>
+                    <div class="designer-buddy-item" data-buddy="aran">
+                        <div class="designer-buddy-avatar" style="background:#FF6B35;">🔥</div>
+                        <div class="designer-buddy-info">
+                            <div class="designer-buddy-name">阿燃</div>
+                            <div class="designer-buddy-type">热血激励型</div>
+                            <div class="designer-buddy-desc">充满激情，用热血鼓舞你冲刺目标</div>
+                        </div>
+                    </div>
+                    <div class="designer-buddy-item" data-buddy="xuejie">
+                        <div class="designer-buddy-avatar" style="background:#4D96FF;">📚</div>
+                        <div class="designer-buddy-info">
+                            <div class="designer-buddy-name">学姐</div>
+                            <div class="designer-buddy-type">学霸导师型</div>
+                            <div class="designer-buddy-desc">理性分析，给你最专业的学习建议</div>
+                        </div>
+                    </div>
+                    <div class="designer-buddy-item" data-buddy="xiaoye">
+                        <div class="designer-buddy-avatar" style="background:#C9B1FF;">🌙</div>
+                        <div class="designer-buddy-info">
+                            <div class="designer-buddy-name">小夜</div>
+                            <div class="designer-buddy-type">深夜倾听型</div>
+                            <div class="designer-buddy-desc">在你疲惫时倾听，给你安静的陪伴</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI配置 -->
+            <div class="card">
+                <div class="card-header-title">🤖 AI配置</div>
+                <div class="ai-config-form">
+                    <div class="setting-item">
+                        <span>预设模型</span>
+                        <select id="ai-preset-select">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div class="ai-divider">
+                        <span>或使用自定义模型</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>API 地址</span>
+                        <input type="text" id="ai-base-url" placeholder="如 https://open.bigmodel.cn/api/paas/v4/">
+                    </div>
+                    <div class="setting-item">
+                        <span>API 密钥</span>
+                        <input type="password" id="ai-api-key" placeholder="格式：sk-xxxxxxxxxxxxxxxx">
+                    </div>
+                    <div class="setting-item">
+                        <span>模型名称</span>
+                        <input type="text" id="ai-model-name" placeholder="如 glm-4-flash / gpt-4o-mini">
+                    </div>
+                    <div class="ai-config-actions">
+                        <button class="btn-secondary" id="btn-test-ai">测试连接</button>
+                        <button class="btn-primary" id="btn-save-ai">保存配置</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 账户状态 -->
+            <div class="card" id="account-status-card">
+                <div class="card-header-title">🔐 账户状态</div>
+                <div class="account-status-row" id="account-status-row">
+                    <div class="account-status-info">
+                        <div class="account-username" id="account-username">未登录</div>
+                        <div class="account-status-text" id="account-status-text">当前为游客模式，AI 配置仅保存在本浏览器</div>
+                    </div>
+                    <div class="account-status-actions">
+                        <button type="button" id="relogin-btn" class="btn-primary" style="display: inline-block;">登录 / 注册</button>
+                        <button type="button" id="logout-btn" class="btn-secondary" style="display: none;">退出登录</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 关于 -->
+            <div class="card">
+                <div class="card-header-title">关于</div>
+                <div class="about-info">
+                    <div class="about-logo">StudyPal</div>
+                    <div class="about-version">版本 1.0.0</div>
+                    <div class="about-desc">你的私人 AI 学习搭子 + 一站式学习管理工具</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搭子设计器弹窗 -->
+        <div class="modal hidden" id="buddy-designer-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modal-title">创建新搭子</h3>
+                    <button class="btn-close" id="btn-close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>头像</label>
+                        <div class="avatar-selector" id="avatar-selector">
+                            <div class="avatar-option selected" data-emoji="🌸" data-bg="#FFD93D">🌸</div>
+                            <div class="avatar-option" data-emoji="🔥" data-bg="#FF6B35">🔥</div>
+                            <div class="avatar-option" data-emoji="📚" data-bg="#4D96FF">📚</div>
+                            <div class="avatar-option" data-emoji="🌙" data-bg="#C9B1FF">🌙</div>
+                            <div class="avatar-option" data-emoji="🎯" data-bg="#6BCB77">🎯</div>
+                            <div class="avatar-option" data-emoji="💡" data-bg="#88E0EF">💡</div>
+                            <div class="avatar-option" data-emoji="🎨" data-bg="#FFB085">🎨</div>
+                            <div class="avatar-option" data-emoji="🔮" data-bg="#FF6B9D">🔮</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>名字</label>
+                        <input type="text" id="bd-name" placeholder="给搭子起个名字" maxlength="10">
+                    </div>
+                    <div class="form-group">
+                        <label>性格类型</label>
+                        <select id="bd-personality">
+                            <option value="warm">温暖陪伴型</option>
+                            <option value="passionate">热血激励型</option>
+                            <option value="rational">理性分析型</option>
+                            <option value="listener">深夜倾听型</option>
+                            <option value="humor">幽默风趣型</option>
+                            <option value="analyst">学霸导师型</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>说话风格描述</label>
+                        <textarea id="bd-desc" placeholder="描述这个搭子的说话风格，比如：温柔、鼓励、像大姐姐一样..." rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>专属开场白</label>
+                        <input type="text" id="bd-greeting" placeholder="嗨！我是你的学习搭子...">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" id="btn-cancel-buddy">取消</button>
+                    <button class="btn-primary" id="btn-save-buddy">保存搭子</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

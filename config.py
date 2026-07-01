@@ -105,6 +105,37 @@ MODELS_CONFIG = {
         "api_key": ""  # 需要从 https://openrouter.ai/keys 获取
     },
 
+    # ===== 智谱AI (Zhipu/GLM) - 国内免费推荐 =====
+    # 智谱开放平台：https://open.bigmodel.cn
+    "zhipu_glm4_flash": {
+        "name": "GLM-4-Flash（免费推荐）",
+        "model": "glm-4-flash",
+        "provider": "zhipu",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""  # 需要从 https://open.bigmodel.cn/usercenter/apikeys 获取
+    },
+    "zhipu_glm_z1_flash": {
+        "name": "GLM-Z1-Flash（推理/免费）",
+        "model": "glm-z1-flash",
+        "provider": "zhipu",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""
+    },
+    "zhipu_glm4": {
+        "name": "GLM-4（标准版）",
+        "model": "glm-4",
+        "provider": "zhipu",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""
+    },
+    "zhipu_glm4v": {
+        "name": "GLM-4V（多模态）",
+        "model": "glm-4v",
+        "provider": "zhipu",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key": ""
+    },
+
     # ===== Ollama 本地模型 =====
     "qwen3.5_9b": {
         "name": "Qwen3.5 9B (本地)",

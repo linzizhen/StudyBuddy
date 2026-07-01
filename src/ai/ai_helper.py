@@ -158,14 +158,20 @@ class StudyPalAI:
         return result.get("message", {}).get("content", "")
 
     def _call_openai_compatible(self, messages: List[Dict[str, str]]) -> str:
-        """调用 OpenAI 兼容 API（如 Groq、DeepSeek 等）"""
+        """调用 OpenAI 兼容 API（如 Groq、DeepSeek、智谱等）"""
+        # URL 兜底：智谱等需要 /v4 后缀的模型，自动补齐
+        base = (self.base_url or "").rstrip("/")
+        if "bigmodel.cn" in base and not base.endswith("/v4"):
+            base = base + "/v4"
+        chat_url = base + "/chat/completions"
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.model_api_key}"
         }
 
         response = requests.post(
-            f"{self.base_url}/chat/completions",
+            chat_url,
             json={
                 "model": self.model_name,
                 "messages": messages,
@@ -176,13 +182,63 @@ class StudyPalAI:
         )
 
         if response.status_code != 200:
-            error_detail = response.text
+            # 解析智谱等平台的 error.message
+            err_detail = ""
             try:
-                error_json = response.json()
-                error_detail = error_json.get("error", {}).get("message", error_detail)
-            except:
-                pass
-            raise Exception(f"API 调用失败（{response.status_code}）：{error_detail}")
+                ej = response.json()
+                if isinstance(ej, dict):
+                    err_obj = ej.get("error")
+                    if isinstance(err_obj, dict):
+                        err_detail = err_obj.get("message") or err_obj.get("code") or ""
+                    elif isinstance(err_obj, str):
+                        err_detail = err_obj
+                    if not err_detail:
+                        err_detail = ej.get("message") or ""
+            except Exception:
+                err_detail = response.text[:200]
+            err_detail = (err_detail or response.text[:200])[:300]
+            err_lower = err_detail.lower()
+
+            # 按状态码分类
+            if response.status_code == 401:
+                raise Exception(
+                    f"API_KEY_INVALID: API Key 无效或已过期，请检查设置中的 API 密钥。详情：{err_detail}"
+                )
+            elif response.status_code == 403:
+                # 智谱 403 典型原因：key 错误 / 模型未开通 / 额度用完
+                if "invalid api key" in err_lower or "authentication" in err_lower:
+                    raise Exception(
+                        f"AI_AUTH_403: API 密钥无效，请检查设置中的 API 密钥是否正确（注意大小写和前后空格）。详情：{err_detail}"
+                    )
+                elif ("quota" in err_lower or "limit" in err_lower or "exceeded" in err_lower
+                      or "balance" in err_lower):
+                    raise Exception(
+                        f"AI_AUTH_403: API 调用额度已用完或受限，请检查智谱账户余额。详情：{err_detail}"
+                    )
+                elif "model" in err_lower and ("not" in err_lower or "permission" in err_lower):
+                    raise Exception(
+                        f"AI_AUTH_403: 模型「{self.model_name}」未开通或无权限，请在智谱官网开通后重试。详情：{err_detail}"
+                    )
+                else:
+                    raise Exception(
+                        f"AI_AUTH_403: 权限被拒绝（可能：密钥错误 / 模型未开通 / 账户异常）。详情：{err_detail}"
+                    )
+            elif response.status_code == 429:
+                raise Exception(
+                    f"AI_RATE_LIMIT: 请求过于频繁（HTTP 429），请稍后再试。详情：{err_detail}"
+                )
+            elif response.status_code == 404:
+                raise Exception(
+                    f"AI_NOT_FOUND: API 地址或模型不存在（HTTP 404），请检查配置。当前 URL：{chat_url}"
+                )
+            elif response.status_code >= 500:
+                raise Exception(
+                    f"AI_SERVER_ERROR: AI 服务端错误（HTTP {response.status_code}），请稍后重试。详情：{err_detail}"
+                )
+            else:
+                raise Exception(
+                    f"API 调用失败（HTTP {response.status_code}）：{err_detail}"
+                )
 
         result = response.json()
         return result.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -406,6 +462,40 @@ def get_available_models() -> Dict[str, Dict]:
 def get_current_model() -> Dict[str, str]:
     """获取当前使用的模型信息"""
     return get_ai_instance().get_current_model_info()
+
+
+def build_ai_from_user(user: dict) -> "StudyPalAI":
+    """根据用户字典（来自 AuthService）构造 AI 实例
+
+    优先级：ai_custom_config > ai_model_key > 环境默认
+    """
+    custom_config = None
+    model_key = None
+    if user:
+        if user.get("ai_custom_config"):
+            custom_config = user.get("ai_custom_config")
+        else:
+            model_key = user.get("ai_model_key")
+    return StudyPalAI(model_key=model_key, custom_config=custom_config)
+
+
+def ask_ai_for_user(user: dict, question: str, system_prompt: str = None,
+                    conversation_id: str = None, save_to_history: bool = False) -> Dict:
+    """使用指定用户的模型配置调用 AI
+
+    user: AuthService 返回的用户 dict（含 ai_custom_config/ai_model_key）
+    question: 用户问题
+    system_prompt: 可选自定义系统提示
+    conversation_id: 可选对话 ID
+    save_to_history: 是否保存（讲解类场景一般不保存到聊天历史）
+    """
+    ai = build_ai_from_user(user)
+    return ai.ask(
+        question=question,
+        conversation_id=conversation_id,
+        system_prompt=system_prompt,
+        save_to_history=save_to_history,
+    )
 
 
 # ==================== 测试代码 ====================

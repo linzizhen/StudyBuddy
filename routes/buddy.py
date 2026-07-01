@@ -43,11 +43,9 @@ def get_buddy_status():
     })
 
 
-@auth_required
-@ai_limit_required
 @buddy_bp.route('/chat', methods=['POST'])
 def buddy_chat():
-    """搭子对话"""
+    """搭子对话（无需登录，用用户配置或默认配置）"""
     user = get_current_user()
 
     data = request.json or {}
@@ -58,10 +56,14 @@ def buddy_chat():
         return jsonify({'success': False, 'error': '消息不能为空'}), 400
 
     buddy = get_user_buddy()
-    result = buddy.chat(message, conversation_id)
+    # 已登录则增加 AI 调用计数（轻量防护）
+    if user is not None and hasattr(user, 'increment_ai_calls'):
+        try:
+            user.increment_ai_calls()
+        except Exception:
+            pass
 
-    # 增加AI调用计数
-    user.increment_ai_calls()
+    result = buddy.chat(message, conversation_id)
 
     return jsonify({
         'success': True,
@@ -72,6 +74,91 @@ def buddy_chat():
         'emotion_desc': result.get('emotion_desc', ''),
         'suggestions': result.get('suggestions', [])
     })
+
+
+# ========== 搭子轻量聊天（无需登录，读取当前用户的 AI 配置） ==========
+
+BUDDY_QUICK_SYSTEM = {
+    "xiaodou": (
+        "你是「小豆」，温柔陪伴型学习搭子。语气温暖、可爱、像邻家妹妹，"
+        "常用 🌸🌱✨ 等花朵类 emoji。回答前先共情，再给建议。"
+        "回复尽量在 200 字以内。"
+    ),
+    "aran": (
+        "你是「阿燃」，热血激励型学习搭子。语气激情、像运动队长，"
+        "常用 ⚡🔥💪 等战斗 emoji，常用「冲」「干」「就完事了」等口头禅。"
+        "回复尽量在 200 字以内。"
+    ),
+    "senior": (
+        "你是「学姐」，学霸导师型学习搭子。冷静理性、结构化输出、"
+        "考试导向。可使用 1./2./3. 等编号，常用 📚✅🧪 等学术 emoji。"
+        "回复尽量在 200 字以内。"
+    ),
+    "xiaoye": (
+        "你是「小夜」，深夜倾听型学习搭子。温柔安静、治愈不 push、"
+        "循序渐进、情绪安抚优先。常用 🌙⭐🌌 等夜空 emoji。"
+        "回复尽量在 200 字以内。"
+    ),
+    # 前端会用 xuejie 作为 key
+    "xuejie": (
+        "你是「学姐」，学霸导师型学习搭子。冷静理性、结构化输出、"
+        "考试导向。可使用 1./2./3. 等编号，常用 📚✅🧪 等学术 emoji。"
+        "回复尽量在 200 字以内。"
+    ),
+}
+
+
+@buddy_bp.route('/quick-chat', methods=['POST'])
+def buddy_quick_chat():
+    """搭子轻量聊天（无需登录），读取当前用户已配置的 AI 模型。
+
+    请求: { "buddy_id": "xiaodou", "message": "...", "explain_mode": "auto|game|speed" }
+    返回: { "success": true, "reply": "...", "buddy_id", "buddy_name", "used_model" }
+    """
+    from src.ai.ai_helper import build_ai_from_user
+    from src.buddy.buddy_roles import BUDDY_ROLES
+
+    user = get_current_user()
+    data = request.json or {}
+    buddy_id = (data.get('buddy_id') or 'xiaodou').strip()
+    message = (data.get('message') or '').strip()
+    explain_mode = (data.get('explain_mode') or 'auto').strip()
+
+    if not message:
+        return jsonify({'success': False, 'error': '消息不能为空'}), 400
+
+    system_prompt = BUDDY_QUICK_SYSTEM.get(buddy_id) or BUDDY_QUICK_SYSTEM['xiaodou']
+
+    # 根据讲解模式追加系统提示
+    if explain_mode == 'game':
+        system_prompt += "\n\n【当前模式：冒险探索】请用游戏化的方式回应：可以先抛出一个互动小问题，再给出鼓励。"
+    elif explain_mode == 'speed':
+        system_prompt += "\n\n【当前模式：学霸速读】请直接、高效、结构化地回答，少寒暄多干货。"
+
+    role = BUDDY_ROLES.get(buddy_id) or BUDDY_ROLES.get('xiaodou') or {}
+    buddy_name = role.get('name', '小豆')
+
+    try:
+        ai = build_ai_from_user(user or {})
+        result = ai.ask(
+            question=message,
+            system_prompt=system_prompt,
+            save_to_history=False,
+        )
+        reply = (result.get('answer') or '').strip()
+        return jsonify({
+            'success': True,
+            'reply': reply[:4000],
+            'buddy_id': buddy_id,
+            'buddy_name': buddy_name,
+            'used_model': ai.get_current_model_info().get('name', ''),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'AI 调用失败：{str(e)}',
+            'tip': '请检查「设置 → AI 配置」中的 API 地址、密钥、模型名是否正确'
+        }), 500
 
 
 @auth_required
@@ -282,3 +369,205 @@ def get_buddy_level():
         'success': True,
         'level': level_info
     })
+
+
+# ========== 知识点讲解 ==========
+
+@buddy_bp.route('/explain', methods=['POST'])
+def buddy_explain():
+    """知识点讲解：基于当前搭子角色调用 AI 模型"""
+    from src.ai.prompt_templates import get_buddy_explain_prompt, parse_explain_response
+    from src.ai.ai_helper import build_ai_from_user
+    from src.buddy.buddy_roles import BUDDY_ROLES
+
+    data = request.json or {}
+    topic = (data.get('topic') or '').strip()
+    role_id = (data.get('buddy_id') or 'xiaodou').strip()
+
+    if not topic:
+        return jsonify({'success': False, 'error': '请输入要讲解的知识点'}), 400
+
+    # 兼容前端会传的 xuejie → senior
+    role_alias = {
+        'xuejie': 'senior',
+        'xiaodou': 'xiaodou',
+        'aran': 'aran',
+        'xiaoye': 'xiaoye',
+    }
+    role_id = role_alias.get(role_id, role_id)
+
+    # 获取当前用户（如果登录了）
+    user = get_current_user()
+
+    # 获取角色信息（默认给一个）
+    role = BUDDY_ROLES.get(role_id) or BUDDY_ROLES.get('xiaodou') or {}
+    role_name = role.get('name', '小豆')
+    role_emoji = role.get('emoji', '🌸')
+
+    # 取系统提示词
+    system_prompt = get_buddy_explain_prompt(role_id)
+
+    # 用户问题
+    user_question = f"请帮我讲解这个知识点：{topic}\n（请严格按照 ---GAME_START---/---GAME_END---/---EXPLAIN_START---/---EXPLAIN_END--- 标记输出）"
+
+    try:
+        # 关键：用用户的 ai_custom_config / ai_model_key，无登录则用默认
+        ai = build_ai_from_user(user or {})
+        result = ai.ask(
+            question=user_question,
+            system_prompt=system_prompt,
+            save_to_history=False,
+        )
+        raw = (result.get('answer') or '').strip()
+        parsed = parse_explain_response(raw)
+
+        # 限制长度（避免前端爆栈）
+        parsed["game"] = (parsed.get("game") or "")[:4000]
+        parsed["explain"] = (parsed.get("explain") or "")[:4000]
+
+        return jsonify({
+            'success': True,
+            'buddy_id': role_id,
+            'buddy_name': role_name,
+            'buddy_emoji': role_emoji,
+            'topic': topic,
+            'game': parsed.get('game', ''),
+            'explain': parsed.get('explain', ''),
+            'used_model': ai.get_current_model_info().get('name', ''),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'AI 调用失败：{str(e)}',
+            'tip': '请检查「设置 → AI 配置」中的 API 地址、密钥、模型名是否正确'
+        }), 500
+
+
+# ========== 历史对话（需登录） ==========
+
+def _ensure_history_list(user: dict):
+    if not isinstance(user, dict):
+        return []
+    hist = user.get('buddy_conversations_history')
+    if not isinstance(hist, list):
+        hist = []
+        user['buddy_conversations_history'] = hist
+    return hist
+
+
+@buddy_bp.route('/conversations', methods=['GET'])
+@auth_required
+def list_conversations():
+    """获取当前用户的历史对话列表"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    hist = _ensure_history_list(user)
+    hist_sorted = sorted(hist, key=lambda x: x.get('updated_at', ''), reverse=True)
+    return jsonify({'success': True, 'conversations': hist_sorted})
+
+
+@buddy_bp.route('/conversation', methods=['POST'])
+@auth_required
+def save_conversation():
+    """保存当前对话到历史（追加到末尾，只保留最近 20 条）"""
+    import uuid
+    from datetime import datetime
+    from src.auth.auth import _load_users, _save_users
+
+    user = get_current_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    data = request.json or {}
+    buddy_id = (data.get('buddy_id') or '').strip()
+    messages = data.get('messages') or []
+
+    if not buddy_id:
+        return jsonify({'success': False, 'error': 'buddy_id 不能为空'}), 400
+    if not isinstance(messages, list) or len(messages) < 2:
+        return jsonify({'success': False, 'error': '对话内容太少，无需保存'}), 400
+
+    users = _load_users()
+    user_dict = None
+    for v in users.values():
+        if v.get('id') == user.get('id'):
+            user_dict = v
+            break
+    if not user_dict:
+        return jsonify({'success': False, 'error': '用户不存在'}), 404
+
+    hist = _ensure_history_list(user_dict)
+
+    preview = ''
+    for m in messages:
+        if m.get('sender') == 'user':
+            preview = (m.get('text') or '')[:30]
+            break
+    if not preview:
+        preview = '新对话'
+
+    from src.buddy.buddy_roles import BUDDY_ROLES
+    role = BUDDY_ROLES.get(buddy_id) or {}
+
+    conv = {
+        'id': 'conv_' + uuid.uuid4().hex[:10],
+        'buddy_id': buddy_id,
+        'buddy_name': role.get('name', buddy_id),
+        'buddy_avatar': role.get('emoji', '🤖'),
+        'preview': preview,
+        'message_count': len(messages),
+        'created_at': datetime.now().isoformat(),
+        'updated_at': datetime.now().isoformat(),
+        'messages': messages,
+    }
+    hist.append(conv)
+    if len(hist) > 20:
+        hist[:] = hist[-20:]
+    _save_users(users)
+
+    return jsonify({'success': True, 'conversation': conv})
+
+
+@buddy_bp.route('/conversation/<conv_id>', methods=['GET'])
+@auth_required
+def get_conversation(conv_id):
+    """获取某条历史对话详情"""
+    user = get_current_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    hist = _ensure_history_list(user)
+    conv = next((c for c in hist if c.get('id') == conv_id), None)
+    if not conv:
+        return jsonify({'success': False, 'error': '对话不存在'}), 404
+    return jsonify({'success': True, 'conversation': conv})
+
+
+@buddy_bp.route('/conversation/<conv_id>', methods=['DELETE'])
+@auth_required
+def delete_conversation(conv_id):
+    """删除某条历史对话"""
+    from src.auth.auth import _load_users, _save_users
+
+    user = get_current_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+
+    users = _load_users()
+    user_dict = None
+    for v in users.values():
+        if v.get('id') == user.get('id'):
+            user_dict = v
+            break
+    if not user_dict:
+        return jsonify({'success': False, 'error': '用户不存在'}), 404
+
+    hist = _ensure_history_list(user_dict)
+    before = len(hist)
+    user_dict['buddy_conversations_history'] = [c for c in hist if c.get('id') != conv_id]
+    if len(user_dict['buddy_conversations_history']) == before:
+        return jsonify({'success': False, 'error': '对话不存在'}), 404
+    _save_users(users)
+    return jsonify({'success': True, 'message': '已删除'})
