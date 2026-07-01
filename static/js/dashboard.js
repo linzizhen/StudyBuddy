@@ -668,12 +668,32 @@ function initChat() {
   });
 
   // 右侧栏快捷功能按钮（知识点讲解 / 学习计划 / 学习方法 / 学习报告）
+  // 改为展开游戏化讲解面板，而非走普通聊天
   document.querySelectorAll(".quick-action-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       var prompt = (btn.dataset.prompt || "").trim();
-      if (prompt && input) {
-        input.value = prompt;
-        sendMessage();
+      var requestType = (btn.dataset.requestType || "topic").trim();
+
+      var panel = document.getElementById("buddy-explain-section");
+      var topicInput = document.getElementById("explain-topic-input");
+      var startBtn = document.getElementById("btn-start-explain");
+
+      // 展开面板
+      if (panel) panel.classList.remove("hidden");
+      if (topicInput) {
+        topicInput.value = prompt.replace(/^(请帮我|请生成)/, "").replace(/^(讲解|制定|推荐|生成)/, "");
+        topicInput.focus();
+      }
+
+      // 如果有 startBtn，说明已绑定 startExplain 逻辑
+      // 按钮会读取当前 request_type（通过 hidden input），直接点它
+      // 更新 requestType 供 startExplain 读取
+      if (typeof _pendingRequestType !== "undefined") {
+        _pendingRequestType = requestType;
+      }
+      // 触发一次讲解（自动从 input 取值）
+      if (startBtn) {
+        setTimeout(function() { startExplain(requestType); }, 50);
       }
     });
   });
@@ -1086,11 +1106,12 @@ function initBuddyExplain() {
       // 展开讲解区前，先把当前搭子的主题 class 同步上去
       applyBuddyTheme(currentBuddy || 'xiaodou');
       panel.classList.remove('hidden');
+      _pendingRequestType = 'topic';
       if (topicInput) topicInput.focus();
     });
   }
   if (closeBtn) closeBtn.addEventListener('click', closePanel);
-  if (startBtn) startBtn.addEventListener('click', startExplain);
+  if (startBtn) startBtn.addEventListener('click', function(e) { startExplain('topic'); });
   if (topicInput) {
     topicInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -1161,17 +1182,32 @@ function showGameContent(roleId, data) {
   if (lr) lr.classList.add('hidden');
   if (rr) rr.classList.remove('hidden');
 
+  var gameCard = document.getElementById('explain-game-card');
   var gameEl = document.getElementById('explain-game-content');
+  var explainCard = document.getElementById('explain-explain-card');
   var explainEl = document.getElementById('explain-explain-content');
   var metaEl = document.getElementById('explain-meta');
+
+  var cardLabel = data.card_label || '📖 知识点讲解';
+  var gameLabel = '🎮 闯关游戏';
+  var explainLabel = cardLabel;
+
+  if (gameCard) {
+    var labelEl = gameCard.querySelector('.explain-card-label');
+    if (labelEl) labelEl.textContent = gameLabel;
+  }
+  if (explainCard) {
+    var labelEl2 = explainCard.querySelector('.explain-card-label');
+    if (labelEl2) labelEl2.textContent = explainLabel;
+  }
 
   if (gameEl) {
     gameEl.innerHTML = (data.game && data.game.trim())
       ? formatExplainText(data.game)
-      : '<div class="explain-empty">这一关搭子没生成游戏剧情，但知识点讲解已经在下方啦 ✨</div>';
+      : '<div class="explain-empty">这一关搭子没生成游戏剧情，内容在下方啦 ✨</div>';
   }
   if (explainEl) {
-    explainEl.innerHTML = formatExplainText(data.explain || '搭子这一轮没有生成讲解内容，请换个知识点试试~');
+    explainEl.innerHTML = formatExplainText(data.explain || '搭子这一轮没有生成内容，请换个试试~');
   }
   if (metaEl) {
     var usedModel = data.used_model || '默认模型';
@@ -1195,19 +1231,22 @@ function formatExplainText(text) {
   }).join('');
 }
 
-async function startExplain() {
+var _pendingRequestType = 'topic';
+
+async function startExplain(requestType) {
   var topicInput = document.getElementById('explain-topic-input');
   var startBtn = document.getElementById('btn-start-explain');
   if (!topicInput) return;
 
   var topic = (topicInput.value || '').trim();
   if (!topic) {
-    showToast('请先输入要讲解的知识点');
+    showToast('请先输入内容');
     topicInput.focus();
     return;
   }
 
   var roleId = (typeof currentBuddy !== 'undefined' && currentBuddy) ? currentBuddy : 'xiaodou';
+  var reqType = requestType || _pendingRequestType || 'topic';
 
   if (startBtn) startBtn.disabled = true;
   showExplainLoading(roleId);
@@ -1216,15 +1255,14 @@ async function startExplain() {
     var res = await fetch('/api/buddy/explain', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ buddy_id: roleId, topic: topic })
+      body: JSON.stringify({ buddy_id: roleId, topic: topic, request_type: reqType })
     });
-    var data = await res.json();
-    if (data && data.success) {
-      showGameContent(roleId, data);
+    var respData = await res.json();
+    if (respData && respData.success) {
+      showGameContent(roleId, respData);
     } else {
-      var err = (data && (data.error || data.tip)) || '讲解失败，请稍后重试';
+      var err = (respData && (respData.error || respData.tip)) || '讲解失败，请稍后重试';
       showToast(err);
-      // 回退关闭加载态让用户重试
       var lr = document.getElementById('explain-loading');
       if (lr) lr.classList.add('hidden');
     }

@@ -400,7 +400,7 @@ def get_buddy_level():
 
 @buddy_bp.route('/explain', methods=['POST'])
 def buddy_explain():
-    """知识点讲解：基于当前搭子角色调用 AI 模型"""
+    """游戏化讲解：知识点 / 学习计划 / 学习方法"""
     from src.ai.prompt_templates import get_buddy_explain_prompt, parse_explain_response
     from src.ai.ai_helper import build_ai_from_user
     from src.buddy.buddy_roles import BUDDY_ROLES
@@ -408,9 +408,10 @@ def buddy_explain():
     data = request.json or {}
     topic = (data.get('topic') or '').strip()
     role_id = (data.get('buddy_id') or 'xiaodou').strip()
+    request_type = (data.get('request_type') or 'topic').strip()  # topic | plan | method
 
     if not topic:
-        return jsonify({'success': False, 'error': '请输入要讲解的知识点'}), 400
+        return jsonify({'success': False, 'error': '请输入内容'}), 400
 
     # 兼容前端会传的 xuejie → senior
     role_alias = {
@@ -429,14 +430,25 @@ def buddy_explain():
     role_name = role.get('name', '小豆')
     role_emoji = role.get('emoji', '🌸')
 
-    # 取系统提示词
-    system_prompt = get_buddy_explain_prompt(role_id)
+    # 取系统提示词（plan/method 用通用模板，否则用搭子专属游戏化模板）
+    system_prompt = get_buddy_explain_prompt(role_id, request_type)
 
-    # 用户问题
-    user_question = f"请帮我讲解这个知识点：{topic}\n（请严格按照 ---GAME_START---/---GAME_END---/---EXPLAIN_START---/---EXPLAIN_END--- 标记输出）"
+    # 根据 request_type 生成不同的用户问题
+    question_templates = {
+        'plan': f"请帮我制定学习计划：{topic}（请严格按照 ---GAME_START---/---GAME_END---/---EXPLAIN_START---/---EXPLAIN_END--- 标记输出）",
+        'method': f"请帮我推荐学习方法：{topic}（请严格按照 ---GAME_START---/---GAME_END---/---EXPLAIN_START---/---EXPLAIN_END--- 标记输出）",
+    }
+    user_question = question_templates.get(request_type,
+        f"请帮我讲解这个知识点：{topic}（请严格按照 ---GAME_START---/---GAME_END---/---EXPLAIN_START---/---EXPLAIN_END--- 标记输出）")
+
+    # card 标签（用于前端区分类型）
+    card_labels = {
+        'plan': '🎯 学习计划',
+        'method': '💡 学习方法',
+    }
+    card_label = card_labels.get(request_type, '📖 知识点讲解')
 
     try:
-        # 关键：用用户的 ai_custom_config / ai_model_key，无登录则用默认
         ai = build_ai_from_user(user or {})
         result = ai.ask(
             question=user_question,
@@ -446,7 +458,6 @@ def buddy_explain():
         raw = (result.get('answer') or '').strip()
         parsed = parse_explain_response(raw)
 
-        # 限制长度（避免前端爆栈）
         parsed["game"] = (parsed.get("game") or "")[:4000]
         parsed["explain"] = (parsed.get("explain") or "")[:4000]
 
@@ -456,6 +467,8 @@ def buddy_explain():
             'buddy_name': role_name,
             'buddy_emoji': role_emoji,
             'topic': topic,
+            'request_type': request_type,
+            'card_label': card_label,
             'game': parsed.get('game', ''),
             'explain': parsed.get('explain', ''),
             'used_model': ai.get_current_model_info().get('name', ''),
