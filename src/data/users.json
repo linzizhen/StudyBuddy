@@ -22,9 +22,11 @@
     "current_streak": 0,
     "longest_streak": 0,
     "created_at": "2026-05-25T09:15:56.675392",
-    "last_active": "2026-07-01T09:46:11.877607",
+    "last_active": "2026-07-01T11:07:02.637110",
     "is_active": true,
-    "is_admin": false
+    "is_admin": false,
+    "ai_model_key": "zhipu_glm4_flash",
+    "ai_custom_config": null
   },
   "autotest_fix@local.test": {
     "id": 2,
