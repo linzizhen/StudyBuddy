@@ -35,6 +35,8 @@ function clearAuth() {
   window.__SP_FETCH_PATCHED__ = true;
   var original = window.fetch ? window.fetch.bind(window) : null;
   if (!original) return;
+  // 暴露原生 fetch，供需要"绕过 401 拦截"的特定场景（如保存配置）使用
+  window.__SP_ORIGINAL_FETCH__ = original;
 
   // 仅在已登录（有 token 缓存）时才拦截 401 自动跳转
   // 避免未登录用户的 API 请求被无限循环跳登录页
@@ -969,28 +971,37 @@ async function saveAiConfig() {
   var baseUrl = (document.getElementById('ai-base-url') || {}).value || '';
   var apiKey = (document.getElementById('ai-api-key') || {}).value || '';
   var modelName = (document.getElementById('ai-model-name') || {}).value || '';
+  // 关键修复：保存接口必须带 Authorization 头（与 GET 不同），用原 fetch 绕开全局 401 拦截器
+  var rawFetch = window.__SP_ORIGINAL_FETCH__ || window.fetch.bind(window);
+  var authHeaders = { 'Content-Type': 'application/json' };
+  var tk = getToken();
+  if (tk) authHeaders['Authorization'] = 'Bearer ' + tk;
   showToast('正在保存...');
   try {
     if (preset) {
-      var res = await fetch('/api/ai-model/preset', {
+      var res = await rawFetch('/api/ai-model/preset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({ model_key: preset })
       });
       var data = await res.json();
       if (data.success) { showToast('预设模型已切换'); return; }
+      showToast('保存失败：' + (data.error || ('HTTP ' + res.status)));
+      return;
     }
     if (baseUrl && apiKey && modelName) {
-      var res = await fetch('/api/ai-model/custom', {
+      var res = await rawFetch('/api/ai-model/custom', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({ base_url: baseUrl, api_key: apiKey, model: modelName })
       });
       var data = await res.json();
       if (data.success) { showToast('自定义模型已保存'); return; }
+      showToast('保存失败：' + (data.error || ('HTTP ' + res.status)));
+      return;
     }
     showToast('请选择预设或填写自定义模型');
-  } catch(e) { showToast('保存失败'); }
+  } catch(e) { showToast('保存失败：' + e.message); }
 }
 
 // ============================================================
