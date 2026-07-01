@@ -117,8 +117,17 @@ def buddy_quick_chat():
     """
     from src.ai.ai_helper import build_ai_from_user
     from src.buddy.buddy_roles import BUDDY_ROLES
+    from src.auth.auth import _load_users
 
     user = get_current_user()
+    # 无登录时 fallback 到 users.json 第一个用户，确保能读到其 AI 配置
+    if not user:
+        try:
+            users = _load_users() or {}
+            if users:
+                user = next(iter(users.values()))
+        except Exception:
+            user = None
     data = request.json or {}
     buddy_id = (data.get('buddy_id') or 'xiaodou').strip()
     message = (data.get('message') or '').strip()
@@ -164,10 +173,16 @@ def buddy_quick_chat():
         import traceback as _tb
         print(f"[DEBUG-QUICK-CHAT] exception: {type(e).__name__}: {e}", flush=True)
         _tb.print_exc()
+        # 区分配置问题和网络/代理问题
+        err_str = str(e)
+        if 'ProxyError' in err_str or 'SSLError' in err_str or 'SSL' in err_str or 'ConnectionError' in err_str or '无法连接' in err_str:
+            tip = '网络/SSL 错误，请检查代理设置、网络通畅、SSL 配置，或关闭窗口的代理插件后重试'
+        else:
+            tip = '请检查「设置 → AI 配置」中的 API 地址、密钥、模型名是否正确'
         return jsonify({
             'success': False,
-            'error': f'AI 调用失败：{str(e)}',
-            'tip': '请检查「设置 → AI 配置」中的 API 地址、密钥、模型名是否正确'
+            'error': f'AI 调用失败：{err_str}',
+            'tip': tip
         }), 500
 
 

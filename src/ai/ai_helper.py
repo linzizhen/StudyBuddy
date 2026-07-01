@@ -306,7 +306,7 @@ class StudyPalAI:
         except requests.exceptions.ConnectionError:
             raise Exception(
                 f"无法连接到 AI 服务：{self.base_url}\n"
-                f"请检查网络连接，或确认 API 配置是否正确（当前使用：{self.model_key}）"
+                f"请检查网络连接，或确认 API 配置是否正确（当前使用：{self.model_name or self.model_key}）"
             )
         except requests.exceptions.Timeout:
             raise Exception(
