@@ -1088,6 +1088,27 @@ body {
   50%      { opacity: 1; transform: scale(1.1);  text-shadow: 0 0 22px rgba(255,255,255,1), 0 0 6px rgba(180,160,255,.8); }
 }
 
+/* 戏精 · 快乐喜剧厂 */
+.buddy-theme-xj .buddy-loader { background: #FFF8DC; border-color: #FFD93D; }
+.buddy-theme-xj .buddy-loader-emoji {
+  animation: xj-wiggle .6s ease-in-out infinite;
+}
+@keyframes xj-wiggle {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  50%      { transform: rotate(8deg)  scale(1.15); }
+}
+
+/* 阿正 · 数据驾驶舱 */
+.buddy-theme-azheng .buddy-loader { background: #ECEFF3; border-color: #8E9AAF; }
+.buddy-theme-azheng .buddy-loader-emoji {
+  animation: azheng-spin 1.8s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(108, 122, 137, .6));
+}
+@keyframes azheng-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* 结果区 */
 .explain-result { display: flex; flex-direction: column; gap: 10px; }
 .explain-result.hidden { display: none; }
@@ -1104,6 +1125,10 @@ body {
 .buddy-theme-xiaoye .explain-game-card  { background: #181531; color: #E7E2FF; border-color: #4F4380; }
 .buddy-theme-xiaoye .explain-text-card  { background: #14112A; color: #E7E2FF; border-color: #4F4380; }
 .buddy-theme-xiaoye .explain-empty      { color: #C8BFFF; }
+.buddy-theme-xj .explain-game-card      { background: #FFFBEA; }
+.buddy-theme-xj .explain-text-card      { background: #FFFAF0; }
+.buddy-theme-azheng .explain-game-card  { background: #F4F6F8; border-color: #C5CCD3; }
+.buddy-theme-azheng .explain-text-card  { background: #F8F9FB; border-color: #D5DBE0; }
 
 .explain-card-label { font-size: 12px; color: #8C8C8C; margin-bottom: 6px; font-weight: 500; }
 .buddy-theme-xiaoye .explain-card-label { color: #BFB6DD; }

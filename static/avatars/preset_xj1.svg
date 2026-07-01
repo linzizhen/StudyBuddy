@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="bg-xj" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE56B"/>
+      <stop offset="100%" stop-color="#F2A93B"/>
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="url(#bg-xj)"/>
+  <text x="60" y="78" text-anchor="middle" font-size="64" font-family="Segoe UI Emoji,Apple Color Emoji,sans-serif"><­</text>
+</svg>

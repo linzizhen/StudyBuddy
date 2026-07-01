@@ -1071,15 +1071,21 @@ var EXPLAIN_LOADER_WORDS = {
   xiaodou: ['小豆正在浇灌知识花园...', '花瓣慢慢展开...', '为你种下一颗种子...', '风里飘来花香...'],
   aran:    ['阿燃正在点燃竞技场！', '燃烧吧小宇宙！', '准备战斗！', '能量正在汇聚...'],
   senior:  ['学姐调整显微镜...', '记录实验数据...', '正在分析实验结果...', '实验报告生成中...'],
-  xiaoye:  ['小夜仰望星空...', '月光慢慢亮起...', '星星正在连线...', '夜风送来灵感...']
+  xiaoye:  ['小夜仰望星空...', '月光慢慢亮起...', '星星正在连线...', '夜风送来灵感...'],
+  xj:      ['戏精正在抖段子...', '笑料加载中...', '麦克风调音完毕...', '快乐即将到达战场...'],
+  azheng:  ['阿正启动数据仪表盘...', '采集样本中...', '逻辑链校验中...', '输出结论渲染中...']
 };
 
 var EXPLAIN_ROLE_THEME = {
   xiaodou: { cls: 'buddy-theme-xiaodou', emoji: '🌸' },
   aran:    { cls: 'buddy-theme-aran',    emoji: '⚡' },
   senior:  { cls: 'buddy-theme-senior',  emoji: '📚' },
-  xiaoye:  { cls: 'buddy-theme-xiaoye',  emoji: '🌙' }
+  xiaoye:  { cls: 'buddy-theme-xiaoye',  emoji: '🌙' },
+  xj:      { cls: 'buddy-theme-xj',      emoji: '🎭' },
+  azheng:  { cls: 'buddy-theme-azheng',  emoji: '🤖' }
 };
+
+var BUDDY_THEME_CLASSES = ['buddy-theme-xiaodou','buddy-theme-aran','buddy-theme-senior','buddy-theme-xiaoye','buddy-theme-xj','buddy-theme-azheng'];
 
 var _explainLoaderTimer = null;
 
@@ -1137,16 +1143,12 @@ function applyBuddyTheme(buddyId) {
   var section = document.getElementById('buddy-explain-section');
 
   if (loaderIcon) {
-    ['buddy-theme-xiaodou','buddy-theme-aran','buddy-theme-senior','buddy-theme-xiaoye'].forEach(function(c){
-      loaderIcon.classList.remove(c);
-    });
+    BUDDY_THEME_CLASSES.forEach(function(c){ loaderIcon.classList.remove(c); });
     loaderIcon.classList.add(theme.cls);
   }
   if (loaderEmoji) loaderEmoji.textContent = theme.emoji;
   if (section) {
-    ['buddy-theme-xiaodou','buddy-theme-aran','buddy-theme-senior','buddy-theme-xiaoye'].forEach(function(c){
-      section.classList.remove(c);
-    });
+    BUDDY_THEME_CLASSES.forEach(function(c){ section.classList.remove(c); });
     section.classList.add(theme.cls);
   }
 }
